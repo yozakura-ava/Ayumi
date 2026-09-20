@@ -10,4 +10,4 @@
 # Pin: duckdb 1.5.4 (the version installed during the spike).
 # Upgrade deliberately — DuckDB API has been stable across 0.x/1.x.
 
-duckdb==1.5.4
+duckdb==1.5.5
