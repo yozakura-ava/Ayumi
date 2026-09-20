@@ -17,5 +17,5 @@ pyyaml>=6.0.3
 pytest-memray>=1.9.0
 pytz>=2024.1
 hmmlearn>=0.3.1
-psutil>=6.0
+psutil>=7.2.2
 pytest-timeout>=2.3.1
