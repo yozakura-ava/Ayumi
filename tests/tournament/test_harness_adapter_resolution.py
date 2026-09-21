@@ -323,15 +323,15 @@ def test_strategy_sources_unmodified_against_base_commit() -> None:
     ``origin/main`` HEAD (the canonical base) so the assertion holds
     even after we create feature branches.
     """
-    base_sha = subprocess.run(
-        ["git", "rev-parse", "origin/main"],  # noqa: S607, S603
+    base_sha = subprocess.run(  # noqa: S603
+        ["git", "rev-parse", "origin/main"],  # noqa: S607
         cwd=Path.cwd(),
         capture_output=True,
         text=True,
         check=True,
     ).stdout.strip()
 
-    diff_out = subprocess.run(
+    diff_out = subprocess.run(  # noqa: S603
         ["git", "diff", "--name-only", base_sha, "HEAD", "--", "src/forex-bot/strategies/"],  # noqa: S607, S603
         cwd=Path.cwd(),
         capture_output=True,
