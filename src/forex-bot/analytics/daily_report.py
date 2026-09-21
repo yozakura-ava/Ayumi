@@ -210,8 +210,17 @@ class DailyAnalytics:
 #   - trade log:      logs/trades.jsonl
 #   - reports root:   data/forex/equity_reports/
 # Both can be overridden via CLI flags for forward-test isolation.
+#
+# Resolution order (regression guard, card df5435e5):
+#   1. $AYUMI_ROOT env var if set and non-empty (operator override).
+#   2. File-relative parents[3] (analytics/daily_report.py → project root).
+# Never produces a literal "$"-containing path — fixes 2026-09-20 env-var
+# regression where unset $AYUMI_ROOT became Path("$AYUMI_ROOT") and writes
+# landed at <cwd>/$AYUMI_ROOT/data/forex/equity_reports/.
 
-DEFAULT_PROJECT_ROOT = Path("$AYUMI_ROOT")
+DEFAULT_PROJECT_ROOT = Path(
+    os.environ.get("AYUMI_ROOT") or Path(__file__).resolve().parents[3]
+)
 
 
 def _resolve_runtime_identity() -> tuple[int, int, str, str] | None:
@@ -266,6 +275,15 @@ def _self_heal_ownership(path: Path) -> None:
 def _resolve_paths(args: argparse.Namespace) -> tuple[Path, Path, Path]:
     """Return (project_root, trade_log, daily_report_path)."""
     project_root = Path(args.project_root).resolve() if args.project_root else DEFAULT_PROJECT_ROOT
+    # Regression guard (card df5435e5): fail-fast if a literal "$" sentinel
+    # leaked into the path. Means $AYUMI_ROOT was set to a string containing
+    # "$" or DEFAULT_PROJECT_ROOT computation fell through.
+    if "$" in str(project_root):
+        raise RuntimeError(
+            f"project_root contains unexpanded env var sentinel: {project_root!r}. "
+            "Set AYUMI_ROOT to an absolute path, or unset it for the "
+            "file-relative fallback (parents[3])."
+        )
     trade_log = Path(args.trade_log) if args.trade_log else project_root / "logs" / "trades.jsonl"
     reports_root = Path(args.reports_root) if args.reports_root else project_root / "data" / "forex" / "equity_reports"
     return project_root, trade_log, reports_root
@@ -289,7 +307,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--project-root",
         default=None,
-        help="Project root used to resolve defaults (default: $AYUMI_ROOT).",
+        help="Project root used to resolve defaults (default: $AYUMI_ROOT env var, else file-relative parents[3]).",
     )
     parser.add_argument(
         "--reports-root",
