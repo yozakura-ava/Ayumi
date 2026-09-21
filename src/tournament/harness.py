@@ -25,6 +25,7 @@ adding one line here, not editing strategy code.
 
 from __future__ import annotations
 
+import inspect
 import logging
 import os
 import shutil
@@ -128,7 +129,52 @@ def _build_strategy_instance(strategy_id: str, symbol: str | None = None):
         from strategies.srmr_plus import SRMRPlusConfig
 
         return cls(config=SRMRPlusConfig(symbol=symbol))
-    return cls(config=None)
+
+    # Card 9e9aaf30 (adapter fix): strategies in ``STRATEGY_CLASS_MAP`` use
+    # heterogeneous constructor shapes — some accept ``config=``, some take
+    # positional kwargs (donchian/ATR/MA trio), some take a single
+    # ``mr_config``/``ict_config`` pair, and at least one (TTCXAUUSDStrategy)
+    # takes no args at all.  The previous blanket ``cls(config=None)`` raised
+    # ``TypeError`` for 5 of 17 strategies; the tournament loop swallowed
+    # that into ``skipped: True`` so 12 strategies never ran.
+    #
+    # We now inspect the class ``__init__`` signature and call accordingly.
+    # Constraint (AC2): strategy sources stay UNMODIFIED — this is the only
+    # place where the cross-strategy shape mismatch is reconciled.
+    try:
+        init_sig = inspect.signature(cls.__init__)
+    except (TypeError, ValueError):
+        # Built-in / C-implemented __init__ (rare in this registry); fall
+        # back to a no-arg call so we don't pass an unexpected kwarg.
+        return cls()
+
+    params = init_sig.parameters
+    # Drop the implicit ``self`` parameter.
+    has_config_kwarg = "config" in params
+    has_any_non_self_kwarg = any(
+        name != "self"
+        and p.kind in (
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            inspect.Parameter.KEYWORD_ONLY,
+        )
+        for name, p in params.items()
+    )
+
+    if has_config_kwarg:
+        # Shape A/B/F: strategies that accept ``config=``. Pass None so the
+        # strategy's own defaults apply (matches pre-fix behavior for the
+        # srmr_plus / bb_rsi_reversion / donchian_atr_trend_v2 / v1 paths
+        # which used ``cls(config=None)`` successfully).
+        return cls(config=None)
+    if has_any_non_self_kwarg:
+        # Shape C/D: positional/kw-only args but no ``config=``. Construct
+        # with no args so each strategy's own defaults are used; this is the
+        # safest additive change — we never invent config values the
+        # strategy author did not specify.
+        return cls()
+    # Shape E: no-arg constructors (e.g. TTCXAUUSDStrategy monkey-patches
+    # module-level constants in its module body, then constructs trivially).
+    return cls()
 
 
 class TournamentEmptyWindow(Exception):
@@ -549,7 +595,16 @@ def _extract_signals_from_strategy(
     from core.types import Bar, MarketState, TradeDirection
 
     strategy = _build_strategy_instance(strategy_id, symbol=symbol)
-    strategy.initialize({})
+    # Card 9e9aaf30 (adapter fix): only ISignalStrategy-style strategies
+    # expose ``initialize``/``shutdown``. Non-ISignalStrategy strategies
+    # (donchian_atr_trend_v1, killzone_momentum, london_breakout_retest,
+    # momentum_m15, session_range_mean_reversion, volatility_regime_breakout,
+    # volatility_squeeze, and the momentum trio) take all their config in
+    # ``__init__`` and have no onboarding lifecycle.  Guarding with
+    # ``hasattr`` keeps the harness's adapter uniform without forcing a
+    # shape into the strategy sources.
+    if hasattr(strategy, "initialize") and callable(strategy.initialize):
+        strategy.initialize({})
 
     bars_window: list[Bar] = []
     signals: list[tuple[int, float, float, float]] = []
@@ -601,7 +656,8 @@ def _extract_signals_from_strategy(
                     len(signals),
                 )
     finally:
-        strategy.shutdown()
+        if hasattr(strategy, "shutdown") and callable(strategy.shutdown):
+            strategy.shutdown()
 
     return signals
 
