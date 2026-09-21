@@ -589,8 +589,28 @@ def _extract_signals_from_strategy(
     direction)``.  ``direction`` is +1 for LONG, -1 for SHORT.
 
     No trades are placed; this is purely a signal-extraction pass.  The
-    actual trade simulation runs separately so the caller can compare
+    actual trade simulation runs separatey so the caller can compare
     signal frequency to trade outcome.
+
+    Card b1bb93e8 — the dominant O(N²) hot path was the harness-side
+    list-copy of ``bars_window`` when constructing ``MarketState``;
+    each bar's ``MarketState(bars=list(bars_window))`` was O(N), so
+    across N bars the harness did N²/2 list copies.  Verified by
+    grep across ``src/forex-bot/strategies/*.py``: zero strategies
+    mutate ``state.bars`` (no append/extend/insert/remove/pop/clear/
+    __setitem__); passing the live ``bars_window`` reference is
+    therefore safe and turns the harness from O(N²) to O(N) without
+    any strategy-source change.
+
+    The strategies' own indicator walks (ATR / RSI / ADX / EMA in
+    each strategy's evaluate()) were already O(period) per call; the
+    list-copy in MarketState was the dominant O(N²) component, not
+    the indicators.  See ``tests/tournament/test_indicator_cache.py``
+    for the indicator-cache module preserved as a future-useful
+    additive library (NOT loaded by the harness in this iteration
+    because the list-copy fix alone was sufficient and the cache
+    introduced equivalence-drift risk across heterogeneous
+    implementations).
     """
     from core.types import Bar, MarketState, TradeDirection
 
@@ -629,10 +649,20 @@ def _extract_signals_from_strategy(
                 spread_pips=float(it_spread[i]),
             )
             bars_window.append(bar)
+            # Card b1bb93e8: skip the O(N) list-copy of `bars_window`
+            # when constructing ``MarketState``.  The strategies
+            # read but never mutate ``state.bars`` (verified by
+            # grep across ``src/forex-bot/strategies/*.py``: zero
+            # append/extend/insert/remove/pop/clear/__setitem__
+            # operations on ``state.bars``); passing the live list
+            # is therefore safe and turns the harness from O(N²)
+            # (cumulative list-copy across N bars) to O(N).  This
+            # is the dominant O(N²) bottleneck — the indicator walks
+            # in the strategies are already O(period) per call.
             if len(bars_window) < 30:
                 continue  # warm-up
 
-            state = MarketState(bars=list(bars_window))
+            state = MarketState(bars=bars_window)
             signal = strategy.evaluate(state)
             if signal is not None and signal.direction in (
                 TradeDirection.LONG,
