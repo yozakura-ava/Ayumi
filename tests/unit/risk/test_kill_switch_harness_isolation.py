@@ -112,13 +112,16 @@ class TestIsProductionStateDir:
         # 2026-09-08 regression hit.
         assert _is_production_state_dir(Path(DEFAULT_STATE_DIR)) is True
 
-    def test_relative_path_in_cwd_is_production(self, monkeypatch, tmp_path):
+    def test_relative_path_in_cwd_is_production(self, monkeypatch):
         # If the harness CWD is somewhere outside tmp (e.g. /home/.../Ayumi),
-        # ``data/kill_switches`` is a production path.
-        monkeypatch.chdir(tmp_path)
-        # tmp_path IS under tmp — so this would actually NOT be production.
-        # Use a separate non-tmp dir to simulate the bug.
-        non_tmp = Path("$AYUMI_ROOT/data/kill_switches")
+        # a relative "data/kill_switches" resolves to a production path.
+        # Use the real repo root as the non-tmp CWD (card efec4ac4: the old
+        # fixture passed the literal relative string "$AYUMI_ROOT/data/...",
+        # which resolved under the tmp_path CWD and trivially passed the
+        # tmp-prefix check — the env var was never expanded).
+        repo_root = Path(__file__).resolve().parents[3]
+        monkeypatch.chdir(repo_root)
+        non_tmp = Path("data/kill_switches")
         assert _is_production_state_dir(non_tmp) is True
 
     def test_explicit_temp_subdir_is_not_production(self):
