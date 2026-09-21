@@ -39,14 +39,12 @@ from __future__ import annotations
 import inspect
 import subprocess
 from pathlib import Path
-from typing import Callable
 
 import pytest
 
 from tournament import STRATEGY_CLASS_MAP
 from tournament import harness as harness_module
 from tournament.harness import _build_strategy_instance
-
 
 # ── Reference fixtures ───────────────────────────────────────────────────────
 
@@ -192,12 +190,11 @@ def test_extract_signals_does_not_call_initialize_when_absent(monkeypatch: pytes
     exposes ``evaluate`` but NOT ``initialize`` or ``shutdown``.  The
     extract function must not raise ``AttributeError``.
     """
-    from dataclasses import dataclass, field
+    from dataclasses import dataclass
     from typing import Optional
 
     import pandas as pd
-
-    from core.types import Bar, MarketState, StrategySignal, TradeDirection
+    from core.types import MarketState, StrategySignal
 
     @dataclass
     class _StubStrategy:
@@ -254,7 +251,7 @@ def test_extract_signals_calls_initialize_when_present(monkeypatch: pytest.Monke
 
     init_calls: list[dict] = []
 
-    from core.types import Bar, MarketState, StrategySignal
+    from core.types import MarketState
 
     class _RecordingStrategy:
         def __init__(self) -> None:
@@ -327,7 +324,7 @@ def test_strategy_sources_unmodified_against_base_commit() -> None:
     even after we create feature branches.
     """
     base_sha = subprocess.run(
-        ["git", "rev-parse", "origin/main"],
+        ["git", "rev-parse", "origin/main"],  # noqa: S607, S603
         cwd=Path.cwd(),
         capture_output=True,
         text=True,
@@ -335,7 +332,7 @@ def test_strategy_sources_unmodified_against_base_commit() -> None:
     ).stdout.strip()
 
     diff_out = subprocess.run(
-        ["git", "diff", "--name-only", base_sha, "HEAD", "--", "src/forex-bot/strategies/"],
+        ["git", "diff", "--name-only", base_sha, "HEAD", "--", "src/forex-bot/strategies/"],  # noqa: S607, S603
         cwd=Path.cwd(),
         capture_output=True,
         text=True,
