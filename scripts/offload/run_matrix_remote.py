@@ -336,36 +336,35 @@ def _run_one_cell(
             )
 
             try:
-                if isinstance(transport, JobDirBundleTransport):
-                    # Jobdir wire: push_bundle expects the per-cell job
-                    # descriptor JSON (basename = cell_id), NOT the bundle
-                    # directory. Write it, hash it, and let the transport
-                    # pre-flight that hash.
-                    descriptor = {
-                        "schema_version": 1,
-                        "cell_id": cid,
-                        "seed": cid,
-                        "run_id": args.run_id,
-                        "strategy": strategy,
-                        "symbol": symbol,
-                        "timeframe": timeframe,
-                        "git_sha": git_sha,
-                        "env_lock_hash": env_lock_hash_val,
-                        "data_db_path": args.data_db_path,
-                        "data_db_sha": args.data_db_sha,
-                    }
-                    descriptor_path = cell_out / f"{cid}.json"
-                    descriptor_path.parent.mkdir(parents=True, exist_ok=True)
-                    descriptor_path.write_text(
-                        json.dumps(descriptor, indent=2, sort_keys=True)
-                    )
-                    push_path: Path = descriptor_path
-                    push_sha = hashlib.sha256(
-                        push_path.read_bytes()
-                    ).hexdigest()
-                else:
-                    push_path = bundle_path
-                    push_sha = bundle_sha
+                # Card 475cfe82 AC1+AC2 fix: ALWAYS write a per-cell
+                # descriptor file and use it as push_path. Pre-fix bug:
+                # the if/else selected ``bundle_path`` (the scripts/offload
+                # DIRECTORY) for non-jobdir transports, which then crashed
+                # inside push_bundle's _sha256_file with IsADirectoryError.
+                # The descriptor file is the contract for every transport;
+                # the ABC _require_bundle_file guard rejects any directory.
+                descriptor = {
+                    "schema_version": 1,
+                    "cell_id": cid,
+                    "seed": cid,
+                    "run_id": args.run_id,
+                    "strategy": strategy,
+                    "symbol": symbol,
+                    "timeframe": timeframe,
+                    "git_sha": git_sha,
+                    "env_lock_hash": env_lock_hash_val,
+                    "data_db_path": args.data_db_path,
+                    "data_db_sha": args.data_db_sha,
+                }
+                descriptor_path = cell_out / f"{cid}.json"
+                descriptor_path.parent.mkdir(parents=True, exist_ok=True)
+                descriptor_path.write_text(
+                    json.dumps(descriptor, indent=2, sort_keys=True)
+                )
+                push_path: Path = descriptor_path
+                push_sha = hashlib.sha256(
+                    push_path.read_bytes()
+                ).hexdigest()
                 worker_cell = transport.push_bundle(
                     args.run_id, push_path, push_sha
                 )
@@ -395,7 +394,26 @@ def _run_one_cell(
                     extra={"bundle_size_exceeded": "see worker logs"},
                 )
                 raise
-            except BundleTransportError:
+            except BundleTransportError as exc:
+                # Card 475cfe82 AC3 fix: JobDirBundleTransport MUST NEVER
+                # fall back to local execution (Craig directive 6f2cd97b —
+                # design constraint). Loud-abort: audit row + re-raise so
+                # the matrix cannot silently report 'complete' with v1_stub
+                # scorecards when --transport=jobdir was explicit.
+                if isinstance(transport, JobDirBundleTransport):
+                    append_skipped(
+                        output_root,
+                        cell_id=cid,
+                        reason="jobdir_push_failed",
+                        expected="successful push_bundle on ava-worker",
+                        actual=str(exc)[:200],
+                        extra={
+                            "transport": "jobdir",
+                            "git_sha": git_sha,
+                            "env_lock_hash": env_lock_hash_val,
+                        },
+                    )
+                    raise
                 # Q2 unreachable → local-fallback score + flag (Q7 observability,
                 # not control flow). Same scorecard schema as the remote path.
                 m.local_fallback = True
@@ -425,6 +443,12 @@ def _run_one_cell(
                 # (see card 79793579). With the local-node path the wire no
                 # longer fails, so the post-push SHA check must consult the
                 # same value the transport's own pre-flight checked.
+                #
+                # Card 475cfe82 fix: post-fix we push a per-cell descriptor
+                # FILE (not the bundle directory) for every transport, so
+                # ``push_sha`` is always the descriptor SHA. Compare
+                # against push_sha (matches the transport's own pre-flight
+                # check).
                 if worker_cell.sha256 != push_sha:
                     append_skipped(
                         output_root,

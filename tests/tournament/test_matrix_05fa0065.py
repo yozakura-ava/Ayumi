@@ -39,6 +39,7 @@ from offload.run_matrix_remote import (  # noqa: E402
     TOURNAMENT_TIMEFRAMES,
     _filter_real_scorecards,
     _rank_rows,
+    _run_one_cell,
     _verdict_filter,
     generate_matrix_report,
 )
@@ -508,3 +509,415 @@ class TestMatrixReportEndToEnd:
         assert payload["n_gap"] == 63
         assert payload["n_cells_requested"] == 68
         assert payload["n_manifests"] == 5
+
+
+# ── 5. Card 475cfe82 — Offload runner push_bundle IsADirectoryError regression ──
+#
+# These tests pin the contract for the offload runner that the matrix
+# report must trust end-to-end:
+#
+#   AC2 (regression): BundleTransport.push_bundle must NEVER receive a
+#       directory path. The pre-fix code passed ``bundle_path`` (a
+#       directory: scripts/offload/) to push_bundle for the node/stub
+#       transports, which called _sha256_file() on a directory and
+#       raised IsADirectoryError. The fix asserts at the ABC level and
+#       always writes a per-cell descriptor file regardless of transport.
+#
+#   AC3 (loud abort): Tournament matrix runs with --transport=jobdir do
+#       NOT silently degrade to v1_stub local-fallback. Explicit
+#       transport + push failure = loud abort, never "complete".
+
+
+class TestPushBundleRejectsDirectory:
+    """AC2: push_bundle must never receive a directory path."""
+
+    def test_stub_simulate_success_rejects_directory(self, tmp_path: Path) -> None:
+        """Port8877StubTransport(simulate_success=True) raises on directory bundle_path.
+
+        Pre-fix: the if/else branch in _run_one_cell selected
+        ``push_path = bundle_path`` (the scripts/offload directory) for
+        non-jobdir transports. push_bundle then called _sha256_file()
+        on the directory and crashed with IsADirectoryError — masking
+        the actual bug because the error was IsADirectoryError, not a
+        clean BundleTransportError subclass.
+
+        Post-fix: BundleTransport.push_bundle asserts that
+        ``bundle_path.is_file()`` is True at the ABC entrypoint.
+        """
+        from offload.transport import BundleTransportError, Port8877StubTransport
+
+        transport = Port8877StubTransport(simulate_success=True)
+        with pytest.raises((AssertionError, BundleTransportError, TypeError, IsADirectoryError)):
+            transport.push_bundle(
+                run_id="test-run",
+                bundle_path=tmp_path,  # ← a directory
+                expected_sha256="0" * 64,
+            )
+
+    def test_stub_simulate_success_accepts_file(self, tmp_path: Path) -> None:
+        """Belt-and-suspenders: when given a real file, push_bundle succeeds.
+
+        Pins the post-fix happy path so the new assertion doesn't
+        reject legitimate descriptor-file pushes.
+        """
+        from offload.transport import Port8877StubTransport, WorkerCell
+
+        transport = Port8877StubTransport(simulate_success=True)
+        descriptor = tmp_path / "cell.json"
+        descriptor.write_text('{"cell_id": "test"}')
+        cell = transport.push_bundle(
+            run_id="test-run",
+            bundle_path=descriptor,
+            expected_sha256="abc",
+        )
+        assert isinstance(cell, WorkerCell)
+        assert cell.sha256 == "abc"
+
+    def test_node_transport_rejects_directory(self, tmp_path: Path) -> None:
+        """OpenClawNodeBundleTransport raises on directory bundle_path.
+
+        This was the actual bug path: --transport=node is the default,
+        so a directory bundle_path would have crashed at
+        _sha256_file() deep inside push_bundle, surfacing the wrong
+        error type (IsADirectoryError) instead of a clean rejection.
+        """
+        from offload.transport import OpenClawNodeBundleTransport
+
+        # Bypass __init__ (would try to use the openclaw CLI binary).
+        transport = OpenClawNodeBundleTransport.__new__(OpenClawNodeBundleTransport)
+        transport._node = "test-worker"
+        transport._cli_path = "openclaw"
+        with pytest.raises((AssertionError, IsADirectoryError, TypeError)):
+            transport.push_bundle(
+                run_id="test-run",
+                bundle_path=tmp_path,
+                expected_sha256="0" * 64,
+            )
+
+    def test_jobdir_transport_rejects_directory(self, tmp_path: Path) -> None:
+        """JobDirBundleTransport raises on directory bundle_path."""
+        from offload.jobdir_transport import JobDirBundleTransport
+
+        transport = JobDirBundleTransport(node="test-worker")
+        with pytest.raises((AssertionError, IsADirectoryError, TypeError)):
+            transport.push_bundle(
+                run_id="test-run",
+                bundle_path=tmp_path,
+                expected_sha256="0" * 64,
+            )
+
+    def test_require_bundle_file_helper_directly(self, tmp_path: Path) -> None:
+        """Direct test of the module-level _require_bundle_file guard.
+
+        Belt-and-suspenders: pin the guard helper's behavior in
+        isolation so the contract is independent of the subclass
+        push_bundle impls.
+        """
+        from offload.transport import _require_bundle_file
+
+        # A directory raises IsADirectoryError
+        with pytest.raises(IsADirectoryError):
+            _require_bundle_file(tmp_path)
+        # A file does NOT raise
+        descriptor = tmp_path / "cell.json"
+        descriptor.write_text('{"cell_id": "test"}')
+        _require_bundle_file(descriptor)  # should not raise
+
+
+class TestJobdirPushFailureDoesNotFallBack:
+    """AC3: --transport=jobdir push failure must abort, never silently fall back."""
+
+    def test_jobdir_push_error_raises_not_fall_back(self, tmp_path: Path) -> None:
+        """When JobDirBundleTransport.push_bundle raises, _run_one_cell propagates.
+
+        Pre-fix: ``except BundleTransportError: m.local_fallback = True``
+        triggered for ANY transport including JobDirBundleTransport.
+        Post-fix: the JobDirBundleTransport branch fails loud — appends
+        a dispatch_skipped audit row and re-raises (no manifest
+        written with local_fallback=True, no v1_stub scorecard).
+        """
+        from offload.jobdir_transport import JobDirBundleTransport
+        from offload.transport import BundleTransportError, WorktreeUnreachableError
+
+        class _FailingJobdirTransport(JobDirBundleTransport):
+            """Test double: push_bundle always raises (worker unreachable)."""
+
+            def push_bundle(self, run_id, bundle_path, expected_sha256):
+                raise WorktreeUnreachableError(
+                    f"simulated worker unreachable on {run_id}"
+                )
+
+        transport = _FailingJobdirTransport(node="test-worker")
+        import argparse
+        args = argparse.Namespace(
+            run_id="test-run",
+            data_db_path="/tmp/test.duckdb",  # noqa: S108 — test fixture, never written
+            data_db_sha=None,
+            cell_timeout_s=1.0,
+            poll_interval_s=0.01,
+            resume=False,
+        )
+        # Post-fix loud-abort: the exception propagates out of _run_one_cell
+        with pytest.raises(BundleTransportError):
+            _run_one_cell(
+                strategy="srmr_plus",
+                symbol="USDJPY",
+                timeframe="H1",
+                args=args,
+                transport=transport,
+                output_root=tmp_path,
+                git_sha="abc123",
+                env_lock_hash_val="envlock1",
+                env_lock_files_names=[],
+                bundle_path=tmp_path / "fake_bundle",
+                bundle_sha="0" * 64,
+                bundle_files=[],
+            )
+        # No manifest written (loud-abort path), no v1_stub scorecard.
+        cell_dir = tmp_path / "srmr_plus__usdjpy__h1"
+        assert not (cell_dir / "manifest.json").exists() or json.loads(
+            (cell_dir / "manifest.json").read_text()
+        ).get("local_fallback") is False, (
+            "JobDirBundleTransport push failure must NOT produce a "
+            "manifest with local_fallback=True (would silently pass "
+            "v1_stub as 'complete')"
+        )
+
+    def test_jobdir_push_error_audits_to_dispatch_skipped(self, tmp_path: Path) -> None:
+        """JobDirBundleTransport push failure must write an audit row to dispatch_skipped.jsonl.
+
+        Post-fix: the loud-abort path writes a ``jobdir_push_failed``
+        audit row to dispatch_skipped.jsonl so the operator can grep
+        for the cause.
+        """
+        from offload.jobdir_transport import JobDirBundleTransport
+        from offload.transport import BundleTransportError, WorktreeUnreachableError
+
+        class _FailingJobdirTransport(JobDirBundleTransport):
+            def push_bundle(self, run_id, bundle_path, expected_sha256):
+                raise WorktreeUnreachableError(
+                    "simulated: worker exec failed"
+                )
+
+        transport = _FailingJobdirTransport(node="test-worker")
+        import argparse
+        args = argparse.Namespace(
+            run_id="test-run",
+            data_db_path="/tmp/test.duckdb",  # noqa: S108 — test fixture, never written
+            data_db_sha=None,
+            cell_timeout_s=1.0,
+            poll_interval_s=0.01,
+            resume=False,
+        )
+        with pytest.raises(BundleTransportError):
+            _run_one_cell(
+                strategy="srmr_plus",
+                symbol="USDJPY",
+                timeframe="H1",
+                args=args,
+                transport=transport,
+                output_root=tmp_path,
+                git_sha="abc123",
+                env_lock_hash_val="envlock1",
+                env_lock_files_names=[],
+                bundle_path=tmp_path / "fake_bundle",
+                bundle_sha="0" * 64,
+                bundle_files=[],
+            )
+        # dispatch_skipped.jsonl MUST have a jobdir_push_failed audit row
+        skipped_log = tmp_path / "dispatch_skipped.jsonl"
+        assert skipped_log.is_file(), (
+            f"expected dispatch_skipped.jsonl audit log at {skipped_log}"
+        )
+        lines = [json.loads(ln) for ln in skipped_log.read_text().splitlines() if ln.strip()]
+        reasons = {ln.get("reason") for ln in lines}
+        assert "jobdir_push_failed" in reasons, (
+            f"expected audit row with reason 'jobdir_push_failed', got {reasons!r}"
+        )
+
+
+class TestRunOneCellPassesFilePath:
+    """AC1 (unit equivalent): _run_one_cell passes a FILE path to push_bundle."""
+
+    def test_run_one_cell_passes_file_to_jobdir_transport(self, tmp_path: Path) -> None:
+        """When using JobDirBundleTransport, push_bundle receives a file path.
+
+        Pre-fix bug: push_path = bundle_path (the directory scripts/offload)
+        when not using JobDirBundleTransport. Even after the if/else was
+        correctly routing JobDirBundleTransport to the descriptor file, we
+        also want to verify that the descriptor IS a file and not the
+        bundle directory.
+        """
+        from offload.jobdir_transport import JobDirBundleTransport
+        from offload.transport import WorkerCell
+
+        captured: dict[str, Path] = {}
+
+        class _CapturingJobdirTransport(JobDirBundleTransport):
+            def push_bundle(self, run_id, bundle_path, expected_sha256):
+                captured["bundle_path"] = bundle_path
+                # Don't actually invoke the real transport — return a
+                # synthetic cell so _run_one_cell proceeds to fetch_output
+                # (which will return None and trigger the audit row).
+                return WorkerCell(
+                    path=f"/tmp/fake-incoming/{bundle_path.name}",  # noqa: S108 — test synthetic path
+                    sha256=expected_sha256,
+                )
+
+            def fetch_output(self, run_id, cell_id):
+                return None
+
+        transport = _CapturingJobdirTransport(node="test-worker")
+        import argparse
+        args = argparse.Namespace(
+            run_id="test-run",
+            data_db_path="/tmp/test.duckdb",  # noqa: S108 — test fixture, never written
+            data_db_sha=None,
+            cell_timeout_s=0.5,
+            poll_interval_s=0.01,
+            resume=False,
+        )
+        try:
+            _run_one_cell(
+                strategy="srmr_plus",
+                symbol="USDJPY",
+                timeframe="H1",
+                args=args,
+                transport=transport,
+                output_root=tmp_path,
+                git_sha="abc123",
+                env_lock_hash_val="envlock1",
+                env_lock_files_names=[],
+                bundle_path=tmp_path / "fake_bundle",
+                bundle_sha="0" * 64,
+                bundle_files=[],
+            )
+        except Exception as exc:  # noqa: S110 — test asserts push_bundle was called; downstream fetch_output raises are expected artifacts
+            captured["_exception"] = exc  # fetch_output returns None → output_missing audit row → raise
+        assert "bundle_path" in captured, "push_bundle was not called"
+        captured_path = captured["bundle_path"]
+        assert captured_path.is_file(), (
+            f"push_bundle received a non-file path {captured_path!r} "
+            f"(is_dir={captured_path.is_dir()}) — pre-fix bug returns"
+        )
+        assert captured_path.suffix == ".json", (
+            f"expected JSON descriptor, got {captured_path!r}"
+        )
+
+    def test_run_one_cell_passes_file_to_node_transport(self, tmp_path: Path) -> None:
+        """When using OpenClawNodeBundleTransport, push_bundle receives a file path.
+
+        This is the regression test for the original IsADirectoryError
+        bug. The runner must always write a descriptor file (not pass
+        the bundle directory) for ANY transport.
+        """
+        from offload.transport import OpenClawNodeBundleTransport, WorkerCell
+
+        captured: dict[str, Path] = {}
+
+        class _CapturingNodeTransport(OpenClawNodeBundleTransport):
+            def push_bundle(self, run_id, bundle_path, expected_sha256):
+                captured["bundle_path"] = bundle_path
+                # Bypass the real _sha256_file + _invoke call by returning
+                # a synthetic WorkerCell. The captured path is the test
+                # assertion target.
+                return WorkerCell(
+                    path=f"/tmp/fake/{bundle_path.name}",  # noqa: S108 — test synthetic path
+                    sha256=expected_sha256,
+                )
+
+            def fetch_output(self, run_id, cell_id):
+                return None
+
+        # Don't init the real __init__ (would try to use openclaw cli).
+        transport = _CapturingNodeTransport.__new__(_CapturingNodeTransport)
+        transport._node = "test-worker"
+        transport._cli_path = "openclaw"
+
+        import argparse
+        args = argparse.Namespace(
+            run_id="test-run",
+            data_db_path=None,
+            data_db_sha=None,
+            cell_timeout_s=0.5,
+            poll_interval_s=0.01,
+            resume=False,
+        )
+        try:
+            _run_one_cell(
+                strategy="srmr_plus",
+                symbol="USDJPY",
+                timeframe="H1",
+                args=args,
+                transport=transport,
+                output_root=tmp_path,
+                git_sha="abc123",
+                env_lock_hash_val="envlock1",
+                env_lock_files_names=[],
+                bundle_path=tmp_path / "fake_bundle_dir",  # directory!
+                bundle_sha="0" * 64,
+                bundle_files=[],
+            )
+        except Exception as exc:  # noqa: S110 — test asserts push_bundle was called; downstream fetch_output raises are expected artifacts
+            captured["_exception"] = exc
+        assert "bundle_path" in captured, "push_bundle was not called"
+        captured_path = captured["bundle_path"]
+        assert not captured_path.is_dir(), (
+            f"push_bundle received a directory {captured_path!r} — "
+            f"pre-fix IsADirectoryError bug returns"
+        )
+        assert captured_path.is_file(), (
+            f"push_bundle should receive a file descriptor, got {captured_path!r}"
+        )
+
+    def test_run_one_cell_passes_file_to_stub_transport(self, tmp_path: Path) -> None:
+        """When using Port8877StubTransport(simulate_success=True), push_bundle receives a file."""
+        from offload.transport import Port8877StubTransport, WorkerCell
+
+        captured: dict[str, Path] = {}
+
+        class _CapturingStubTransport(Port8877StubTransport):
+            def push_bundle(self, run_id, bundle_path, expected_sha256):
+                captured["bundle_path"] = bundle_path
+                return WorkerCell(
+                    path=f"/tmp/fake/{bundle_path.name}",  # noqa: S108 — test synthetic path
+                    sha256=expected_sha256,
+                )
+
+        transport = _CapturingStubTransport(simulate_success=True)
+
+        import argparse
+        args = argparse.Namespace(
+            run_id="test-run",
+            data_db_path=None,
+            data_db_sha=None,
+            cell_timeout_s=0.5,
+            poll_interval_s=0.01,
+            resume=False,
+        )
+        try:
+            _run_one_cell(
+                strategy="srmr_plus",
+                symbol="USDJPY",
+                timeframe="H1",
+                args=args,
+                transport=transport,
+                output_root=tmp_path,
+                git_sha="abc123",
+                env_lock_hash_val="envlock1",
+                env_lock_files_names=[],
+                bundle_path=tmp_path / "fake_bundle_dir",  # directory!
+                bundle_sha="0" * 64,
+                bundle_files=[],
+            )
+        except Exception as exc:  # noqa: S110 — test asserts push_bundle was called; downstream fetch_output raises are expected artifacts
+            captured["_exception"] = exc
+        assert "bundle_path" in captured, "push_bundle was not called"
+        captured_path = captured["bundle_path"]
+        assert not captured_path.is_dir(), (
+            f"push_bundle received a directory {captured_path!r} — "
+            f"pre-fix IsADirectoryError bug returns"
+        )
+        assert captured_path.is_file(), (
+            f"push_bundle should receive a file descriptor, got {captured_path!r}"
+        )

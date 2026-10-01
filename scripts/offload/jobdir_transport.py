@@ -109,6 +109,8 @@ class JobDirBundleTransport(BundleTransport):
         into incoming/ and let worker_runner atomically rename to
         processing/ on pickup.
         """
+        from offload.transport import _require_bundle_file
+        _require_bundle_file(bundle_path)
         # Local SHA pre-flight (Q1 loud skew rejection).
         local_sha = self._wire._sha256_file(bundle_path)  # noqa: SLF001 — wire helper
         if local_sha != expected_sha256:

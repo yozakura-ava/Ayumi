@@ -70,6 +70,27 @@ class BundleTooLargeError(BundleTransportError):
     """Bundle exceeded worker's transfer-size cap. Fail loud; no fallback."""
 
 
+def _require_bundle_file(bundle_path: Path) -> None:
+    """BundleTransport.push_bundle requires a FILE path (never a directory).
+
+    Card 475cfe82-5cfb-478b-a622-287578345678 regression guard. Pre-fix,
+    ``_run_one_cell`` passed ``bundle_path = scripts/offload`` (a directory)
+    to push_bundle for the node/stub transports, which crashed deep inside
+    ``_sha256_file`` with ``IsADirectoryError``. That masked the root cause
+    and let the runner silently fall through to the v1_stub local-fallback
+    path (``local_fallback=True``, no FTMO columns).
+
+    This guard fails fast at the API boundary with the same error type, so
+    every concrete subclass enforces the contract uniformly. JobDir's
+    descriptor-file pattern (which already passes a file) is unaffected.
+    """
+    if not bundle_path.is_file():
+        raise IsADirectoryError(
+            f"BundleTransport.push_bundle requires a FILE path, got "
+            f"directory: {bundle_path!r}"
+        )
+
+
 class BundleTransport(ABC):
     """ABC for code-bundle transport (Q2: load-bearing signatures)."""
 
@@ -80,7 +101,14 @@ class BundleTransport(ABC):
         bundle_path: Path,
         expected_sha256: str,
     ) -> WorkerCell:
-        """Push ``bundle_path`` to worker; verify SHA on worker-side == expected."""
+        """Push ``bundle_path`` to worker; verify SHA on worker-side == expected.
+
+        CONTRACT (card 475cfe82): ``bundle_path`` MUST be a file path (the
+        per-cell descriptor JSON for JobDirBundleTransport; equivalent for
+        node/stub). Directories are rejected at the boundary via
+        ``_require_bundle_file`` so the runner cannot regress to the
+        pre-fix IsADirectoryError path.
+        """
 
     @abstractmethod
     def fetch_output(
@@ -110,6 +138,7 @@ class Port8877StubTransport(BundleTransport):
         bundle_path: Path,
         expected_sha256: str,
     ) -> WorkerCell:
+        _require_bundle_file(bundle_path)
         if not self._simulate:
             raise WorktreeUnreachableError(
                 f"Port8877StubTransport: would push to "
@@ -214,6 +243,7 @@ class OpenClawNodeBundleTransport(BundleTransport):
         bundle_path: Path,
         expected_sha256: str,
     ) -> WorkerCell:
+        _require_bundle_file(bundle_path)
         # 1. Local SHA pre-flight.  The runner ALSO re-checks this via
         #    WorkerCell.sha256, but failing fast here keeps the wire
         #    call off the dispatch log on a buggy dispatcher.
