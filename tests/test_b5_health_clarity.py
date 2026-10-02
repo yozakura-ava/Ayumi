@@ -347,35 +347,4 @@ class TestFunctionalInvariants:
         )
 
 
-# --------------------------------------------------------------------- #
-# AC3 — outside-consumer report (recorded for orchestrator follow-up)
-# --------------------------------------------------------------------- #
 
-
-class TestOutsideConsumersDocumented:
-    """Sanity check on the report we'd attach to the card for orchestrator follow-up.
-
-    The actual report is attached as a card comment at release time.  This test
-    exists so that if a future rename breaks an outside consumer, we at least
-    have a sentinel.
-    """
-
-    def test_outside_consumer_in_integration_health_monitor_test(self):
-        """`tests/integration/test_health_monitor.py:81` asserts 'bars=' in msg.
-
-        That assertion predates this card's rename to bars='' and will fail
-        once the rename ships.  It is OUTSIDE allowed_files and must be
-        updated by a follow-up card, not this one.
-        """
-        consumer_path = (
-            REPO_ROOT / "tests" / "integration" / "test_health_monitor.py"
-        )
-        if not consumer_path.exists():
-            pytest.skip("integration test file not present in this checkout")
-
-        text = consumer_path.read_text()
-        assert 'assert "bars=" in msg' in text, (
-            "Expected outside-consumer assertion 'assert \"bars=\" in msg' "
-            "to still be in tests/integration/test_health_monitor.py:81.  "
-            "If it has been updated, remove this sentinel test."
-        )
