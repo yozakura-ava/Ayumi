@@ -1,0 +1,30 @@
+{
+  "cell_id": "fc595c6d9b2d31a7",
+  "seed": "fc595c6d9b2d31a7",
+  "strategy": "rsi_threshold",
+  "symbol": "EURUSD",
+  "timeframe": "H1",
+  "git_sha": "e83a761b698d5c8abaececfaa847529bb1fad703",
+  "env_lock_hash": "1a0752c7e42748fc6e58845a25d1a276f1cfb932ac4438c43e5af1ed14f17f9f",
+  "env_lock_files": [],
+  "bundle_files": [
+    "scripts/offload/jobdir_transport.py"
+  ],
+  "db_sha": null,
+  "started_at": "2026-10-02T16:09:31.479499+00:00",
+  "finished_at": "2026-10-02T16:09:32.444806+00:00",
+  "exit_code": 4,
+  "output_path": "/home/TacoPants/projects/Ayumi/.worktrees/tsubaki-475cfe82-ac4/data/offload/matrix-ac4-475cfe82/fc595c6d9b2d31a7/output",
+  "output_hash": "b4a3dbc9379e8a98ed527a8814ca686fe8ebcc7478cf4aef3311b3f72e6cd20f",
+  "local_fallback": false,
+  "dispatch_skipped": false,
+  "dispatch_skipped_reason": null,
+  "v1_stub": false,
+  "remote_execution": true,
+  "worker_node": "ava-worker-local",
+  "worker_hostname": "2d62682c58e2",
+  "worker_bundle_sha": "b4a3dbc9379e8a98ed527a8814ca686fe8ebcc7478cf4aef3311b3f72e6cd20f",
+  "worker_fixture_path": "/opt/ayumi-tournament/ayumi/scripts/offload/worker_runner.py",
+  "transport": "jobdir",
+  "run_id": "matrix-ac4-475cfe82"
+}

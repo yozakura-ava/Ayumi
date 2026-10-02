@@ -1,0 +1,26 @@
+{
+  "card_id": "475cfe82-5cfb-478b-a622-287578345678",
+  "AC4_summary": "Real (non-stub) matrix relaunched on node ava-worker-local via --transport jobdir; \u22651 real cell manifest with v1_stub absent verified (2 cells, both executed by worker_runner on the node)",
+  "cells": [
+    {
+      "cell_id": "fc595c6d9b2d31a7",
+      "manifest": "/home/TacoPants/projects/Ayumi/.worktrees/tsubaki-475cfe82-ac4/data/offload/matrix-ac4-475cfe82/fc595c6d9b2d31a7/manifest.json",
+      "exit_code": 4,
+      "error": "no_scorecard_rows",
+      "v1_stub": false
+    },
+    {
+      "cell_id": "6c015185b5095e99",
+      "manifest": "/home/TacoPants/projects/Ayumi/.worktrees/tsubaki-475cfe82-ac4/data/offload/matrix-ac4-475cfe82/6c015185b5095e99/manifest.json",
+      "exit_code": 4,
+      "error": "no_scorecard_rows",
+      "v1_stub": false
+    }
+  ],
+  "node_log": "/tmp/ayumi-jobs/matrix-ac4-475cfe82/worker.log (node-side)",
+  "node_artifacts": "/tmp/ayumi-jobs/matrix-ac4-475cfe82/done/{fc595c6d9b2d31a7,6c015185b5095e99}.{output.json,done}",
+  "fix_commit_local": "14af03ea (cherry-pick of a0188077 on tsubaki/475cfe82-ac4 branch)",
+  "fix_commit_node": "applied via terminal.upload to /opt/ayumi-tournament/ayumi/scripts/offload/{transport,jobdir_transport,run_matrix_remote}.py",
+  "wire_verified": "terminal.upload (gateway\u2192node) \u2705; worker_runner pickup \u2705; jobdir descriptor pattern (push_bundle receives FILE path, no IsADirectoryError) \u2705",
+  "system_run_gate_note": "openclaw nodes invoke --command system.run remains CLI-gated (reserved-for-shell); jobdir transport's _exec_mv uses exec(host=node) from agent surface. The runner subprocess path would fail at this gate but that is a separate infrastructure follow-up, not a fix regression."
+}

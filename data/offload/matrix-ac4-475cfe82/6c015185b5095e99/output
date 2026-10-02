@@ -1,0 +1,12 @@
+{
+  "cell_id": "6c015185b5095e99",
+  "error": "no_scorecard_rows",
+  "exit_code": 4,
+  "finished_at": "2026-10-02T16:11:06.549304+00:00",
+  "schema_version": 1,
+  "started_at": "2026-10-02T16:11:06.486252+00:00",
+  "strategy": "london_breakout_retest",
+  "symbol": "EURUSD",
+  "timeframe": "H1",
+  "wall_time_s": 0.06304304600053001
+}

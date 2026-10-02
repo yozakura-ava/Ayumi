@@ -1,0 +1,12 @@
+{
+  "cell_id": "fc595c6d9b2d31a7",
+  "error": "no_scorecard_rows",
+  "exit_code": 4,
+  "finished_at": "2026-10-02T16:09:32.444806+00:00",
+  "schema_version": 1,
+  "started_at": "2026-10-02T16:09:31.479499+00:00",
+  "strategy": "rsi_threshold",
+  "symbol": "EURUSD",
+  "timeframe": "H1",
+  "wall_time_s": 0.9652946739952313
+}
