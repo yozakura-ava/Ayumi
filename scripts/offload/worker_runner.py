@@ -89,13 +89,21 @@ _REPO_SRC_HINT = os.environ.get("AYUMI_REPO_ROOT", "")
 
 
 def _ensure_import_paths(code_root: Path) -> None:
-    """Inject ``code_root/src`` and ``code_root/scripts`` onto sys.path.
+    """Inject ``code_root/src``, ``code_root/src/forex_bot``, and ``code_root/scripts`` onto sys.path.
 
     Worker is invoked with PYTHONPATH unset; we mutate sys.path here so
-    ``import tournament`` and ``import offload.*`` resolve regardless of
-    cwd. Idempotent — repeated calls don't grow sys.path unboundedly.
+    ``import tournament`` (``src/``), ``import core`` / ``import strategies.core_types``
+    (``src/forex_bot/`` — strategies live under the forex_bot package), and
+    ``import offload.*`` (``scripts/``) resolve regardless of cwd. Mirrors the
+    path block in ``scripts/run_tournament.py`` (lines 31-34) and the
+    ``pythonpath`` declared in ``pytest.ini`` (``src/forex_bot src tests scripts``).
+    Idempotent — repeated calls don't grow sys.path unboundedly.
     """
-    candidates = [code_root / "src", code_root / "scripts"]
+    candidates = [
+        code_root / "src",
+        code_root / "src" / "forex_bot",
+        code_root / "scripts",
+    ]
     for c in candidates:
         sp = str(c)
         if sp not in sys.path:
