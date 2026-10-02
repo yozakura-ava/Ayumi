@@ -48,6 +48,7 @@ import socket
 import subprocess
 import sys
 from pathlib import Path
+from typing import Callable
 
 from offload.transport import (
     BundleTooLargeError,
@@ -311,7 +312,7 @@ def detect_local_node(
     *,
     local_node_flag: bool | None,
     expected_node_name: str = OpenClawNodeBundleTransport.DEFAULT_NODE,
-    hostname_fn: callable = socket.gethostname,
+    hostname_fn: Callable[[], str] = socket.gethostname,
 ) -> bool:
     """Decide whether the runner is executing on the target worker node.
 

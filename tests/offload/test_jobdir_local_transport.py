@@ -38,17 +38,14 @@ unit tests; the full pytest suite is Craig-gated and is NOT run here.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
-import json
 import subprocess
-import sys
 from pathlib import Path
 from unittest import mock
 
 import pytest
-
 from offload.jobdir_transport import (
-    JOB_DIR_DEFAULT,
     JobDirBundleTransport,
     LocalJobDirBundleTransport,
     detect_local_node,
@@ -60,7 +57,6 @@ from offload.transport import (
     WorkerCell,
     WorktreeUnreachableError,
 )
-
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -349,7 +345,7 @@ def test_local_transport_does_not_instantiate_wire() -> None:
     the local class bypasses it to avoid carrying unused state
     (and any accidental wire call from a future change).
     """
-    transport = LocalJobDirBundleTransport(job_dir="/tmp/jobs")
+    transport = LocalJobDirBundleTransport(job_dir="/tmp/jobs")  # noqa: S108 — descriptive test fixture; not a FS write target
     # The local-only flag is set explicitly (parent sets it via _wire).
     assert getattr(transport, "_local_only", False) is True
     # The wire object is intentionally absent.
@@ -428,7 +424,11 @@ def test_main_jobdir_no_local_node_uses_remote_transport(tmp_path: Path) -> None
         # Mock JobDirBundleTransport.push_bundle to raise immediately so
         # the runner falls into the local-fallback path without calling
         # the real wire transport (which would hit the real gateway).
-        with mock.patch.object(JobDirBundleTransport, "push_bundle", side_effect=WorktreeUnreachableError("unit-test stub")):
+        with mock.patch.object(
+            JobDirBundleTransport,
+            "push_bundle",
+            side_effect=WorktreeUnreachableError("unit-test stub"),
+        ):
             rc = rmr.main(
                 [
                     "--matrix", "smoke",
@@ -459,7 +459,11 @@ def test_main_jobdir_omit_flag_uses_remote_when_hostname_mismatch(tmp_path: Path
          mock.patch.object(rmr, "detect_local_node", return_value=False) as det:
         # Mock JobDirBundleTransport.push_bundle so we don't actually try
         # the gateway wire (which would fail in unit tests).
-        with mock.patch.object(JobDirBundleTransport, "push_bundle", side_effect=WorktreeUnreachableError("unit-test stub")):
+        with mock.patch.object(
+            JobDirBundleTransport,
+            "push_bundle",
+            side_effect=WorktreeUnreachableError("unit-test stub"),
+        ):
             rc = rmr.main(
                 [
                     "--matrix", "smoke",
@@ -544,7 +548,11 @@ def test_main_jobdir_remote_path_logs_transport_choice(tmp_path: Path, capsys) -
 
     with mock.patch.object(LocalJobDirBundleTransport, "__init__", cap_local), \
          mock.patch.object(JobDirBundleTransport, "__init__", cap_remote):
-        with mock.patch.object(JobDirBundleTransport, "push_bundle", side_effect=WorktreeUnreachableError("unit-test stub")):
+        with mock.patch.object(
+            JobDirBundleTransport,
+            "push_bundle",
+            side_effect=WorktreeUnreachableError("unit-test stub"),
+        ):
             rc = rmr.main(
                 [
                     "--matrix", "smoke",
@@ -579,7 +587,7 @@ def test_remote_transport_still_invokes_subprocess_on_push(tmp_path: Path) -> No
 
     # Subprocess returns success but the response is malformed;
     # we just want to confirm subprocess.run was called.
-    cp = subprocess.CompletedProcess(args=[], returncode=0)
+    cp: subprocess.CompletedProcess = subprocess.CompletedProcess(args=[], returncode=0)
     cp.stdout = "ok"
     cp.stderr = ""
 
@@ -587,9 +595,8 @@ def test_remote_transport_still_invokes_subprocess_on_push(tmp_path: Path) -> No
         # We expect either a CalledProcessError (response missing
         # payload.path) or a successful cell — what matters is that
         # subprocess.run was called (the wire fired).
-        try:
+        with contextlib.suppress(Exception):
+            # any failure path is fine; only the wire call matters
             transport.push_bundle("r-wire-guard", bundle, sha)
-        except Exception:
-            pass  # any failure path is fine; only the wire call matters
 
     assert m.call_count >= 1, "remote transport must invoke subprocess.run on push"
