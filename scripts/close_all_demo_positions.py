@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path("$AYUMI_ROOT")
-sys.path.insert(0, str(PROJECT_ROOT / "src" / "forex-bot"))
+sys.path.insert(0, str(PROJECT_ROOT / "src" / "forex_bot"))
 
 from dotenv import load_dotenv
 

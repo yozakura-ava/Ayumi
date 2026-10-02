@@ -50,11 +50,11 @@ import pytest
 
 # Resolve repo root dynamically so this test works in main tree, worktree,
 # or any other checkout. conftest.py at repo root also adds the same
-# ``src/forex-bot`` directory to sys.path, but we set it explicitly here
+# ``src/forex_bot`` directory to sys.path, but we set it explicitly here
 # to make the test self-contained for direct invocation (e.g.
 # ``python3 -m pytest tests/unit/quant/test_walk_forward_metrics.py``).
 REPO = Path(__file__).resolve().parents[3]
-SRC_FOREX_BOT = REPO / "src" / "forex-bot"
+SRC_FOREX_BOT = REPO / "src" / "forex_bot"
 if str(SRC_FOREX_BOT) not in sys.path:
     sys.path.insert(0, str(SRC_FOREX_BOT))
 

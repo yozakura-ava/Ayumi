@@ -52,13 +52,13 @@ Think of it as an assembly line: raw market data in, validated strategies out.
 
 ## What We Already Have
 
-- Backtest engine (`src/forex-bot/backtest/`)
+- Backtest engine (`src/forex_bot/backtest/`)
 - Walk-forward framework (partial — used for SRMR+ pipeline)
-- DSR computation (`src/forex-bot/backtest/dsr.py`)
-- DSR integration as post-WF gate (`src/forex-bot/quant/dsr_integration.py`)
-- Optuna integration for parameter optimization (`src/forex-bot/ml/blend_optimizer.py`)
-- Strategy registry (`src/forex-bot/strategies/registry.py`)
-- Blend backtest and portfolio management (`src/forex-bot/backtest/portfolio_blend.py`)
+- DSR computation (`src/forex_bot/backtest/dsr.py`)
+- DSR integration as post-WF gate (`src/forex_bot/quant/dsr_integration.py`)
+- Optuna integration for parameter optimization (`src/forex_bot/ml/blend_optimizer.py`)
+- Strategy registry (`src/forex_bot/strategies/registry.py`)
+- Blend backtest and portfolio management (`src/forex_bot/backtest/portfolio_blend.py`)
 
 **Gap:** These are disconnected components, not a pipeline. The factory wires them together with automation.
 

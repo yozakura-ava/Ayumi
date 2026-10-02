@@ -32,7 +32,7 @@ from pathlib import Path
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
-sys.path.insert(0, str(project_root / "src" / "forex-bot"))
+sys.path.insert(0, str(project_root / "src" / "forex_bot"))
 
 DATA_DIR = str(project_root / "data" / "forex" / "historical")
 REPORTS_DIR = project_root / "reports"

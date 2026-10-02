@@ -2,7 +2,7 @@
 
 Equivalence gates: every cached function must produce values IDENTICAL
 (via 1e-9 absolute tolerance) to the inline ``_calculate_*`` re-walk
-implementations in ``src/forex-bot/strategies/*.py``.
+implementations in ``src/forex_bot/strategies/*.py``.
 
 Test plan (per pre-build checklist test_indicator_cache.py):
 
@@ -24,7 +24,7 @@ from pathlib import Path
 import pytest
 
 _REPO = Path(__file__).resolve().parents[2]
-for _p in (str(_REPO / "src"), str(_REPO / "src" / "forex-bot")):
+for _p in (str(_REPO / "src"), str(_REPO / "src" / "forex_bot")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 

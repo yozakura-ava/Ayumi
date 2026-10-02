@@ -15,7 +15,7 @@ Time: 13:36-13:39 EDT
 
 The first service start failed with PermissionError on `data/kill_switches/global.state`:
 ```
-File "$AYUMI_ROOT/src/forex-bot/adapters/ctrader/kill_switch.py", line 343, in _load_state
+File "$AYUMI_ROOT/src/forex_bot/adapters/ctrader/kill_switch.py", line 343, in _load_state
     raw = self._state_file.read_text()
 PermissionError: [Errno 13] Permission denied: 'data/kill_switches/global.state'
 ```

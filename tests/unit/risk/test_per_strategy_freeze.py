@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 # Ensure src is on the path
-src_dir = Path(__file__).resolve().parents[3] / "src" / "forex-bot"
+src_dir = Path(__file__).resolve().parents[3] / "src" / "forex_bot"
 if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
 

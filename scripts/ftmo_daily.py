@@ -37,7 +37,7 @@ from typing import Optional
 
 # Project-local imports (cwd-relative when run as a script).
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "src" / "forex-bot"))
+sys.path.insert(0, str(ROOT / "src" / "forex_bot"))
 sys.path.insert(0, str(ROOT / "src"))
 
 from reporting.equity_tracker import (  # noqa: E402, I001

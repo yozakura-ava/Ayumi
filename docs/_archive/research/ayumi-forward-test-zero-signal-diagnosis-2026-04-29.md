@@ -69,7 +69,7 @@ The risk guard only checks `take_profit_1`. It doesn't consider `take_profit_2` 
 Change `tp1_rr` default from `1.0` to `1.5` in `SRMRPlusConfig`:
 
 ```python
-# src/forex-bot/strategies/srmr_plus.py line 30
+# src/forex_bot/strategies/srmr_plus.py line 30
 tp1_rr: float = 1.5  # was 1.0
 ```
 

@@ -55,9 +55,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-# Ensure src/forex-bot is importable (same pattern as the other tests in
+# Ensure src/forex_bot is importable (same pattern as the other tests in
 # tests/test_signal_engine/ — see test_paper_sltp_integration.py).
-_FOREX_SRC = str(Path(__file__).resolve().parent.parent.parent / "src" / "forex-bot")
+_FOREX_SRC = str(Path(__file__).resolve().parent.parent.parent / "src" / "forex_bot")
 if _FOREX_SRC not in sys.path:
     sys.path.insert(0, _FOREX_SRC)
 

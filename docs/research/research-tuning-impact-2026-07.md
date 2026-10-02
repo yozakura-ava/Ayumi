@@ -223,7 +223,7 @@ and `tests/strategies/test_srmr_plus.py` in `allowed_files`.
 
 ### F-2: `CsvDataLoader` rejects ISO 8601 timestamps
 
-`src/forex-bot/backtest/data_loader.py::_parse_csv_timestamp` only accepts
+`src/forex_bot/backtest/data_loader.py::_parse_csv_timestamp` only accepts
 `%Y-%m-%d %H:%M:%S` and `%Y-%m-%d %H:%M` formats. The synthesized
 GBPUSD M15 dataset uses ISO 8601 (`...Z` suffix) which is rejected, causing
 100% row drops. This blocks walk-forward sweeps against synthesized data.
@@ -246,9 +246,9 @@ tuned strategies (killzone, srmr_plus)`. Depends on F-2.
 ## 7. Files Modified
 
 ```
-M  src/forex-bot/strategies/killzone_momentum.py
-M  src/forex-bot/strategies/srmr_plus.py
-M  src/forex-bot/strategies/bb_rsi_reversion.py
+M  src/forex_bot/strategies/killzone_momentum.py
+M  src/forex_bot/strategies/srmr_plus.py
+M  src/forex_bot/strategies/bb_rsi_reversion.py
 ?? docs/research/research-tuning-impact-2026-07.md
 ```
 
@@ -259,7 +259,7 @@ M  src/forex-bot/strategies/bb_rsi_reversion.py
 ## 8. Validation Commands Run
 
 ```
-python3 -m py_compile src/forex-bot/strategies/killzone_momentum.py src/forex-bot/strategies/srmr_plus.py src/forex-bot/strategies/bb_rsi_reversion.py
+python3 -m py_compile src/forex_bot/strategies/killzone_momentum.py src/forex_bot/strategies/srmr_plus.py src/forex_bot/strategies/bb_rsi_reversion.py
 # Result: OK
 
 python3 -m pytest tests/strategies/test_killzone_momentum_strategy.py tests/strategies/test_srmr_plus.py tests/strategies/test_bb_rsi_reversion.py

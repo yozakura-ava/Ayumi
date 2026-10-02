@@ -298,7 +298,7 @@ def test_extract_signals_calls_initialize_when_present(monkeypatch: pytest.Monke
     assert rec.shutdown_called, "shutdown() must be called in the finally clause"
 
 
-# ── 6. all 17 strategies resolve from src/forex-bot/strategies ──────────────
+# ── 6. all 17 strategies resolve from src/forex_bot/strategies ──────────────
 
 
 def test_all_17_strategies_resolve_in_strategies_module() -> None:
@@ -317,7 +317,7 @@ def test_all_17_strategies_resolve_in_strategies_module() -> None:
 
 
 def test_strategy_sources_unmodified_against_base_commit() -> None:
-    """AC2: src/forex-bot/strategies/ has zero diffs against base (main).
+    """AC2: src/forex_bot/strategies/ has zero diffs against base (main).
 
     Catches accidental edits to strategy sources.  We compare against
     ``origin/main`` HEAD (the canonical base) so the assertion holds
@@ -332,7 +332,7 @@ def test_strategy_sources_unmodified_against_base_commit() -> None:
     ).stdout.strip()
 
     diff_out = subprocess.run(  # noqa: S603
-        ["git", "diff", "--name-only", base_sha, "HEAD", "--", "src/forex-bot/strategies/"],  # noqa: S607, S603
+        ["git", "diff", "--name-only", base_sha, "HEAD", "--", "src/forex_bot/strategies/"],  # noqa: S607, S603
         cwd=Path.cwd(),
         capture_output=True,
         text=True,

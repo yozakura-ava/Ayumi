@@ -44,7 +44,7 @@ Two locations hardcode $100,000 instead of the correct $10,000:
 
 ### Fix 1: Fix engine logging (critical — makes failures visible)
 
-**File:** `src/forex-bot/adapters/ctrader/forward_test_engine.py`
+**File:** `src/forex_bot/adapters/ctrader/forward_test_engine.py`
 **Line:** ~30 (top of module)
 
 **Change:** Replace:
@@ -60,7 +60,7 @@ This routes all engine logs through the `ayumi.*` namespace so they appear in th
 
 ### Fix 2: Fix quote credentials env var handling
 
-**File:** `src/forex-bot/adapters/ctrader/forward_test_engine.py`
+**File:** `src/forex_bot/adapters/ctrader/forward_test_engine.py`
 **Line:** ~369-373 (inside `_build_quote_credentials`)
 
 **Change:** Replace empty-string env vars with defaults:
@@ -166,7 +166,7 @@ cd $AYUMI_ROOT
 source .venv/bin/activate
 python -c "
 import logging, sys
-sys.path.insert(0, 'src/forex-bot')
+sys.path.insert(0, 'src/forex_bot')
 from common.logging_config import setup_logging
 setup_logging('DEBUG')
 logger = logging.getLogger('ayumi.forward_test')

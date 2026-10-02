@@ -18,7 +18,7 @@ os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 import sys
 
 # Ensure src is on path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src", "forex-bot"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src", "forex_bot"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
 from common.resource_limits import configure_pytest_defaults

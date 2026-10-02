@@ -10,7 +10,7 @@ import numpy as np
 
 project_root = Path("$AYUMI_ROOT")
 sys.path.insert(0, str(project_root / "src"))
-sys.path.insert(0, str(project_root / "src" / "forex-bot"))
+sys.path.insert(0, str(project_root / "src" / "forex_bot"))
 
 import pickle
 

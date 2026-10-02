@@ -9,9 +9,9 @@
 ## Architecture Quick Reference
 
 - **Language:** Python 3.12
-- **Source:** `src/forex-bot/` (318 files, ~96k LOC)
+- **Source:** `src/forex_bot/` (318 files, ~96k LOC)
 - **Tests:** `tests/` (339 files, ~104k LOC)
-- **Package quirk:** `forex-bot` has a hyphen — not a valid Python package name. All imports use bare module names via `sys.path` (e.g. `from confidence.engine import …`), NOT `from forex_bot.confidence…`.
+- **Package quirk:** `forex_bot` has a hyphen — not a valid Python package name. All imports use bare module names via `sys.path` (e.g. `from confidence.engine import …`), NOT `from forex_bot.confidence…`.
 - **Target:** FTMO 1-Step Standard ($10K, 3% daily DD, 10% total DD)
 
 ## Key Directories
@@ -50,6 +50,6 @@
 ## Common Pitfalls
 
 - **XAUUSD pip size is 0.1** — price-based heuristics mis-classified Gold as JPY pairs before `utils/pip_value.py` existed.
-- **`forex-bot` is not `forex_bot`** — the hyphen makes it invalid as a Python package name. All imports are bare-module via `sys.path`.
+- **`forex_bot` is not `forex_bot`** — the hyphen makes it invalid as a Python package name. All imports are bare-module via `sys.path`.
 - **ForwardTestEngine is the ONLY canonical engine** — deprecated engines moved to `_deprecated/` on 2026-07-08.
 - **TTC vs TTS** — TTC = Turn-The-Candle (signal engine). TTS = Turn-The-Strategy (adapter). The acronym drifted in the codebase.

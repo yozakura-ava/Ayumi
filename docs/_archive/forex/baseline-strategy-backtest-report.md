@@ -40,7 +40,7 @@ Extended backtesting harness (`Strategies/MultiStrategyBacktestEngine.cs`) suppo
 
 ## Deliverables Status
 
-- [x] `src/forex-bot/cbot/Strategies/` — baseline implementations
+- [x] `src/forex_bot/cbot/Strategies/` — baseline implementations
 - [ ] Extended backtest harness — multi-strategy engine created, needs data
 - [ ] Backtest comparison report — initial architecture documented here
 - [ ] Strategy component leaderboard — pending backtest results
@@ -48,7 +48,7 @@ Extended backtesting harness (`Strategies/MultiStrategyBacktestEngine.cs`) suppo
 ## Files Changed
 
 ```
-src/forex-bot/cbot/Strategies/
+src/forex_bot/cbot/Strategies/
 ├── ISignalStrategy.cs              # Interface + config structs
 ├── MACrossStrategy.cs              # Moving average crossover
 ├── BBStrategy.cs                   # Bollinger Band mean reversion

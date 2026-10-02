@@ -33,7 +33,7 @@ The actual trading problem is different: **the daily risk budget is exhausted by
 The forward test is launched by `scripts/launch_blend_forward_test.py`, which subclasses `ForwardTestEngine` into `BlendForwardTestEngine` to route signals through a multi-strategy blend pipeline. The full path is:
 
 ### 1.1 Strategy evaluation → signal generation
-**File:** `src/forex-bot/adapters/ctrader/forward_test_engine.py:1960-2080` (base class `_evaluate_strategies`)  
+**File:** `src/forex_bot/adapters/ctrader/forward_test_engine.py:1960-2080` (base class `_evaluate_strategies`)  
 **Override:** `scripts/launch_blend_forward_test.py:217-303` (`BlendForwardTestEngine._evaluate_strategies`)
 
 The blend launcher iterates each registered strategy, gets per-timeframe bars, calls `adapter.evaluate_and_trade(state, spread=...)`. Any signal produced is forwarded to `_route_signal`.
@@ -48,12 +48,12 @@ The blend launcher iterates each registered strategy, gets per-timeframe bars, c
 Checks `_correlation_gate.check(symbol, direction, strategy_id)`. If blocked → log + `signals_rejected += 1`, no further processing.
 
 ### 1.3 Blend runner → orchestrator → sizer
-**File:** `scripts/launch_blend_forward_test.py:325-326` → `src/forex-bot/forward_test/blend_runner.py:251-275` (`on_signal`)
+**File:** `scripts/launch_blend_forward_test.py:325-326` → `src/forex_bot/forward_test/blend_runner.py:251-275` (`on_signal`)
 
 The blend runner calls `self._orchestrator.process_signal(signal)`:
-- **File:** `src/forex-bot/orchestrator/signal_orchestrator.py:60-145`
+- **File:** `src/forex_bot/orchestrator/signal_orchestrator.py:60-145`
 - The orchestrator runs the confidence engine, profile router, and finally the position sizer:
-  - **Sizer file:** `src/forex-bot/risk/sl_position_sizer.py:410-460` (`calculate`)
+  - **Sizer file:** `src/forex_bot/risk/sl_position_sizer.py:410-460` (`calculate`)
   - **Daily cap check:** `sl_position_sizer.py:438-444` — `if base_risk > self.daily_risk_remaining: blocked=True, block_reason="Trade risk $X exceeds daily remaining $Y"`
 
 If blocked → `Order rejected: <symbol> — <block_reason>` log at `blend_runner.py:271`; launcher increments `signals_rejected` (`launch_blend_forward_test.py:331`).
@@ -82,7 +82,7 @@ CANCELLED
 ```
 
 ### 1.6 Late-fill reconciliation
-**File:** `src/forex-bot/adapters/ctrader/forward_test_engine.py:1701-1910` (`_register_late_fill_callbacks`)
+**File:** `src/forex_bot/adapters/ctrader/forward_test_engine.py:1701-1910` (`_register_late_fill_callbacks`)
 
 For SENT/TIMEOUT outcomes, registers 4 callbacks on the spot feed: `on_order_filled`, `on_order_rejected`, `on_order_cancelled`, plus a default TIMEOUT handler.
 
@@ -91,7 +91,7 @@ The closure `_release_late(rv_status, ...)` (lines 1715-1925):
 - **REJECTED/CANCELLED/NOT_CONNECTED/TIMEOUT late** → `signals_failed_live += 1`; `signals_pending = max(0, signals_pending - 1)` (lines 1882-1897).
 
 ### 1.7 Position registration
-**File:** `src/forex-bot/adapters/ctrader/forward_test_engine.py:2605-2625` (`_on_trade_executed`)
+**File:** `src/forex_bot/adapters/ctrader/forward_test_engine.py:2605-2625` (`_on_trade_executed`)
 
 On a live trade executed event, calls `blend_runner.register_position_mapping(position_id, signal_id)` so subsequent closes can resolve back. **Note:** the blend runner does not subscribe to `on_trade_executed` (gap — see §5.4).
 
@@ -191,14 +191,14 @@ acct_authenticating → authenticated        reason=reconnect_complete
 **30 "Permission denied: 'data/signal_stats.jsonl'" entries** since 00:00 UTC. Every retry attempt fails. The file was created/written by a root process (likely an earlier session or a test fixture). **Fix:** `sudo chown $USER:$USER $AYUMI_ROOT/data/signal_stats.jsonl`.
 
 ### 5.3 SL/TP amendment timeouts
-**File:** `src/forex-bot/adapters/ctrader/open_api_spot_feed.py:1014-1083` (`amend_order` / TP2/TP3 ratchet)
+**File:** `src/forex_bot/adapters/ctrader/open_api_spot_feed.py:1014-1083` (`amend_order` / TP2/TP3 ratchet)
 
 **42 "Amend SL/TP timeout" entries** since 00:00 UTC. Initial SL/TP1 is sent **inline** with the MARKET order (`forward_test_engine.py:1350-1358`), so positions DO have basic protection. The amend failures are specifically for TP2/TP3 ratcheting (Sprint Task 1.5 follow-up) — these log as `"F2: late amend_sl_tp returned False after 3 attempts"` at `forward_test_engine.py:1868` and are classified non-fatal.
 
 **14 "F2: late amend_sl_tp returned False" entries** since session start. Not catastrophic (position stays on TP1), but means the TP ladder doesn't ratchet.
 
 ### 5.4 LIVE-mode position_id → signal_id mapping gap (real bug, latent)
-**File:** `src/forex-bot/adapters/ctrader/forward_test_engine.py:2605-2625` (`_on_trade_executed`)
+**File:** `src/forex_bot/adapters/ctrader/forward_test_engine.py:2605-2625` (`_on_trade_executed`)
 
 `_on_trade_executed` is registered as a callback on `self._paper_trader` (line 816). It calls `blend_runner.register_position_mapping(position_id, signal_id)` to wire the close path.
 
@@ -239,7 +239,7 @@ This makes log analysis harder because live entries are interleaved with synthet
 ## 6. Where the pipeline "breaks" — actually three real issues
 
 ### 6.1 Daily-risk budget exhaustion (the real "0 trades" story)
-**File:** `src/forex-bot/risk/sl_position_sizer.py:438-444`
+**File:** `src/forex_bot/risk/sl_position_sizer.py:438-444`
 
 `daily_risk_remaining = max(0, account_balance × daily_risk_cap_pct - _daily_risk_used - _open_risk)`  
 **With:** `account_balance = $9653.32`, `daily_risk_cap_pct = 0.03` (FTMO profile default at `risk_guard.py:57`), open positions + daily used = $272.46, → `$17.14 remaining`.
@@ -249,7 +249,7 @@ The launcher **explicitly passes `daily_risk_cap_pct: 0.05`** in `launch_blend_f
 **Time-to-fix:** **Until 17:00 America/Toronto (~4.5 hours from audit)** when the trading day rolls and `_daily_risk_used` resets to 0 and `_daily_start_balance` is reseated to current balance. Positions remain open; the recycle just frees up the daily cap.
 
 ### 6.2 cTrader connection instability
-**File:** `src/forex-bot/adapters/ctrader/open_api_spot_feed.py:1014+` (amend), `890+` (new_order)
+**File:** `src/forex_bot/adapters/ctrader/open_api_spot_feed.py:1014+` (amend), `890+` (new_order)
 
 Connection drops every ~15 minutes; during the `degraded → reconnecting` window, every `send_and_wait` times out at 30s. New orders all hit `LiveExecutionStatus.TIMEOUT`. Late-fill callbacks then confirm the broker did receive the order (the broker is just slow to acknowledge), but the local engine doesn't see the exec event in time.
 

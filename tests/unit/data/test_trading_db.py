@@ -1,7 +1,7 @@
 """Tests for trading_db.py — verifies path normalization and write/read parity.
 
 The core bug (DEBT card a868179a): _DB_PATH resolved to
-``src/forex-bot/data/trading.db`` instead of project-root ``data/trading.db``,
+``src/forex_bot/data/trading.db`` instead of project-root ``data/trading.db``,
 causing writers and readers to hit different files.
 
 These tests verify:
@@ -29,7 +29,7 @@ def _import_trading_db():
 
 
 def test_db_path_resolves_to_project_root():
-    """_DB_PATH should resolve to <project_root>/data/trading.db, not src/forex-bot/data/."""
+    """_DB_PATH should resolve to <project_root>/data/trading.db, not src/forex_bot/data/."""
     # Clear any override so we test the default
     with mock.patch.dict(os.environ, {}, clear=False):
         os.environ.pop("TRADING_DB_PATH", None)
@@ -38,9 +38,9 @@ def test_db_path_resolves_to_project_root():
         # Must end with data/trading.db at the project root
         assert db_path.name == "trading.db"
         assert db_path.parent.name == "data"
-        # Must NOT be inside src/forex-bot/data/
+        # Must NOT be inside src/forex_bot/data/
         assert "src" not in str(db_path), f"_DB_PATH still points into src: {db_path}"
-        assert "forex-bot" not in str(db_path), f"_DB_PATH still points into forex-bot: {db_path}"
+        assert "forex_bot" not in str(db_path), f"_DB_PATH still points into forex_bot: {db_path}"
 
 
 def test_env_var_override():
@@ -98,7 +98,7 @@ def test_db_path_not_in_src_directory():
         os.environ.pop("TRADING_DB_PATH", None)
         mod = _import_trading_db()
         path_str = str(mod._DB_PATH)
-        # The path should not contain src/forex-bot/data
-        assert "src/forex-bot/data" not in path_str, (
-            f"Regression: _DB_PATH resolves into src/forex-bot/data/: {path_str}"
+        # The path should not contain src/forex_bot/data
+        assert "src/forex_bot/data" not in path_str, (
+            f"Regression: _DB_PATH resolves into src/forex_bot/data/: {path_str}"
         )

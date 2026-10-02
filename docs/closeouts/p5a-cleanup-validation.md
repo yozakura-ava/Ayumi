@@ -33,9 +33,9 @@ Branch: `senior-dev/p5a-cleanup-reconciliation`
 | `docs/plans/p5a-cleanup-plan.md` | Planner output (already delivered, not code) |
 | `docs/specs/` | Unrelated specs |
 | `scripts/live_test_fire.py` | Separate utility script |
-| `src/forex-bot/adapters/ctrader/account_state.py` | Separate feature, not P5A |
-| `src/forex-bot/adapters/ctrader/auth.py` | Separate feature, not P5A |
-| `src/forex-bot/adapters/ctrader/credentials.py` | Separate feature, not P5A |
+| `src/forex_bot/adapters/ctrader/account_state.py` | Separate feature, not P5A |
+| `src/forex_bot/adapters/ctrader/auth.py` | Separate feature, not P5A |
+| `src/forex_bot/adapters/ctrader/credentials.py` | Separate feature, not P5A |
 | `tests/adapters/ctrader/test_account_state.py` | Test for separate feature |
 | `tests/adapters/ctrader/test_signal_adapter_strategy_id.py` | Test for separate feature |
 | `tests/strategies/test_session_breakout_tp.py` | Test for separate feature |

@@ -27,7 +27,7 @@
 - [ ] Forward test runs 24h+ without operator intervention OR first live position opens with TP/SL confirmed in cTrader UI (whichever first)
 - [ ] TP1 + SL visible in cTrader UI on real position. TP2/TP3 visible in logs + position_monitor (proto only accepts single TP per position)
 - [ ] No exit-6 (ABRT), exit-9 (KILL), or exit-75 (TEMPFAIL) patterns from May-June crash history
-- [ ] All target tests pass: `pytest tests/forex-bot/adapters/ctrader/ -q` via `scripts/run_test_scope.sh`
+- [ ] All target tests pass: `pytest tests/forex_bot/adapters/ctrader/ -q` via `scripts/run_test_scope.sh`
 - [ ] Sprint post-mortem with friction log + decision audit
 
 ### Card-by-Card Sub-AC
@@ -144,7 +144,7 @@
 #### Task 1.1 — Extend `Position` dataclass with TP2/TP3 pending fields  (1.0 SP, code-gen)
 
 **Files:**
-- `src/forex-bot/adapters/ctrader/models.py:54` — extend `Position` with `take_profit_2: float | None = None`, `take_profit_3: float | None = None`, `tp_levels_fired: list[int] = field(default_factory=list)` (e.g. `[1]` after TP1 hits). Backward-compatible (default `None` / `[]`).
+- `src/forex_bot/adapters/ctrader/models.py:54` — extend `Position` with `take_profit_2: float | None = None`, `take_profit_3: float | None = None`, `tp_levels_fired: list[int] = field(default_factory=list)` (e.g. `[1]` after TP1 hits). Backward-compatible (default `None` / `[]`).
 
 **Builder type:** code-gen  
 **Merge-before:** Task 1.2, 1.3, 1.4  
@@ -154,7 +154,7 @@
 #### Task 1.2 — Wire TP2/TP3 into `OrderManager.execute_live_order` + `execute_paper_order`  (1.0 SP, code-gen)
 
 **Files:**
-- `src/forex-bot/adapters/ctrader/order_manager.py:141` (`execute_paper_order`) and `:255` (`execute_live_order`) — add `take_profit_2: float | None = None`, `take_profit_3: float | None = None` params; pass through to Position construction.
+- `src/forex_bot/adapters/ctrader/order_manager.py:141` (`execute_paper_order`) and `:255` (`execute_live_order`) — add `take_profit_2: float | None = None`, `take_profit_3: float | None = None` params; pass through to Position construction.
 
 **Builder type:** code-gen  
 **Merge-before:** Task 1.3  
@@ -164,18 +164,18 @@
 #### Task 1.3 — F1 + F2 fix in `forward_test_engine.py` — pass TP1 as active, store TP2/TP3 on Position  (1.0 SP, code-gen)
 
 **Files:**
-- `src/forex-bot/adapters/ctrader/forward_test_engine.py:1278` (immediate path) — keep `signal.take_profit_1` in `amend_sl_tp(position_id, sl, tp=tp1)`, then **after** successful amend, store `tp2`/`tp3` on the Position via `order_manager.update_position_tp_levels(position_id, tp2, tp3)`.
+- `src/forex_bot/adapters/ctrader/forward_test_engine.py:1278` (immediate path) — keep `signal.take_profit_1` in `amend_sl_tp(position_id, sl, tp=tp1)`, then **after** successful amend, store `tp2`/`tp3` on the Position via `order_manager.update_position_tp_levels(position_id, tp2, tp3)`.
 - `forward_test_engine.py:1575` (late-fill callback) — identical treatment.
 
 **Builder type:** code-gen  
 **Merge-before:** Task 1.5 (position_monitor needs stored TP2/TP3)  
 **Touches:** `forward_test_engine.py` only  
-**Tests:** New `tests/forex-bot/adapters/ctrader/test_tp_sl_submission.py` (file does not yet exist — create). Mock `amend_sl_tp` to assert only TP1 passed at the broker boundary; assert `update_position_tp_levels` was called with TP2/TP3. Add late-fill callback test.
+**Tests:** New `tests/forex_bot/adapters/ctrader/test_tp_sl_submission.py` (file does not yet exist — create). Mock `amend_sl_tp` to assert only TP1 passed at the broker boundary; assert `update_position_tp_levels` was called with TP2/TP3. Add late-fill callback test.
 
 #### Task 1.4 — F3 fix in `paper_trader.py` — forward all 3 TPs  (0.5 SP, code-gen)
 
 **Files:**
-- `src/forex-bot/adapters/ctrader/paper_trader.py:240, 249` (and `:125, :200` — same pattern) — pass `signal.take_profit_2`, `signal.take_profit_3` to `_order_manager.execute_live_order` and `execute_paper_order`. Backward-compatible (`None` defaults).
+- `src/forex_bot/adapters/ctrader/paper_trader.py:240, 249` (and `:125, :200` — same pattern) — pass `signal.take_profit_2`, `signal.take_profit_3` to `_order_manager.execute_live_order` and `execute_paper_order`. Backward-compatible (`None` defaults).
 
 **Builder type:** code-gen  
 **Merge-before:** Task 1.5  
@@ -185,7 +185,7 @@
 #### Task 1.5 — F5 fix: `position_monitor.py` TP ratcheting via `amend_sl_tp`  (1.0 SP, code-gen)
 
 **Files:**
-- `src/forex-bot/adapters/ctrader/position_monitor.py` — add `check_tp_levels(prices: dict) -> list[Action]` method called from `update_positions()` every tick. For each position with TP2/TP3 set and not in `tp_levels_fired`:
+- `src/forex_bot/adapters/ctrader/position_monitor.py` — add `check_tp_levels(prices: dict) -> list[Action]` method called from `update_positions()` every tick. For each position with TP2/TP3 set and not in `tp_levels_fired`:
   - LONG: if `price >= position.take_profit_2` and `2 not in tp_levels_fired`: call `amend_sl_tp(position_id, sl=breakeven, tp=tp2)`, append 2 to `tp_levels_fired`.
   - LONG: if `price >= position.take_profit_3` and `3 not in tp_levels_fired`: call `amend_sl_tp(position_id, sl=tp2, tp=tp3)`, append 3.
   - SHORT: mirror logic.
@@ -215,8 +215,8 @@
 #### Task 2.1 — Verify `ConnectionManager` has two registered `ConnectionStateManager` instances  (0.5 SP, read/analyze)
 
 **Files to read:**
-- `src/forex-bot/adapters/ctrader/connection_manager.py` — verify `register(ConnectionRole.MARKET_DATA, state_mgr)` and `register(ConnectionRole.TRADE_EXECUTION, state_mgr)` are both called from `forward_test_engine.__init__` or wherever the connection pair is constructed.
-- `src/forex-bot/adapters/ctrader/forward_test_engine.py` — verify `_market_feed` and `_market_feed` (trade client, if separate) both have a `.state_manager` attribute pointing to a `ConnectionStateManager`.
+- `src/forex_bot/adapters/ctrader/connection_manager.py` — verify `register(ConnectionRole.MARKET_DATA, state_mgr)` and `register(ConnectionRole.TRADE_EXECUTION, state_mgr)` are both called from `forward_test_engine.__init__` or wherever the connection pair is constructed.
+- `src/forex_bot/adapters/ctrader/forward_test_engine.py` — verify `_market_feed` and `_market_feed` (trade client, if separate) both have a `.state_manager` attribute pointing to a `ConnectionStateManager`.
 
 **Builder type:** read/analyze → write verification report to `docs/forex/ctrader-phase1-verification-2026-07-05.md`. **DO NOT modify code** unless a concrete gap is found.
 
@@ -241,8 +241,8 @@
 #### Task 3.1 — Verify `ConnectionWatchdog` running + `ReconnectStrategy` wired  (0.5 SP, read/analyze)
 
 **Files:**
-- `src/forex-bot/adapters/ctrader/connection_watchdog.py` — verify thresholds (30s DEGRADED, 90s FAILED, 5s poll).
-- `src/forex-bot/adapters/ctrader/reconnect_strategy.py` — verify AWS decorrelated jitter formula, base=1s, cap=60s, max=10.
+- `src/forex_bot/adapters/ctrader/connection_watchdog.py` — verify thresholds (30s DEGRADED, 90s FAILED, 5s poll).
+- `src/forex_bot/adapters/ctrader/reconnect_strategy.py` — verify AWS decorrelated jitter formula, base=1s, cap=60s, max=10.
 - `forward_test_engine.py:2017, 2147, 2249` — verify `_check_connection_health` and `_attempt_reconnect` call into the watchdog/strategy.
 
 **Builder type:** read/analyze → report.
@@ -518,7 +518,7 @@ WantedBy=default.target
 | R2 | Live-fire verification card (2c5d684a) cannot run before market close today | Medium | Medium | Forward-test stability 24h+ covers equivalent ground if market closes; otherwise reschedule to next session | N/A — verification, not feature |
 | R3 | systemd unit auto-restart masks underlying crash bug (crash-loop with RestartSec=30 + StartLimitBurst=3) | Low | High | Task 5.1 root-cause must complete before 5.2 deploy; do NOT enable auto-restart without root-cause | `systemctl --user disable ayumi-forward-test.service` + revert to bare-process |
 | R4 | Council rescopes card 1 from 2.5 SP to larger (e.g. full Option B ladder with SL breakeven moves) | Medium | High | Card body already says "Option A + B-lite" — clear scope in trace doc. Council should respect trace doc recommendation. | Planner holds card at ready; if rescoped, decompose and re-spec |
-| R5 | F4 docs update references wrong line numbers (e.g. open_api_spot_feed.py line shifted) | Low | Low | Builder runs `grep -n "def amend_sl_tp" src/forex-bot/adapters/ctrader/open_api_spot_feed.py` before documenting | Doc-only — trivial revert |
+| R5 | F4 docs update references wrong line numbers (e.g. open_api_spot_feed.py line shifted) | Low | Low | Builder runs `grep -n "def amend_sl_tp" src/forex_bot/adapters/ctrader/open_api_spot_feed.py` before documenting | Doc-only — trivial revert |
 | R6 | Cards 2/3/4 verification finds a real gap that's >1 SP (e.g. dual-connection not actually wired in `forward_test_engine`) | Low–Medium | High | If gap >1 SP: card-body rescope + open new sprint card; do NOT silently expand sprint scope | Revert to "verify" only; new card for the fix |
 | R7 | TP ratchet idempotency bug — TP2 amends twice on rapid price oscillation | Medium | Medium | `tp_levels_fired` list on Position is the idempotency key; thorough tests in Task 1.5; Council Liora reviews | `git revert <B7 commit>` |
 | R8 | Operator live-fire (Task 6.1) opens a position in volatile market and gets stopped out before TP/SL confirmation | Low | Low | Use 0.01 lots minimum; place position manually during low-volatility hours (London/NY overlap); screenshot within 1 minute of fill | Manual close — no code rollback needed |
@@ -534,7 +534,7 @@ WantedBy=default.target
 
 | Card | Unit tests | Integration tests | Live-fire / operator |
 |---|---|---|---|
-| 1 TP/SL fix | `tests/unit/ctrader/test_position_tp_levels.py` (new), `tests/unit/execution/test_position_monitor_tp_ratchet.py` (new) | `tests/integration/test_ctrader_paper_trader.py`, `tests/integration/test_ctrader_execution_v2.py`, `tests/forex-bot/adapters/ctrader/test_tp_sl_submission.py` (new) | Card 6 live-fire |
+| 1 TP/SL fix | `tests/unit/ctrader/test_position_tp_levels.py` (new), `tests/unit/execution/test_position_monitor_tp_ratchet.py` (new) | `tests/integration/test_ctrader_paper_trader.py`, `tests/integration/test_ctrader_execution_v2.py`, `tests/forex_bot/adapters/ctrader/test_tp_sl_submission.py` (new) | Card 6 live-fire |
 | 2 cTrader Phase 1 | (existing) `tests/unit/data/test_ctrader_client.py` | `tests/integration/test_connection_manager.py`, `test_connection_manager_wiring.py` | Forward-test 24h+ |
 | 3 cTrader Phase 2 | — | `tests/integration/test_reconnect_logic.py`, `test_connection_watchdog.py`, `test_connection_self_healing.py` | Forward-test 24h+ |
 | 4 cTrader Phase 3 | — | `tests/integration/test_connection_manager.py` (auth retry section) | Forward-test 24h+ |
@@ -570,10 +570,10 @@ source .venv/bin/activate
 
 | Card | Branch / commit | Rollback command |
 |---|---|---|
-| 1 TP/SL fix | `senior-dev/tpsl-fix` | `git revert --no-commit d5e2e2f..HEAD -- src/forex-bot/adapters/ctrader/forward_test_engine.py src/forex-bot/adapters/ctrader/paper_trader.py src/forex-bot/adapters/ctrader/position_monitor.py src/forex-bot/adapters/ctrader/models.py src/forex-bot/adapters/ctrader/order_manager.py` |
-| 2 cTrader Phase 1 | (verify-only likely) | `git revert --no-commit HEAD~N..HEAD -- src/forex-bot/adapters/ctrader/connection_manager.py` |
-| 3 cTrader Phase 2 | (verify-only likely) | `git revert --no-commit HEAD~N..HEAD -- src/forex-bot/adapters/ctrader/forward_test_engine.py src/forex-bot/adapters/ctrader/connection_watchdog.py` |
-| 4 cTrader Phase 3 | (verify-only likely) | `git revert --no-commit HEAD~N..HEAD -- src/forex-bot/adapters/ctrader/connection_manager.py src/forex-bot/adapters/ctrader/token_lifecycle.py src/forex-bot/adapters/ctrader/error_classifier.py` |
+| 1 TP/SL fix | `senior-dev/tpsl-fix` | `git revert --no-commit d5e2e2f..HEAD -- src/forex_bot/adapters/ctrader/forward_test_engine.py src/forex_bot/adapters/ctrader/paper_trader.py src/forex_bot/adapters/ctrader/position_monitor.py src/forex_bot/adapters/ctrader/models.py src/forex_bot/adapters/ctrader/order_manager.py` |
+| 2 cTrader Phase 1 | (verify-only likely) | `git revert --no-commit HEAD~N..HEAD -- src/forex_bot/adapters/ctrader/connection_manager.py` |
+| 3 cTrader Phase 2 | (verify-only likely) | `git revert --no-commit HEAD~N..HEAD -- src/forex_bot/adapters/ctrader/forward_test_engine.py src/forex_bot/adapters/ctrader/connection_watchdog.py` |
+| 4 cTrader Phase 3 | (verify-only likely) | `git revert --no-commit HEAD~N..HEAD -- src/forex_bot/adapters/ctrader/connection_manager.py src/forex_bot/adapters/ctrader/token_lifecycle.py src/forex_bot/adapters/ctrader/error_classifier.py` |
 | 5 systemd | (system-level) | `systemctl --user stop ayumi-forward-test.service && systemctl --user disable ayumi-forward-test.service && rm ~/.config/systemd/user/ayumi-forward-test.service && systemctl --user daemon-reload` |
 | 6 live-fire | N/A — verification only | Manual close position; no code to revert |
 
@@ -737,18 +737,18 @@ Each builder dispatch should include:
 ## Appendix B — File Inventory Touched by Sprint
 
 **Modified:**
-- `src/forex-bot/adapters/ctrader/models.py` (Position dataclass extension)
-- `src/forex-bot/adapters/ctrader/order_manager.py` (TP2/TP3 params)
-- `src/forex-bot/adapters/ctrader/forward_test_engine.py` (F1+F2 fix)
-- `src/forex-bot/adapters/ctrader/paper_trader.py` (F3 fix)
-- `src/forex-bot/adapters/ctrader/position_monitor.py` (F5 ratchet)
-- `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` (inline F4 comment)
+- `src/forex_bot/adapters/ctrader/models.py` (Position dataclass extension)
+- `src/forex_bot/adapters/ctrader/order_manager.py` (TP2/TP3 params)
+- `src/forex_bot/adapters/ctrader/forward_test_engine.py` (F1+F2 fix)
+- `src/forex_bot/adapters/ctrader/paper_trader.py` (F3 fix)
+- `src/forex_bot/adapters/ctrader/position_monitor.py` (F5 ratchet)
+- `src/forex_bot/adapters/ctrader/open_api_spot_feed.py` (inline F4 comment)
 - `docs/forex/tp-sl-chain-trace.md` (F4 doc update)
 - `docs/post-mortems/ayumi-may-june-crash-root-cause-2026-07-05.md` (Task 5.1)
 - `docs/runbooks/ayumi-systemd-install.md` (Task 5.2)
 
 **Created:**
-- `tests/forex-bot/adapters/ctrader/test_tp_sl_submission.py` (Task 1.3)
+- `tests/forex_bot/adapters/ctrader/test_tp_sl_submission.py` (Task 1.3)
 - `tests/unit/ctrader/test_position_tp_levels.py` (Task 1.1)
 - `tests/unit/execution/test_position_monitor_tp_ratchet.py` (Task 1.5)
 - `docs/forex/ctrader-phase1-verification-2026-07-05.md` (Task 2.1)
@@ -757,7 +757,7 @@ Each builder dispatch should include:
 - `~/.config/systemd/user/ayumi-forward-test.service` (Task 5.2)
 
 **Untouched (per constraints):**
-- `src/forex-bot/strategies/*` (frozen per card a7b8e896 Do-NOT-touch list)
+- `src/forex_bot/strategies/*` (frozen per card a7b8e896 Do-NOT-touch list)
 - `open_api_spot_feed.py:1018–1068` proto (F4 platform constraint)
 
 ---

@@ -21,8 +21,8 @@ from pathlib import Path
 
 import pytest
 
-# Ensure the forex-bot source is importable
-FOREX_BOT_SRC = Path(__file__).resolve().parents[3] / "src" / "forex-bot"
+# Ensure the forex_bot source is importable
+FOREX_BOT_SRC = Path(__file__).resolve().parents[3] / "src" / "forex_bot"
 if str(FOREX_BOT_SRC) not in sys.path:
     sys.path.insert(0, str(FOREX_BOT_SRC))
 

@@ -35,7 +35,7 @@ The launcher is the primary work blocker because the misleading counter hides re
 
 The `else` branch fires for **any** non-FILLED outcome, including `TIMEOUT` and `SENT`. Those two are not terminal — they're explicitly described in the engine's own docstring as "awaiting cTrader ack, late events upgrade to FILLED":
 
-**File:** `src/forex-bot/adapters/ctrader/forward_test_engine.py`
+**File:** `src/forex_bot/adapters/ctrader/forward_test_engine.py`
 **Lines:** 199–227 (`LiveExecutionStatus` docstring)
 
 > `SENT` — the order was sent to cTrader but no execution event has arrived yet. The engine should NOT count this as a fill. Late events are delivered via the spot feed's `on_order_filled` / `on_order_rejected` / `on_order_cancelled` callbacks.
@@ -43,7 +43,7 @@ The `else` branch fires for **any** non-FILLED outcome, including `TIMEOUT` and 
 
 The launcher treats `TIMEOUT` / `SENT` as if they were terminal failures and bumps `signals_failed_live`, then the late-fill callback (`_release_late`) fires minutes later when the execution event finally arrives, **increments `signals_traded` / `live_fills`**, but does **not** decrement `signals_failed_live`.
 
-**File:** `src/forex-bot/adapters/ctrader/forward_test_engine.py`
+**File:** `src/forex_bot/adapters/ctrader/forward_test_engine.py`
 **Lines:** 1785–1788 (the late-callback FILLED branch)
 
 ```python
@@ -71,7 +71,7 @@ So the same `(order_id)` can hit the failure counter twice: once at sync time (l
 
 ### 1b. Secondary symptom: amend_sl_tp timeouts during degraded connections
 
-**File:** `src/forex-bot/adapters/ctrader/open_api_spot_feed.py`
+**File:** `src/forex_bot/adapters/ctrader/open_api_spot_feed.py`
 **Lines:** 1059–1064 (`amend_sl_tp`)
 
 ```python
@@ -265,7 +265,7 @@ Signal emitted by strategy
 
 **Optional belt-and-suspenders fix** (defense in depth, in case any other caller misses a counter):
 
-**File:** `src/forex-bot/adapters/ctrader/forward_test_engine.py`
+**File:** `src/forex_bot/adapters/ctrader/forward_test_engine.py`
 **Lines:** 1785–1788 (after the late-callback FILLED branch)
 
 Add at the end of the FILLED branch:
@@ -313,10 +313,10 @@ Reasoning:
 
 ## Appendix A: Files Touched / Read
 
-- `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` — `amend_sl_tp` (line 1033), `new_order` (line 890), `_AMEND_TIMEOUT_SEC`/`_ORDER_TIMEOUT_SEC` (lines 110–111)
-- `src/forex-bot/adapters/ctrader/forward_test_engine.py` — `_execute_signal_live` (line 1285), `_classify_live_order_outcome` (line 1626), `_register_late_fill_callbacks` (line 1693), `_release_late` (line 1722), `ForwardTestHealth` (line 146), `LiveExecutionStatus` (line 199), `_resolve_order_manager` (line 1672)
-- `src/forex-bot/adapters/ctrader/position_monitor.py` — `amend_sl_tp` retry in TP ratchet (line 477), `_monitor_loop` (line 647)
-- `src/forex-bot/adapters/ctrader/connection.py` — `send_and_wait` (line 196)
+- `src/forex_bot/adapters/ctrader/open_api_spot_feed.py` — `amend_sl_tp` (line 1033), `new_order` (line 890), `_AMEND_TIMEOUT_SEC`/`_ORDER_TIMEOUT_SEC` (lines 110–111)
+- `src/forex_bot/adapters/ctrader/forward_test_engine.py` — `_execute_signal_live` (line 1285), `_classify_live_order_outcome` (line 1626), `_register_late_fill_callbacks` (line 1693), `_release_late` (line 1722), `ForwardTestHealth` (line 146), `LiveExecutionStatus` (line 199), `_resolve_order_manager` (line 1672)
+- `src/forex_bot/adapters/ctrader/position_monitor.py` — `amend_sl_tp` retry in TP ratchet (line 477), `_monitor_loop` (line 647)
+- `src/forex_bot/adapters/ctrader/connection.py` — `send_and_wait` (line 196)
 - `scripts/launch_blend_forward_test.py` — `_route_signal` (line 305), live-execution branching (line 380), B5 health log (line 1007), `_live_fill_count` source (line 918), A8 equity tracker (line 1073)
 - `logs/forward_test.log` — PID 2125800 live process log, lines around 00:00:00–02:09:25
 - `data/forward_test_health.json` — last health snapshot (2 signals, 0 trades, ticks 13716)

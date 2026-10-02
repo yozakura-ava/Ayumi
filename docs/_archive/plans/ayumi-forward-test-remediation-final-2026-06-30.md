@@ -32,7 +32,7 @@ The planner's original plan had 6 tasks / 13 SP. Council review uncovered 4 crit
 - **Root cause:** `scripts/launch_blend_forward_test.py:~702` constructs `TestCanaryStrategy(tp_sl_pct=0.005)`, overriding the class default of `0.0`. The `enabled` property checks `tp_sl_pct > 0` — so the disable flag in the class was bypassed by the explicit constructor argument.
 - **Fix:** Set `tp_sl_pct=0.0` at the launcher call site (or remove canary from the strategy list entirely).
 - **Hardening:** Gate behind `AYUMI_ENABLE_CANARY=1` env var. Add a WARNING log when canary is enabled.
-- **Files:** `scripts/launch_blend_forward_test.py`, `src/forex-bot/strategies/test_canary.py`
+- **Files:** `scripts/launch_blend_forward_test.py`, `src/forex_bot/strategies/test_canary.py`
 - **AC:**
   - [ ] `grep -n "TestCanaryStrategy" scripts/launch_blend_forward_test.py` shows `tp_sl_pct=0.0` or env-gated
   - [ ] 30-min dry run: `Test Canary: evals=N no_signal=N` (all evals produce no signal)
@@ -41,7 +41,7 @@ The planner's original plan had 6 tasks / 13 SP. Council review uncovered 4 crit
 **1B — Fix positionId type error in late-fill callback (1 SP)**
 - **Root cause:** `_register_late_fill_callbacks()` in `forward_test_engine.py:1385-1425` falls back to string clientOrderId when no integer `positionId` is available, passing it to `amend_sl_tp()` which expects an int.
 - **Fix:** Validate `ctrader_position_id` is a non-zero `int` before calling `amend_sl_tp()`. If missing, log warning and skip amend.
-- **Files:** `src/forex-bot/adapters/ctrader/forward_test_engine.py`
+- **Files:** `src/forex_bot/adapters/ctrader/forward_test_engine.py`
 - **AC:**
   - [ ] No `Late SL/TP amend error ... 'str' object cannot be interpreted as an integer` in logs
   - [ ] Warning logged when positionId is missing: `Late fill for order %s but no cTrader positionId — SL/TP skipped`
@@ -58,7 +58,7 @@ The planner's original plan had 6 tasks / 13 SP. Council review uncovered 4 crit
 **2A — Fix unreachable `time.sleep` in amend_sl_tp (1 SP)**
 - **Root cause:** `open_api_spot_feed.py:~208` — the `time.sleep(1.0)` throttle is after `return True` inside the `with self._amend_lock:` block, so it never executes. The 1s stagger claimed by commit `10fc316` does not actually work.
 - **Fix:** Move the sleep before the return, or replace with a proper rate-limiter / semaphore pattern.
-- **Files:** `src/forex-bot/adapters/ctrader/open_api_spot_feed.py`
+- **Files:** `src/forex_bot/adapters/ctrader/open_api_spot_feed.py`
 - **AC:**
   - [ ] Unit test: 5 rapid `amend_sl_tp()` calls are spaced ≥1s apart
   - [ ] No more concurrent amend floods under burst fills
@@ -66,7 +66,7 @@ The planner's original plan had 6 tasks / 13 SP. Council review uncovered 4 crit
 **2B — Make amend_sl_tp return actual broker response (1 SP)**
 - **Root cause:** `amend_sl_tp()` always returns `True` (fire-and-forget from commit `78dfd7a`), even when the broker rejects with `TRADING_BAD_STOPS`. The engine logs the error but the caller thinks it succeeded.
 - **Fix:** Return `False` when broker rejects. Log the rejection with positionId, SL, TP, and errorCode. Handle partial amend success (one of SL/TP applied, other rejected).
-- **Files:** `src/forex-bot/adapters/ctrader/open_api_spot_feed.py`, `src/forex-bot/adapters/ctrader/forward_test_engine.py`
+- **Files:** `src/forex_bot/adapters/ctrader/open_api_spot_feed.py`, `src/forex_bot/adapters/ctrader/forward_test_engine.py`
 - **AC:**
   - [ ] `amend_sl_tp()` returns `False` on broker rejection
   - [ ] Log includes positionId, errorCode, and description
@@ -113,8 +113,8 @@ The planner's original plan had 6 tasks / 13 SP. Council review uncovered 4 crit
 - If the fix is in bar construction, verify spot ticks and historical bars use the same scale
 
 **Files (likely — confirmed by Phase 3):**
-- `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` (fetch_trendbars, tick decode)
-- Possibly `src/forex-bot/adapters/ctrader/forward_test_engine.py` (MarketState assembly)
+- `src/forex_bot/adapters/ctrader/open_api_spot_feed.py` (fetch_trendbars, tick decode)
+- Possibly `src/forex_bot/adapters/ctrader/forward_test_engine.py` (MarketState assembly)
 
 **AC:**
 - [ ] Unit test: USDJPY signal price `16232.45` normalizes to `162.3245` at broker boundary
@@ -163,9 +163,9 @@ The planner's original plan had 6 tasks / 13 SP. Council review uncovered 4 crit
    - `forward_test_engine.py` late-fill callback must pass actual `risk_amount` to `cancel_risk()`
 
 **Files:**
-- `src/forex-bot/risk/sl_position_sizer.py` (major refactor)
-- `src/forex-bot/forward_test/blend_runner.py` (update callsites)
-- `src/forex-bot/adapters/ctrader/forward_test_engine.py` (update callsites)
+- `src/forex_bot/risk/sl_position_sizer.py` (major refactor)
+- `src/forex_bot/forward_test/blend_runner.py` (update callsites)
+- `src/forex_bot/adapters/ctrader/forward_test_engine.py` (update callsites)
 
 **AC:**
 - [ ] Unit test: `register("sig1", 100); cancel("sig1"); cancel("sig1")` — second cancel is no-op, `_open_risk == 0`, no warning
@@ -216,8 +216,8 @@ The planner's original plan had 6 tasks / 13 SP. Council review uncovered 4 crit
    - Do not treat as full success — the position has partial protection
 
 **Files:**
-- `src/forex-bot/adapters/ctrader/forward_test_engine.py` (callback logic, risk-release branches)
-- `src/forex-bot/forward_test/blend_runner.py` (cancel_risk callsite)
+- `src/forex_bot/adapters/ctrader/forward_test_engine.py` (callback logic, risk-release branches)
+- `src/forex_bot/forward_test/blend_runner.py` (cancel_risk callsite)
 
 **AC:**
 - [ ] Dry-run: `TIMEOUT` that resolves to late fill does NOT emit `Risk cancelled` before the fill
@@ -260,9 +260,9 @@ The planner's original plan had 6 tasks / 13 SP. Council review uncovered 4 crit
    - If SL is not set on a broker position, conservative risk estimate from volume × symbol pip value (with WARNING log)
 
 **Files:**
-- `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` (enrich reconcile return)
-- `src/forex-bot/adapters/ctrader/forward_test_engine.py` (call reconcile at startup)
-- `src/forex-bot/forward_test/blend_runner.py` (seed sizer from reconcile data)
+- `src/forex_bot/adapters/ctrader/open_api_spot_feed.py` (enrich reconcile return)
+- `src/forex_bot/adapters/ctrader/forward_test_engine.py` (call reconcile at startup)
+- `src/forex_bot/forward_test/blend_runner.py` (seed sizer from reconcile data)
 
 **AC:**
 - [ ] Startup log shows preflight result with seeded position count and total risk

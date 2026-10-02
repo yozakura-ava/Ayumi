@@ -9,7 +9,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "src" / "forex-bot"))
+sys.path.insert(0, str(PROJECT_ROOT / "src" / "forex_bot"))
 load_dotenv(PROJECT_ROOT / ".env")
 
 from adapters.ctrader.open_api_client import CTraderOpenApiClient

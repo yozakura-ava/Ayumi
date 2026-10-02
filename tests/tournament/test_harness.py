@@ -262,7 +262,7 @@ def test_scorecard_runs_unmodified_strategies(synthetic_duckdb: Path) -> None:
 
     Validates the "strategies run unmodified" contract:
     * Harness imports strategies via STRATEGY_CLASS_MAP (canonical registry).
-    * No strategy module under src/forex-bot/strategies/ is touched by the harness.
+    * No strategy module under src/forex_bot/strategies/ is touched by the harness.
     """
     # Pre-build assertion: import resolves via the existing registry, not copy-paste.
     import tournament.harness as harness_mod

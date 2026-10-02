@@ -30,10 +30,10 @@ TokenLifecycle._refresh_disabled = False  (DEFAULT — refresh enabled)
 
 | File | Role |
 |---|---|
-| `src/forex-bot/adapters/ctrader/token_lifecycle.py` | OAuth refresh logic, kill switch |
-| `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` | Wires TokenLifecycle, triggers reactive refresh |
-| `src/forex-bot/adapters/ctrader/credential_store.py` | Reads/writes tokens to `.env` |
-| `src/forex-bot/adapters/ctrader/auth_error_types.py` | Classifies cTrader error codes |
+| `src/forex_bot/adapters/ctrader/token_lifecycle.py` | OAuth refresh logic, kill switch |
+| `src/forex_bot/adapters/ctrader/open_api_spot_feed.py` | Wires TokenLifecycle, triggers reactive refresh |
+| `src/forex_bot/adapters/ctrader/credential_store.py` | Reads/writes tokens to `.env` |
+| `src/forex_bot/adapters/ctrader/auth_error_types.py` | Classifies cTrader error codes |
 
 ---
 

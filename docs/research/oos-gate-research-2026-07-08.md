@@ -3,7 +3,7 @@
 **Author:** Research subagent (Satoshi track)
 **Date:** 2026-07-08
 **Status:** Research notes — feeds into Ayumi multi-strategy evaluation pipeline
-**Related:** `multi-strategy-wf-2026-07-08` reports, `src/forex-bot/quant/walk_forward.py`, `src/forex-bot/quant/go_nogo_criteria.py`
+**Related:** `multi-strategy-wf-2026-07-08` reports, `src/forex_bot/quant/walk_forward.py`, `src/forex_bot/quant/go_nogo_criteria.py`
 
 ---
 

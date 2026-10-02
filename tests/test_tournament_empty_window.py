@@ -189,7 +189,7 @@ class TestHarnessFailLoud:
         # Ensure harness imports work from the CLI module
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
         sys.path.insert(
-            0, str(Path(__file__).resolve().parent.parent / "src" / "forex-bot")
+            0, str(Path(__file__).resolve().parent.parent / "src" / "forex_bot")
         )
 
         # Invoke the CLI in-process so we can capture its return value

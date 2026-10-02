@@ -3,7 +3,7 @@
 **Author:** Research subagent (depth 1/1)
 **Date:** 2026-07-12
 **Scope:** Actionable tuning for 6 existing strategies, new strategy candidates, walk-forward window sizing
-**Codebase basis:** `$AYUMI_ROOT/src/forex-bot/strategies/*` (read in full), `srf/gonogo.py`, `srf/schema.py`, `backtest/walk_forward_runner.py`, `quant/walk_forward.py`, `ml/per_symbol_configs.py`, recent `wf-revalidation-2026-07/summary.json`
+**Codebase basis:** `$AYUMI_ROOT/src/forex_bot/strategies/*` (read in full), `srf/gonogo.py`, `srf/schema.py`, `backtest/walk_forward_runner.py`, `quant/walk_forward.py`, `ml/per_symbol_configs.py`, recent `wf-revalidation-2026-07/summary.json`
 
 ---
 

@@ -27,7 +27,7 @@ import pytest
 # Resolve repo root dynamically so this test works in main tree, worktree,
 # or any other checkout.
 REPO = Path(__file__).resolve().parents[3]
-SRC_FOREX_BOT = REPO / "src" / "forex-bot"
+SRC_FOREX_BOT = REPO / "src" / "forex_bot"
 if str(SRC_FOREX_BOT) not in sys.path:
     sys.path.insert(0, str(SRC_FOREX_BOT))
 

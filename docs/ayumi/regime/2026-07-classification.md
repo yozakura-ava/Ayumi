@@ -239,7 +239,7 @@ Per SRB-AYUMI-007 §6, monitor:
 2. **AUDUSD not in local data** — regime tag inferred from macro (DXY-driven) rather than measured.
 3. **Bollinger %B threshold for compressed regime is not validated.** The 2.0σ → 2.5σ widening is a recommendation, not a tested calibration.
 4. **Event-driven USDJPY playbook** is recommended but **not implemented** in any Ayumi strategy. This is a separate work item (out of scope for this documentation card).
-5. **Regime detection code EXISTS** (`src/forex-bot/quant/regime_detection.py`, `regime.py`, `mtf_regime.py`, `correlation_regime_hmm.py`, `spread_regime_classifier.py`, `dxy_regime_overlay.py`) but is not wired into the strategy selector. Per companion card `ftmo-priority.md`, the recommended PRIMARY MR strategies are regime-appropriate by archetype, so this wiring gap is less acute for MR than for trend/breakout.
+5. **Regime detection code EXISTS** (`src/forex_bot/quant/regime_detection.py`, `regime.py`, `mtf_regime.py`, `correlation_regime_hmm.py`, `spread_regime_classifier.py`, `dxy_regime_overlay.py`) but is not wired into the strategy selector. Per companion card `ftmo-priority.md`, the recommended PRIMARY MR strategies are regime-appropriate by archetype, so this wiring gap is less acute for MR than for trend/breakout.
 
 ---
 
@@ -272,8 +272,8 @@ WARNING  ⚠️  live_fills=0 but signals_generated=21 — orders may not be rea
 - SRB-AYUMI-007 (Satoshi, Tier 2, 2026-07-01) — primary source for per-pair regime classification, external research synthesis, recommended archetype mapping
 - SRB-AYUMI-005 (Satoshi, Tier 1, 2026-07-01) — companion for FTMO envelope math and MR-archetype priority
 - `docs/research/ayumi-signal-audit.md` — Root Cause #1 (strategy_timeframes not passed) and Root Cause #2 (multi-layered strategy guards)
-- `src/forex-bot/quant/regime_detection.py`, `regime.py`, `mtf_regime.py`, `correlation_regime_hmm.py` — existing regime detection code (not currently wired)
+- `src/forex_bot/quant/regime_detection.py`, `regime.py`, `mtf_regime.py`, `correlation_regime_hmm.py` — existing regime detection code (not currently wired)
 - `src/forex_trading/strategies/mean_reversion.py`, `regime_aware.py`, `regime_switching_momentum.py` — existing MR and regime-aware strategies
-- `src/forex-bot/strategies/registry.py` — current 13-strategy registry
+- `src/forex_bot/strategies/registry.py` — current 13-strategy registry
 - `logs/forward_test.log` — live forward-test health data
 - Companion doc: `docs/ayumi/strategy-blend/ftmo-priority.md` (card 4a8120fe)

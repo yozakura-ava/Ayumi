@@ -16,7 +16,7 @@
 - `tests/test_tournament_registration.py` (NEW)
 - `docs/plans/ayumi-tournament-harness-spec.md` (appendix only — SRMR+ diagnosis)
 
-**Explicitly OUT of scope:** `src/forex-bot/strategies/*` (no edits, only triage by inspection).
+**Explicitly OUT of scope:** `src/forex_bot/strategies/*` (no edits, only triage by inspection).
 
 ## Acceptance criteria coverage
 

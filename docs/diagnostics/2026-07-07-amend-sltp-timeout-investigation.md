@@ -14,7 +14,7 @@
 The `amend_sl_tp()` method lives in:
 
 ```text
-src/forex-bot/adapters/ctrader/open_api_spot_feed.py:1033
+src/forex_bot/adapters/ctrader/open_api_spot_feed.py:1033
 ```
 
 Key constants and surrounding code (lines 107–216):
@@ -69,7 +69,7 @@ def amend_sl_tp(self, position_id, sl, tp, *, symbol_id=None, timeout=_AMEND_TIM
 
 ### 1.2 What the underlying connection does
 
-`send_and_wait()` in `src/forex-bot/adapters/ctrader/connection.py:196` wraps the
+`send_and_wait()` in `src/forex_bot/adapters/ctrader/connection.py:196` wraps the
 Twisted client. It returns `None` when either:
 
 * `event.wait(timeout=timeout + 5)` itself expires (event never set), or
@@ -91,7 +91,7 @@ Inside `amend_sl_tp()` there is **no** internal retry or queue. Each call is a
 single `send_and_wait()` attempt. Retry lives entirely in the caller(s):
 
 * `ForwardTestEngine.execute_live_order()` (lines ~1355–1430 in
-  `src/forex-bot/adapters/ctrader/forward_test_engine.py`) does up to 3
+  `src/forex_bot/adapters/ctrader/forward_test_engine.py`) does up to 3
   attempts with linear backoff `time.sleep(0.2 * (attempt + 1))`.
 * `ForwardTestEngine._register_late_fill_callbacks()` (lines ~1700–1860) does
   the same 3-attempt bounded retry for late fills.
@@ -226,7 +226,7 @@ request, and calls `send_and_wait()`. If the connection is already degraded,
 
 ### 3.4 Why this is recent
 
-`git log --oneline -20 src/forex-bot/adapters/ctrader/open_api_spot_feed.py`
+`git log --oneline -20 src/forex_bot/adapters/ctrader/open_api_spot_feed.py`
 shows commit `fd219df fix(ayumi): inline SL/TP on MARKET orders + positionId
 stamping + amend retry` (2026-07-06). That commit:
 
@@ -250,11 +250,11 @@ request was sent into a dead socket.
 
 ### 4.1 Low-effort fix: pre-flight connection check + shorter retry spacing
 
-**File:** `src/forex-bot/adapters/ctrader/open_api_spot_feed.py`  
+**File:** `src/forex_bot/adapters/ctrader/open_api_spot_feed.py`  
 **Function:** `amend_sl_tp()` (line 1033)
 
 Add an early-exit health gate before acquiring `_amend_lock`. Note that
-`CTraderConnection.is_connected` is a property (`src/forex-bot/adapters/ctrader/connection.py:109`),
+`CTraderConnection.is_connected` is a property (`src/forex_bot/adapters/ctrader/connection.py:109`),
 and `OpenApiSpotFeed.is_connected` delegates to
 `_state_mgr.is_authenticated` (`open_api_spot_feed.py:307`). A realistic gate
 inside `amend_sl_tp()` would be:
@@ -278,7 +278,7 @@ burst when it is healthy.
 
 ### 4.2 Medium-effort fix: classify the underlying error
 
-**File:** `src/forex-bot/adapters/ctrader/connection.py`  
+**File:** `src/forex_bot/adapters/ctrader/connection.py`  
 **Function:** `send_and_wait()` (line 196)
 
 Currently `send_and_wait()` returns `None` for both timeout and errback
@@ -300,8 +300,8 @@ logs.
 
 ### 4.3 Thorough fix: asynchronous amend queue with reconciliation
 
-**Files:** `src/forex-bot/adapters/ctrader/open_api_spot_feed.py`,
-`src/forex-bot/adapters/ctrader/forward_test_engine.py`
+**Files:** `src/forex_bot/adapters/ctrader/open_api_spot_feed.py`,
+`src/forex_bot/adapters/ctrader/forward_test_engine.py`
 
 1. Add a small pending-amend queue per position in `OpenApiSpotFeed`.
 2. On late fill, enqueue the desired `{position_id, sl, tp, symbol_id}`.
@@ -353,9 +353,9 @@ than a minute across 3 attempts.
 
 ## 6. Related files
 
-* `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` (lines 1033–1096)
-* `src/forex-bot/adapters/ctrader/connection.py` (lines 196–233)
-* `src/forex-bot/adapters/ctrader/forward_test_engine.py` (lines 1355–1430, 1700–1860)
+* `src/forex_bot/adapters/ctrader/open_api_spot_feed.py` (lines 1033–1096)
+* `src/forex_bot/adapters/ctrader/connection.py` (lines 196–233)
+* `src/forex_bot/adapters/ctrader/forward_test_engine.py` (lines 1355–1430, 1700–1860)
 * `logs/forward_test.log`
 * `logs/forward_test.log.2026-07-06`
 * `logs/forward_test.log.2026-07-07`

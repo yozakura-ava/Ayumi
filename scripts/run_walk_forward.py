@@ -17,7 +17,7 @@ from pathlib import Path
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
-sys.path.insert(0, str(project_root / "src" / "forex-bot"))
+sys.path.insert(0, str(project_root / "src" / "forex_bot"))
 
 from backtest import CsvDataLoader  # noqa: E402
 from backtest.builtin_strategies import register_builtin_strategies  # noqa: E402, I001

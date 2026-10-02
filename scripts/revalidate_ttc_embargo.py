@@ -7,7 +7,7 @@ inflated by autocorrelation leakage.
 
 Usage:
     cd $AYUMI_ROOT
-    PYTHONPATH=src/forex-bot python3 scripts/revalidate_ttc_embargo.py
+    PYTHONPATH=src/forex_bot python3 scripts/revalidate_ttc_embargo.py
 """
 
 from __future__ import annotations
@@ -18,9 +18,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-# Ensure forex-bot is on the path
+# Ensure forex_bot is on the path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "src" / "forex-bot"))
+sys.path.insert(0, str(PROJECT_ROOT / "src" / "forex_bot"))
 
 from backtest.engine import Bar
 from quant.walk_forward import WalkForwardResults, run_strategy

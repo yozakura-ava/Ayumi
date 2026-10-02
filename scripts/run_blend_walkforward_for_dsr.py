@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "src" / "forex-bot"))
+sys.path.insert(0, str(PROJECT_ROOT / "src" / "forex_bot"))
 
 from backtest.tick_loader import load_bars
 from backtest.walk_forward_runner import run_strategy_walk_forward

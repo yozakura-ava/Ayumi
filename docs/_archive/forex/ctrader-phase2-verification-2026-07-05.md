@@ -53,16 +53,16 @@ All 6 acceptance criteria are met with 109 passing tests and 0 failures. The ful
 
 ## References
 
-- `src/forex-bot/adapters/ctrader/connection_watchdog.py:38-42` — threshold/poll constants
-- `src/forex-bot/adapters/ctrader/connection_watchdog.py:174-204` — `_check_all()` two-tier silence logic
-- `src/forex-bot/adapters/ctrader/reconnect_strategy.py:30-32` — `BASE_SLEEP_S=1.0`, `CAP_SLEEP_S=60.0`, `DEFAULT_MAX_ATTEMPTS=10`
-- `src/forex-bot/adapters/ctrader/reconnect_strategy.py:170-178` — AWS decorrelated jitter formula
-- `src/forex-bot/adapters/ctrader/forward_test_engine.py:88-106` — `_is_forex_market_closed()`
-- `src/forex-bot/adapters/ctrader/forward_test_engine.py:130-133` — `stale_tick_threshold_sec=60.0`
-- `src/forex-bot/adapters/ctrader/forward_test_engine.py:349-354` — `_stuck_reconnect_threshold_sec=60.0`
-- `src/forex-bot/adapters/ctrader/forward_test_engine.py:2147-2247` — `_check_connection_health()` (stuck + stale + market-closed logic)
-- `src/forex-bot/adapters/ctrader/forward_test_engine.py:2249-2302` — `_attempt_reconnect()` (full-jitter exponential)
-- `src/forex-bot/adapters/ctrader/open_api_spot_feed.py:1473-1525` — `_reconnect_restore()` with re-subscribe at `:1505-1510`
+- `src/forex_bot/adapters/ctrader/connection_watchdog.py:38-42` — threshold/poll constants
+- `src/forex_bot/adapters/ctrader/connection_watchdog.py:174-204` — `_check_all()` two-tier silence logic
+- `src/forex_bot/adapters/ctrader/reconnect_strategy.py:30-32` — `BASE_SLEEP_S=1.0`, `CAP_SLEEP_S=60.0`, `DEFAULT_MAX_ATTEMPTS=10`
+- `src/forex_bot/adapters/ctrader/reconnect_strategy.py:170-178` — AWS decorrelated jitter formula
+- `src/forex_bot/adapters/ctrader/forward_test_engine.py:88-106` — `_is_forex_market_closed()`
+- `src/forex_bot/adapters/ctrader/forward_test_engine.py:130-133` — `stale_tick_threshold_sec=60.0`
+- `src/forex_bot/adapters/ctrader/forward_test_engine.py:349-354` — `_stuck_reconnect_threshold_sec=60.0`
+- `src/forex_bot/adapters/ctrader/forward_test_engine.py:2147-2247` — `_check_connection_health()` (stuck + stale + market-closed logic)
+- `src/forex_bot/adapters/ctrader/forward_test_engine.py:2249-2302` — `_attempt_reconnect()` (full-jitter exponential)
+- `src/forex_bot/adapters/ctrader/open_api_spot_feed.py:1473-1525` — `_reconnect_restore()` with re-subscribe at `:1505-1510`
 - `docs/forex/architecture-dual-connection.md` §4 — failover triggers
 - `docs/forex/architecture-dual-connection.md` §5 — reconnection strategy
 - `docs/forex/architecture-dual-connection.md` §11 row 6 — auto-reconcile gap (documented)

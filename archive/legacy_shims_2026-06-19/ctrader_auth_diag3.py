@@ -4,7 +4,7 @@ import threading
 import time
 
 sys.path.insert(0, "$AYUMI_ROOT")
-sys.path.insert(0, "$AYUMI_ROOT/src/forex-bot")
+sys.path.insert(0, "$AYUMI_ROOT/src/forex_bot")
 os.chdir("$AYUMI_ROOT")
 
 from dotenv import load_dotenv

@@ -52,13 +52,13 @@ Hayate is a heartbeat-driven monitoring agent at `/root/.openclaw/ayumi-overseer
 
 | Component | Location | Lines | What it does | Reuse for checkpoint |
 |---|---|---|---|---|
-| `HealthMonitor` | `src/forex-bot/engine/health_monitor.py` | 206 | Periodic `[B5 Health]` / `[S1 Health]` log lines on daemon thread | System health (FT-001) |
-| `AnomalyMonitor` | `src/forex-bot/engine/anomaly_monitor.py` | 257 | Detects data_silence, zero_signals, zero_pnl_variance | Trading health (FT-003, FT-004) |
-| `KillSwitchManager` | `src/forex-bot/adapters/ctrader/kill_switch.py` | 760 | Global + per-strategy freeze, file-persisted | Trading health (FT-006), Drift (D-001) |
-| `FTMOGuard` | `src/forex-bot/risk/ftmo_guard.py` | 534 | Daily loss, total DD, best-day, action levels | Trading health (FT-007, FT-008, FT-009) |
-| `RiskGuard` | `src/forex-bot/adapters/ctrader/risk_guard.py` | ~500 | FTMOConfig, FTMOProfile (0.5%/5%/10%/1.5R/3pos/50%) | Trading health (FT-007..FT-011) |
-| `PositionMonitor` | `src/forex-bot/adapters/ctrader/position_monitor.py` | 350+ | TP ratchet, MAE/MFE, portfolio exposure | Trading health (FT-002, FT-011) |
-| `SignalStatsRecorder` | `src/forex-bot/signal_engine/signal_stats.py` | 370 | JSONL per-signal log (atomic temp+rename writes) | Data health (D-003, D-004) |
+| `HealthMonitor` | `src/forex_bot/engine/health_monitor.py` | 206 | Periodic `[B5 Health]` / `[S1 Health]` log lines on daemon thread | System health (FT-001) |
+| `AnomalyMonitor` | `src/forex_bot/engine/anomaly_monitor.py` | 257 | Detects data_silence, zero_signals, zero_pnl_variance | Trading health (FT-003, FT-004) |
+| `KillSwitchManager` | `src/forex_bot/adapters/ctrader/kill_switch.py` | 760 | Global + per-strategy freeze, file-persisted | Trading health (FT-006), Drift (D-001) |
+| `FTMOGuard` | `src/forex_bot/risk/ftmo_guard.py` | 534 | Daily loss, total DD, best-day, action levels | Trading health (FT-007, FT-008, FT-009) |
+| `RiskGuard` | `src/forex_bot/adapters/ctrader/risk_guard.py` | ~500 | FTMOConfig, FTMOProfile (0.5%/5%/10%/1.5R/3pos/50%) | Trading health (FT-007..FT-011) |
+| `PositionMonitor` | `src/forex_bot/adapters/ctrader/position_monitor.py` | 350+ | TP ratchet, MAE/MFE, portfolio exposure | Trading health (FT-002, FT-011) |
+| `SignalStatsRecorder` | `src/forex_bot/signal_engine/signal_stats.py` | 370 | JSONL per-signal log (atomic temp+rename writes) | Data health (D-003, D-004) |
 | `scripts/health_check_tick_pipeline.py` | scripts/ | 90+ | Tick stall detection via state diff | System health (FT-001 tick flow) |
 | `scripts/kill_switch_watchdog.py` | scripts/ | 295 | Reads heartbeat file, activates kill on stale | Trading health (FT-005 watchdog) |
 | `scripts/restart_forward_test.sh` | scripts/ | 90+ | Stop → start → verify loop with health check | Auto-remediation class A1 (restart) |

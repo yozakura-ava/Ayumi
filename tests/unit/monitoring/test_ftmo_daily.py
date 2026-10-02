@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 # Import via path so we don't depend on package layout; ftmo_daily.py
-# self-injects ``src/forex-bot`` and ``src`` into sys.path.
+# self-injects ``src/forex_bot`` and ``src`` into sys.path.
 SCRIPTS_DIR = Path(__file__).resolve().parents[3] / "scripts"
 
 

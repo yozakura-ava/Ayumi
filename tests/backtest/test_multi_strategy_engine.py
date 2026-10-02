@@ -15,8 +15,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Ensure src/forex-bot is on sys.path
-_src = Path(__file__).resolve().parents[2] / "src" / "forex-bot"
+# Ensure src/forex_bot is on sys.path
+_src = Path(__file__).resolve().parents[2] / "src" / "forex_bot"
 if str(_src) not in sys.path:
     sys.path.insert(0, str(_src))
 

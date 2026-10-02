@@ -2,7 +2,7 @@
 
 ## Problem Class
 
-The `RegimeDetector` (in `src/forex-bot/regime/detector.py`) requires a minimum
+The `RegimeDetector` (in `src/forex_bot/regime/detector.py`) requires a minimum
 number of bars to produce valid regime labels:
 
 | Parameter         | Default | Purpose                        |

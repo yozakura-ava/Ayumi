@@ -10,7 +10,7 @@ Recommended blend gate: **`session={london}` + ADX[15,30] + regime unrestricted*
 
 ## Pre-existing strategy
 
-File: `src/forex-bot/strategies/london_breakout_retest.py` (258 lines, XAUUSD-tuned). No tests existed prior to this study.
+File: `src/forex_bot/strategies/london_breakout_retest.py` (258 lines, XAUUSD-tuned). No tests existed prior to this study.
 
 ## Smoke test results
 

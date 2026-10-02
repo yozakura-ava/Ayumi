@@ -12,27 +12,27 @@
 ### Files Modified (7)
 | File | Lines Changed | What Changes |
 |------|--------------|--------------|
-| `src/forex-bot/adapters/ctrader/market_data_feed.py` | ~15 | `SymbolInfo` dataclass expanded — add `lot_size`, `min_volume`, `max_volume`, `step_volume` fields |
-| `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` | ~60 | Replace `_lots_to_units`, fix `_fetch_symbol_details`, fix price decoding (tick + trendbar), fix volume decoding in `new_order`/`reconcile`/`_handle_execution_event` |
-| `src/forex-bot/adapters/ctrader/forward_test_engine.py` | ~5 | Replace hardcoded `100_000` in `_execute_signal_live` with `VolumeCalculator` |
-| `src/forex-bot/adapters/ctrader/order_manager.py` | ~15 | Replace hardcoded `100000` in P&L calculation |
-| `src/forex-bot/adapters/ctrader/position_monitor.py` | ~10 | Replace hardcoded `100000` in notional/P&L/drawdown |
-| `src/forex-bot/adapters/ctrader/account_state.py` | ~10 | Replace `_CONTRACT_SIZE` hardcoded with per-symbol lookup |
-| `src/forex-bot/adapters/ctrader/models.py` | ~5 | Update `SymbolInfo` defaults to reference shared constant |
+| `src/forex_bot/adapters/ctrader/market_data_feed.py` | ~15 | `SymbolInfo` dataclass expanded — add `lot_size`, `min_volume`, `max_volume`, `step_volume` fields |
+| `src/forex_bot/adapters/ctrader/open_api_spot_feed.py` | ~60 | Replace `_lots_to_units`, fix `_fetch_symbol_details`, fix price decoding (tick + trendbar), fix volume decoding in `new_order`/`reconcile`/`_handle_execution_event` |
+| `src/forex_bot/adapters/ctrader/forward_test_engine.py` | ~5 | Replace hardcoded `100_000` in `_execute_signal_live` with `VolumeCalculator` |
+| `src/forex_bot/adapters/ctrader/order_manager.py` | ~15 | Replace hardcoded `100000` in P&L calculation |
+| `src/forex_bot/adapters/ctrader/position_monitor.py` | ~10 | Replace hardcoded `100000` in notional/P&L/drawdown |
+| `src/forex_bot/adapters/ctrader/account_state.py` | ~10 | Replace `_CONTRACT_SIZE` hardcoded with per-symbol lookup |
+| `src/forex_bot/adapters/ctrader/models.py` | ~5 | Update `SymbolInfo` defaults to reference shared constant |
 
 ### Files Created (3)
 | File | Purpose |
 |------|---------|
-| `src/forex-bot/adapters/ctrader/volume_calculator.py` | `VolumeCalculator` class — per-symbol volume conversion and validation |
+| `src/forex_bot/adapters/ctrader/volume_calculator.py` | `VolumeCalculator` class — per-symbol volume conversion and validation |
 | `tests/unit/ctrader/test_volume_calculator.py` | Unit tests for VolumeCalculator (no cTrader connection needed) |
 | `tests/unit/ctrader/test_symbol_info.py` | Unit tests for unified SymbolInfo + price decoding helpers |
 
 ### Files NOT Modified (constraints)
 | File | Reason |
 |------|--------|
-| `src/forex-bot/hybrid/paper_trader.py` | Paper trader has its own `100_000` hardcodes for backtest simulation — out of scope for this sprint (separate paper-vs-live path). Card scope is the live order pipeline. |
-| `src/forex-bot/quant/portfolio.py` | Portfolio analytics module — same rationale, paper/backtest path. |
-| `src/forex-bot/hybrid/risk_manager.py` | Risk manager uses `suggested_lot_size` in lots — doesn't touch raw volume. Not a 100k hardcode site. |
+| `src/forex_bot/hybrid/paper_trader.py` | Paper trader has its own `100_000` hardcodes for backtest simulation — out of scope for this sprint (separate paper-vs-live path). Card scope is the live order pipeline. |
+| `src/forex_bot/quant/portfolio.py` | Portfolio analytics module — same rationale, paper/backtest path. |
+| `src/forex_bot/hybrid/risk_manager.py` | Risk manager uses `suggested_lot_size` in lots — doesn't touch raw volume. Not a 100k hardcode site. |
 | `kill_switch.py` / `token_lifecycle.py` | Already disabled (`_disabled=True` / `_refresh_disabled=True`). Not in scope. |
 | `SOUL.md` / `IDENTITY.md` | Never modified. |
 
@@ -344,7 +344,7 @@ The test calls `engine._execute_signal_live()` directly with a fabricated `Trade
 
 ## 3. VolumeCalculator Design
 
-**Location:** `src/forex-bot/adapters/ctrader/volume_calculator.py`
+**Location:** `src/forex_bot/adapters/ctrader/volume_calculator.py`
 
 **Interface:**
 ```python
@@ -665,13 +665,13 @@ All binary and testable:
 
 | # | Criterion | Verification |
 |---|-----------|-------------|
-| AC1 | `volume_calculator.py` exists and passes `py_compile` | `python3 -m py_compile src/forex-bot/adapters/ctrader/volume_calculator.py` |
+| AC1 | `volume_calculator.py` exists and passes `py_compile` | `python3 -m py_compile src/forex_bot/adapters/ctrader/volume_calculator.py` |
 | AC2 | `VolumeCalculator.lots_to_volume` works for forex (100k) and crypto (100) | Unit test #1, #3 |
 | AC3 | `VolumeCalculator.volume_to_lots` inverse works | Unit test #5, #6 |
 | AC4 | `VolumeCalculator.validate_volume` enforces min/max/step | Unit test #7-#10 |
 | AC5 | `VolumeCalculator.price_from_raw` uses per-symbol digits | Unit test #11-#13 |
 | AC6 | `_fetch_symbol_details` captures lotSize, minVolume, maxVolume, stepVolume | Code review — SymbolInfo construction includes all protobuf fields |
-| AC7 | No hardcoded `100_000` or `100000` remains in live order path | `grep -rn "100_000\|100000" src/forex-bot/adapters/ctrader/open_api_spot_feed.py src/forex-bot/adapters/ctrader/forward_test_engine.py src/forex-bot/adapters/ctrader/order_manager.py src/forex-bot/adapters/ctrader/position_monitor.py src/forex-bot/adapters/ctrader/account_state.py` returns only comments/docstrings |
+| AC7 | No hardcoded `100_000` or `100000` remains in live order path | `grep -rn "100_000\|100000" src/forex_bot/adapters/ctrader/open_api_spot_feed.py src/forex_bot/adapters/ctrader/forward_test_engine.py src/forex_bot/adapters/ctrader/order_manager.py src/forex_bot/adapters/ctrader/position_monitor.py src/forex_bot/adapters/ctrader/account_state.py` returns only comments/docstrings |
 | AC8 | Tick price decoding uses per-symbol digits | Code review — line 555 uses `10 ** digits` |
 | AC9 | Trendbar price decoding uses per-symbol digits | Code review — line 759 uses `10 ** digits` |
 | AC10 | All unit tests pass | `pytest tests/unit/ctrader/ -v` |

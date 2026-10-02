@@ -44,7 +44,7 @@ def _project_root() -> Path:
 
     Note: archived module is at archive/legacy_ctrader/_pkg/, so the project
     root is parents[3]. (Originally parents[4] when the module lived at
-    src/forex-bot/adapters/ctrader/auth.py pre-archive on 2026-06-16.)
+    src/forex_bot/adapters/ctrader/auth.py pre-archive on 2026-06-16.)
     """
     return Path(__file__).resolve().parents[3]
 

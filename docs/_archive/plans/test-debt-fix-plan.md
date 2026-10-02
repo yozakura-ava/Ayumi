@@ -111,7 +111,7 @@ python3 -m pytest tests/integration/ctrader/test_open_api_volume_decoder.py -q -
 
 **Root Cause:** Signal adapter constructs `SignalResult` / `TradeSignal` without setting `strategy_id` from the strategy name. Result: `strategy_id == ''`.
 
-**Affected production file:** `src/forex-bot/adapters/ctrader/signal_adapter.py` (or wherever SignalResult is constructed)
+**Affected production file:** `src/forex_bot/adapters/ctrader/signal_adapter.py` (or wherever SignalResult is constructed)
 
 **Fix:** Set `strategy_id` from the adapter's strategy name when building signal results. Ensure it propagates through blend mode and non-blend mode.
 
@@ -161,13 +161,13 @@ python3 -m pytest tests/integration/test_credential_probe.py -q --tb=short
 
 **Impact:** 5 failures in `test_portfolio.py` (collection + runtime errors)
 
-**Root Cause:** `src/forex-bot/quant/portfolio.py` has lazy imports `from strategies.grid.adapter import GridStrategyAdapter` and `from strategies.grid.config import GridConfig`. The `strategies/grid/` package does not exist in the repo (likely removed during refactoring). Other files (`backtest/builtin_strategies.py`, `backtest/runner.py`) also reference it.
+**Root Cause:** `src/forex_bot/quant/portfolio.py` has lazy imports `from strategies.grid.adapter import GridStrategyAdapter` and `from strategies.grid.config import GridConfig`. The `strategies/grid/` package does not exist in the repo (likely removed during refactoring). Other files (`backtest/builtin_strategies.py`, `backtest/runner.py`) also reference it.
 
 **Files referencing `strategies.grid`:**
-- `src/forex-bot/quant/portfolio.py` (lazy import in `build_default_portfolio`)
-- `src/forex-bot/backtest/builtin_strategies.py` (top-level import)
-- `src/forex-bot/backtest/runner.py` (lazy import)
-- `src/forex-bot/backtest/portfolio_blend.py` (lazy import)
+- `src/forex_bot/quant/portfolio.py` (lazy import in `build_default_portfolio`)
+- `src/forex_bot/backtest/builtin_strategies.py` (top-level import)
+- `src/forex_bot/backtest/runner.py` (lazy import)
+- `src/forex_bot/backtest/portfolio_blend.py` (lazy import)
 
 **Fix:** The grid strategy module was removed during refactoring. Guard the lazy imports with try/except or check-and-skip, and have `build_default_portfolio()` omit grid from the portfolio when the module is unavailable. Do NOT recreate the deleted module.
 
@@ -186,9 +186,9 @@ python3 -m pytest tests/e2e/test_portfolio.py -q --tb=short
 **Impact:** 2 failures in `test_backtest_engine_close_all.py`
 
 **Root Cause:** Three separate `ExitReason` enum classes exist:
-- `src/forex-bot/backtest/simple_engine.py:21` — `class ExitReason(Enum)`
-- `src/forex-bot/backtest/types.py:34` — `class ExitReason(Enum)`
-- `src/forex-bot/core/types.py:27` — `class ExitReason(StrEnum)`
+- `src/forex_bot/backtest/simple_engine.py:21` — `class ExitReason(Enum)`
+- `src/forex_bot/backtest/types.py:34` — `class ExitReason(Enum)`
+- `src/forex_bot/core/types.py:27` — `class ExitReason(StrEnum)`
 
 `SimulatedTrade.exit_reason` stores one class instance; the test compares against a different one. Both have `value = 'end_of_data'` but `==` returns False because they're different classes.
 
@@ -273,7 +273,7 @@ python3 -m pytest tests/integration/test_ctrader_order_manager.py::TestOrderMana
 
 **10a. `test_forward_test_engine_credentials.py` (1 failure)**
 - `test_host_from_env` — credentials fall back to `demo.ctraderapi.com` instead of respecting the `OPEN_API_HOST` env var.
-- **Fix:** Check credential loading precedence in `src/forex-bot/adapters/ctrader/credentials.py` — env var should take priority over default.
+- **Fix:** Check credential loading precedence in `src/forex_bot/adapters/ctrader/credentials.py` — env var should take priority over default.
 
 **10b. `test_multi_strategy_forward.py` (2 failures)**
 - `test_logs_at_interval` — Timeout (>30.0s) from pytest-timeout. `HeartbeatTracker._log()` acquires a lock that deadlocks or takes too long. Likely a threading issue in `scripts/launch_blend_forward_test.py:127`.

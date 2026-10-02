@@ -26,7 +26,7 @@ from typing import Any, Callable, Optional
 import yaml  # noqa: F401  — Kept for backward compat (legacy YAML loader removed)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "src" / "forex-bot"))
+sys.path.insert(0, str(PROJECT_ROOT / "src" / "forex_bot"))
 
 
 def _refuse_root():
@@ -2591,13 +2591,13 @@ def main():
     )
 
     # 3. Instantiate strategies (validated 5-strategy regime-gated blend, +LBO Jul 22 2026)
-    # SRMR+ uses its Optuna-validated params from src/forex-bot/config/strategies.yaml
+    # SRMR+ uses its Optuna-validated params from src/forex_bot/config/strategies.yaml
     # when a config entry exists for the active XAUUSD symbol on M15 (card 25cbea7a).
     # Falls back to defaults if no validated entry is present.
     _srmr_yaml_config = load_srmr_config_from_yaml(
         symbol="XAUUSD",
         timeframe="M15",
-        config_path=PROJECT_ROOT / "src" / "forex-bot" / "config" / "strategies.yaml",
+        config_path=PROJECT_ROOT / "src" / "forex_bot" / "config" / "strategies.yaml",
     )
     if _srmr_yaml_config is not None:
         _srmr_config = _srmr_yaml_config

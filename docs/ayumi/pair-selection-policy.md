@@ -29,8 +29,8 @@ A portfolio with 3+ pairs from one cluster violates the policy regardless of dir
 
 ### Modules
 
-- `src/forex-bot/risk/correlation_matrix.py` — Rolling Pearson correlation matrix with dual-window (30d + 90d) support
-- `src/forex-bot/risk/pair_selection.py` — Cluster definitions, policy enforcement, validation
+- `src/forex_bot/risk/correlation_matrix.py` — Rolling Pearson correlation matrix with dual-window (30d + 90d) support
+- `src/forex_bot/risk/pair_selection.py` — Cluster definitions, policy enforcement, validation
 
 ### Usage
 
@@ -80,8 +80,8 @@ The 30-day window captures short-term correlation shifts (useful for tactical ri
 ## Rollback
 
 ```bash
-git checkout HEAD -- src/forex-bot/risk/correlation_matrix.py \
-    src/forex-bot/risk/pair_selection.py \
+git checkout HEAD -- src/forex_bot/risk/correlation_matrix.py \
+    src/forex_bot/risk/pair_selection.py \
     tests/unit/risk/test_pair_selection.py
 rm -f docs/ayumi/pair-selection-policy.md
 ```

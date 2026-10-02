@@ -146,7 +146,7 @@ Build and run a profitable automated forex trading bot on the **FTMO 1-Step Stan
 #### 1C: Confidence Enhancement
 > Goal: Layer indicators and gates to improve signal quality.
 
-**Layer 1 — Strategy Confidence** (`src/forex-bot/confidence/`):
+**Layer 1 — Strategy Confidence** (`src/forex_bot/confidence/`):
 - Multi-layer scoring: Strategy Score → Confluence Boost → Gate Validator → Final Score
 - Gates: SpreadGate, SessionGate, VolatilityGate
 - ML confidence learner: RandomForest per (symbol, timeframe)
@@ -303,7 +303,7 @@ The strategy factory is the system for developing, profiling, and blending strat
 
 ### 1. Strategy Research Framework (SRF)
 
-Location: `src/forex-bot/srf/`
+Location: `src/forex_bot/srf/`
 
 - Walk-forward runner with rolling and anchored modes
 - Go/No-Go gate (per-strategy, used for initial screening only — portfolio evaluation is the real gate)
@@ -314,7 +314,7 @@ Location: `src/forex-bot/srf/`
 
 ### 2. Regime Detector (NEW — Jul 21)
 
-Location: `src/forex-bot/regime/detector.py`
+Location: `src/forex_bot/regime/detector.py`
 
 - ATR/ADX-based market regime classification
 - Four regimes: TRENDING (ADX>25), CHOPPY (ADX<20), VOLATILE (ATR pct>80%), QUIET (ATR pct<20%)
@@ -323,7 +323,7 @@ Location: `src/forex-bot/regime/detector.py`
 
 ### 3. ML Pipeline
 
-Location: `src/forex-bot/ml/`
+Location: `src/forex_bot/ml/`
 
 - `confidence_learner.py` — RandomForest per (symbol, timeframe) predicting win probability
 - `blend_optimizer.py` — Optuna-based search over strategy combinations and weights
@@ -334,7 +334,7 @@ Location: `src/forex-bot/ml/`
 
 ### 4. Confidence Engine
 
-**Layer 1 — Strategy Confidence** (`src/forex-bot/confidence/`):
+**Layer 1 — Strategy Confidence** (`src/forex_bot/confidence/`):
 - Multi-layer: Strategy Score → Confluence Boost → Gate Validator → Final Score (0.0-1.0)
 - Gates: SpreadGate, SessionGate, VolatilityGate
 - Position sizing mapping: ≥0.65 full, 0.50-0.64 half, 0.40-0.49 quarter, <0.40 no trade
@@ -456,7 +456,7 @@ python3 -m pytest tests/ -q --timeout=30 -m "not live"
 
 - **Pool A — unbenchmarked in-tree strategies (~17 classes):** the tournament's
   STRATEGY_CLASS_MAP currently registers only 2 (srmr_plus, bb_rsi_reversion) while
-  `src/forex-bot/strategies/` holds ~19 ISignalStrategy classes (donchian_atr_trend_v2,
+  `src/forex_bot/strategies/` holds ~19 ISignalStrategy classes (donchian_atr_trend_v2,
   dual_tf_squeeze_pro, killzone_momentum, london_breakout_retest, ttc_xauusd,
   volatility_regime_breakout, session_range_mr_ict_filtered, orb, ...). First lever:
   register these into the tournament and score them.

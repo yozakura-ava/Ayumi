@@ -48,10 +48,10 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 
-# The detector lives in src/forex-bot; insert that path so we can import
+# The detector lives in src/forex_bot; insert that path so we can import
 # the module without requiring the package to be installed.
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_FX_ROOT = _REPO_ROOT / "src" / "forex-bot"
+_FX_ROOT = _REPO_ROOT / "src" / "forex_bot"
 if str(_FX_ROOT) not in sys.path:
     sys.path.insert(0, str(_FX_ROOT))
 

@@ -9,7 +9,7 @@ Covers:
 import math
 import sys
 
-sys.path.insert(0, "src/forex-bot")
+sys.path.insert(0, "src/forex_bot")
 
 from backtest.walk_forward_runner import (  # noqa: I001
     MIN_TRADES_WARNING,

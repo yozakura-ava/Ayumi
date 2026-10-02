@@ -18,9 +18,9 @@ The cleanup should reconcile by adopting the worktree branch's modular test layo
 
 Recovery branch `183a996` changes from `9a1d949`:
 
-- `src/forex-bot/adapters/ctrader/execution_permission.py`
-- `src/forex-bot/adapters/ctrader/forward_test_engine.py`
-- `src/forex-bot/adapters/ctrader/open_api_spot_feed.py`
+- `src/forex_bot/adapters/ctrader/execution_permission.py`
+- `src/forex_bot/adapters/ctrader/forward_test_engine.py`
+- `src/forex_bot/adapters/ctrader/open_api_spot_feed.py`
 - `tests/adapters/ctrader/test_p5a_kill_switch_enforcement.py`
 - `tests/test_ctrader_execution_v2.py`
 - `tests/test_forward_test_engine_wiring.py`
@@ -487,7 +487,7 @@ Acceptance criteria:
 - Verification command:
 
 ```bash
-grep -rn 'new_order\|send_order\|ProtoOANewOrderReq\|close_position\|cancel_order\|amend_sl_tp' src/forex-bot/adapters/ctrader/ --include='*.py'
+grep -rn 'new_order\|send_order\|ProtoOANewOrderReq\|close_position\|cancel_order\|amend_sl_tp' src/forex_bot/adapters/ctrader/ --include='*.py'
 ```
 
 ### Builder 4: Recovery Dirty-Tree Triage

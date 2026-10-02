@@ -5,7 +5,7 @@ set -euo pipefail
 
 cd $AYUMI_ROOT
 source .venv/bin/activate
-export PYTHONPATH=src/forex-bot
+export PYTHONPATH=src/forex_bot
 
 DB="data/research/research.duckdb"
 LOG="/tmp/phase1_sweep_$(date +%Y%m%d_%H%M%S).log"

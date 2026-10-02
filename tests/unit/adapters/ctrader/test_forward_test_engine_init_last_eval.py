@@ -45,8 +45,8 @@ from unittest.mock import patch
 
 import pytest
 
-# Ensure src/forex-bot is on path for imports
-sys.path.insert(0, str(Path.cwd() / "src" / "forex-bot"))
+# Ensure src/forex_bot is on path for imports
+sys.path.insert(0, str(Path.cwd() / "src" / "forex_bot"))
 
 from adapters.ctrader.forward_test_engine import (  # noqa: E402, I001
     ForwardTestConfig,
@@ -208,7 +208,7 @@ def test_init_seed_uses_strategy_init_monotonic():
     future refactor drops the variable, this test fails before any
     runtime regression can ship.
     """
-    src = (Path.cwd() / "src" / "forex-bot" / "adapters" / "ctrader" / "forward_test_engine.py").read_text()
+    src = (Path.cwd() / "src" / "forex_bot" / "adapters" / "ctrader" / "forward_test_engine.py").read_text()
     # Locate the assignment to _strategy_last_eval in __init__.
     import re
 

@@ -2,7 +2,7 @@
 
 Card b1bb93e8 [BUILD][AYUMI][URGENT] Shared-indicator precompute —
 
-The strategies in ``src/forex-bot/strategies/*.py`` recompute their
+The strategies in ``src/forex_bot/strategies/*.py`` recompute their
 indicators (ATR / RSI / ADX / EMA / SMA / STD / Bollinger) on every
 ``evaluate()`` call by re-walking the full ``state.bars`` list.  When
 the harness walks ``N`` bars sequentially and the strategy maintains
@@ -38,7 +38,7 @@ works:
 
 Equivalence: every cached function is implemented to produce values
 IDENTICAL to the inline ``_calculate_*`` implementations in
-``src/forex-bot/strategies/*`` within ``1e-9`` floating-point
+``src/forex_bot/strategies/*`` within ``1e-9`` floating-point
 tolerance.  The validating test suite under
 ``tests/tournament/test_indicator_cache.py`` asserts bar-by-bar
 equality against the inline (un-patched) reference so any future

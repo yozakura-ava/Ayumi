@@ -33,10 +33,10 @@ import sys
 
 import pytest
 
-# Ensure src/forex-bot is importable (mirrors other ctrader tests).
+# Ensure src/forex_bot is importable (mirrors other ctrader tests).
 sys.path.insert(
     0,
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "src", "forex-bot"),
+    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "src", "forex_bot"),
 )
 
 from adapters.ctrader.models import TradeDirection, get_symbol_info

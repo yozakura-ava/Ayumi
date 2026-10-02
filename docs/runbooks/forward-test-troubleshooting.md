@@ -32,10 +32,10 @@
 - **Fix:** Fixing the underlying connection issue stops the restart loop
 
 ## Key Files
-- `src/forex-bot/adapters/ctrader/api_client.py` — FIX client (connection, heartbeat, send)
-- `src/forex-bot/adapters/ctrader/market_data_feed.py` — market data (order book, spread filter)
+- `src/forex_bot/adapters/ctrader/api_client.py` — FIX client (connection, heartbeat, send)
+- `src/forex_bot/adapters/ctrader/market_data_feed.py` — market data (order book, spread filter)
 - `scripts/launch_blend_forward_test.py` — entry point (reactor shutdown)
-- `src/forex-bot/adapters/ctrader/forward_test_engine.py` — health monitor, reconnect
+- `src/forex_bot/adapters/ctrader/forward_test_engine.py` — health monitor, reconnect
 
 ## Debugging Tips
 - FIX client logger is NOT under "ayumi" hierarchy — use print() for quick debugging or configure root logger

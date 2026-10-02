@@ -216,7 +216,7 @@ python3 /root/.openclaw/workspace/scripts/builder_quality_gate.py \
 This contract does **not**:
 
 * Edit identity files, governance, or lane rules.
-* Touch Ayumi's runtime code under `src/forex-bot/`.
+* Touch Ayumi's runtime code under `src/forex_bot/`.
 * Backfill historical plan docs (the 14-day migration sweep handles those
   separately).
 * Change the card-admission gate itself — that lives in Himari/AVA lane.

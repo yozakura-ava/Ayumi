@@ -18,13 +18,13 @@ Extract all authentication logic from the monolithic `open_api_spot_feed.py` int
 - No migration path — any change requires manual `.env` editing
 
 ### Files Created
-- `src/forex-bot/adapters/ctrader/auth.py` — `CTraderAuth` class
-- `src/forex-bot/adapters/ctrader/credentials.py` — Credential file management (load/save/migrate)
+- `src/forex_bot/adapters/ctrader/auth.py` — `CTraderAuth` class
+- `src/forex_bot/adapters/ctrader/credentials.py` — Credential file management (load/save/migrate)
 - `tests/test_ctrader_auth.py` — Unit tests
 - `tests/test_credentials.py` — Unit tests
 
 ### Files Modified
-- `src/forex-bot/open_api_spot_feed.py` — Replace inline auth with `CTraderAuth` composition
+- `src/forex_bot/open_api_spot_feed.py` — Replace inline auth with `CTraderAuth` composition
 - `.gitignore` — Add `data/.credentials`
 - `scripts/smoke_test.sh` — New pre-merge validation script
 
@@ -234,13 +234,13 @@ echo "=== All checks passed ==="
 Extract TCP connection management and bar aggregation into independent, testable modules. Slim the feed from 2100+ lines to < 500.
 
 ### Files Created
-- `src/forex-bot/adapters/ctrader/connection.py` — `CTraderConnection`
-- `src/forex-bot/adapters/ctrader/bar_builder.py` — `BarBuilder`
+- `src/forex_bot/adapters/ctrader/connection.py` — `CTraderConnection`
+- `src/forex_bot/adapters/ctrader/bar_builder.py` — `BarBuilder`
 - `tests/test_ctrader_connection.py`
 - `tests/test_bar_builder.py`
 
 ### Files Modified
-- `src/forex-bot/open_api_spot_feed.py` — Major slim, becomes orchestrator
+- `src/forex_bot/open_api_spot_feed.py` — Major slim, becomes orchestrator
 
 ### Detailed Design
 

@@ -251,7 +251,7 @@ Steps reordered: the one-shot live order test runs BEFORE the long-running servi
 
 ### Files Modified
 
-1. **`src/forex-bot/adapters/ctrader/open_api_spot_feed.py`** (extend, ~350 lines added)
+1. **`src/forex_bot/adapters/ctrader/open_api_spot_feed.py`** (extend, ~350 lines added)
    - **Imports added:** `ProtoOANewOrderReq`, `ProtoOAClosePositionReq`, `ProtoOAAmendOrderReq`, `ProtoOACancelOrderReq`, `ProtoOAReconcileReq`, `ProtoOAAmendPositionSLTPReq`, `ProtoOAExecutionEvent`, `ProtoOAOrderErrorEvent`, `ProtoOAOrderType`, `ProtoOATradeSide`, `ProtoOATimeInForce`, `Order`, `Position`, `TradeDirection`, `OrderType`, `OrderStatus`, `uuid`, `concurrent.futures.ThreadPoolExecutor`
    - **Module-level helpers:** `_lots_to_units` (moved from `tests/test_ctrader_execution_v2.py`), `_calculate_full_jitter_backoff` deleted (only the trade client's reconnect used it, and the spot feed has its own jitter)
    - **State added:**
@@ -272,21 +272,21 @@ Steps reordered: the one-shot live order test runs BEFORE the long-running servi
    - **New properties:** `is_connected` (`self._state_mgr.is_authenticated`), `is_paper_mode` (False)
    - **Existing `_on_connected` race-condition fix** (from this session's earlier work) is preserved
 
-2. **`src/forex-bot/adapters/ctrader/forward_test_engine.py`** (modify, ~40 lines net change)
+2. **`src/forex_bot/adapters/ctrader/forward_test_engine.py`** (modify, ~40 lines net change)
    - In `_build_components()`: when `cfg.live_mode`, construct `OpenApiSpotFeed` directly using the credentials from `_build_live_credentials()` and assign to `self._market_feed`. Drop the `OpenApiTradeClient` construction. Pass `api_client=self._market_feed` to `PaperTrader`.
    - In `_build_components()`: call `self._market_feed.set_kill_switch(self._kill_switch)` immediately after construction.
    - In `_start_openapi_feed()`: check `if self._market_feed is None` and only construct a new one in that case. Otherwise just `start()` the existing one.
    - In `start()`: drop the trade-client health-check block at lines 310-345. The spot feed's `is_connected` is the single health check.
 
-3. **`src/forex-bot/adapters/ctrader/order_manager.py`** (modify, ~3 lines)
+3. **`src/forex_bot/adapters/ctrader/order_manager.py`** (modify, ~3 lines)
    - Remove the `is_connected` gate in `_wire_live_callbacks` (the live callback wiring fix).
    - Update error strings at lines 291, 309 from "FIX" to "cTrader connection".
    - The `TYPE_CHECKING` import of `OpenApiLiveClient` at line 20 can be deleted.
 
 ### Files Deleted
 
-4. **`src/forex-bot/adapters/ctrader/open_api_trade_client.py`** (~1200 lines) — entire file.
-5. **`src/forex-bot/adapters/ctrader/open_api_live_client.py`** (~500 lines) — entire file.
+4. **`src/forex_bot/adapters/ctrader/open_api_trade_client.py`** (~1200 lines) — entire file.
+5. **`src/forex_bot/adapters/ctrader/open_api_live_client.py`** (~500 lines) — entire file.
 
 ### Tests
 
@@ -407,8 +407,8 @@ Steps reordered: the one-shot live order test runs BEFORE the long-running servi
 
 If the refactor fails validation or breaks live trading in a way the tests don't catch:
 
-1. `git checkout HEAD~1 -- src/forex-bot/adapters/ctrader/open_api_spot_feed.py src/forex-bot/adapters/ctrader/forward_test_engine.py src/forex-bot/adapters/ctrader/order_manager.py`
-2. `git checkout HEAD~1 -- src/forex-bot/adapters/ctrader/open_api_trade_client.py src/forex-bot/adapters/ctrader/open_api_live_client.py`
+1. `git checkout HEAD~1 -- src/forex_bot/adapters/ctrader/open_api_spot_feed.py src/forex_bot/adapters/ctrader/forward_test_engine.py src/forex_bot/adapters/ctrader/order_manager.py`
+2. `git checkout HEAD~1 -- src/forex_bot/adapters/ctrader/open_api_trade_client.py src/forex_bot/adapters/ctrader/open_api_live_client.py`
 3. `git checkout HEAD~1 -- tests/test_trade_client.py tests/test_ctrader_execution_v2.py tests/test_forward_test_live_execution.py tests/test_open_api_spot_feed.py tests/test_spot_feed_orders.py tests/test_connection_state.py tests/_ctrader_stubs.py tests/test_order_manager_spot_feed_integration.py`
 4. `sudo systemctl restart ayumi-forward-test`
 5. Verify in logs that the previous behavior is restored

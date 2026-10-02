@@ -15,7 +15,7 @@ Three forex pipeline strategies are selected for crypto adaptation based on tran
 ### 1.1 Donchian + ATR Trailing Trend v2 (`donchian_atr_trend_v2`)
 
 **Forex type:** Trend-following
-**Source:** `src/forex-bot/strategies/donchian_atr_trend_v2.py`
+**Source:** `src/forex_bot/strategies/donchian_atr_trend_v2.py`
 **Research ref:** strategy-optimization-research.md §B.1
 
 **Why it transfers:**
@@ -32,7 +32,7 @@ Three forex pipeline strategies are selected for crypto adaptation based on tran
 ### 1.2 Dual-Timeframe Squeeze Pro (`dual_tf_squeeze_pro`)
 
 **Forex type:** Breakout (squeeze release)
-**Source:** `src/forex-bot/strategies/dual_tf_squeeze_pro.py`
+**Source:** `src/forex_bot/strategies/dual_tf_squeeze_pro.py`
 **Research ref:** strategy-optimization-research.md §B.2
 
 **Why it transfers:**
@@ -49,7 +49,7 @@ Three forex pipeline strategies are selected for crypto adaptation based on tran
 ### 1.3 Session Range Mean Reversion Plus (`srmr_plus`)
 
 **Forex type:** Mean reversion
-**Source:** `src/forex-bot/strategies/srmr_plus.py`
+**Source:** `src/forex_bot/strategies/srmr_plus.py`
 **Research ref:** strategy-optimization-research.md §A.5
 
 **Why it transfers (with modifications):**

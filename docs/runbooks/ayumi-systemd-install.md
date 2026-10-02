@@ -342,6 +342,6 @@ WantedBy=default.target
 
 - [`docs/post-mortems/ayumi-may-june-crash-root-cause-2026-07-05.md`](../post-mortems/ayumi-may-june-crash-root-cause-2026-07-05.md) — B6 root-cause analysis (the source of truth for §5.2 unit design)
 - [`scripts/launch_blend_forward_test.py`](../../scripts/launch_blend_forward_test.py) — the launcher script; do NOT modify
-- [`src/forex-bot/adapters/ctrader/connection_watchdog.py`](../../src/forex-bot/adapters/ctrader/connection_watchdog.py) — in-app liveness check (30 s / 90 s thresholds)
+- [`src/forex_bot/adapters/ctrader/connection_watchdog.py`](../../src/forex_bot/adapters/ctrader/connection_watchdog.py) — in-app liveness check (30 s / 90 s thresholds)
 - [`docs/post-mortems/ctrader-openapi-connection-2026-06-11.md`](../post-mortems/ctrader-openapi-connection-2026-06-11.md) — ProtoMessage double-wrap fix (`7af7a73`)
 - [`docs/plans/ayumi-reliability-sprint-2026-07-05.md`](../plans/ayumi-reliability-sprint-2026-07-05.md) — sprint plan this card belongs to

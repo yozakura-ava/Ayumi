@@ -41,7 +41,7 @@ byte-identical. The regression must be locked in by an automated test.
 
 ### Fix
 
-1. **Module-level helpers** (``src/forex-bot/adapters/ctrader/kill_switch.py``):
+1. **Module-level helpers** (``src/forex_bot/adapters/ctrader/kill_switch.py``):
    - ``_HARNESS_ENV_VARS = ("AYUMI_HARNESS", "AYUMI_HARNESS_GUARD_USE_LOCAL_ROOT")``
    - ``_is_harness_mode()`` — returns True when any harness env var is
      set to ``"1"`` / ``"true"`` / ``"yes"``. Opt-in so production paths
@@ -85,7 +85,7 @@ byte-identical. The regression must be locked in by an automated test.
 - **Craig directive Jun 27 (no engine touch, no kill switch re-enable)**:
   only added guards; never re-enabled ``_disabled``.
 - **HR40 (Ayumi engine edit lane)**: edits landed in
-  ``src/forex-bot/adapters/ctrader/kill_switch.py`` and
+  ``src/forex_bot/adapters/ctrader/kill_switch.py`` and
   ``tests/unit/risk/test_kill_switch_harness_isolation.py`` — the engine
   files only.
 
@@ -126,7 +126,7 @@ DBOS enqueue.
 
 ### File manifest
 
-- ``src/forex-bot/adapters/ctrader/kill_switch.py`` — added
+- ``src/forex_bot/adapters/ctrader/kill_switch.py`` — added
   ``_HARNESS_ENV_VARS``, ``_is_harness_mode``, ``_is_production_state_dir``,
   ``_assert_no_harness_production_write``; added guards to ``__init__``,
   ``_save_state``, ``_append_history``, ``_save_strategy_states``.
@@ -155,7 +155,7 @@ tools_used:
   - workboard_proof
   - workboard_complete
 allowed_files:
-  - src/forex-bot/adapters/ctrader/kill_switch.py
+  - src/forex_bot/adapters/ctrader/kill_switch.py
   - tests/unit/risk/test_kill_switch_harness_isolation.py
   - docs/plans/sprint-2026-09-13-ayumi-test-debt.md
 merge_commit: pending-rin-review

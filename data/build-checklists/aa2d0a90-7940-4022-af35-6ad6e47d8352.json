@@ -19,7 +19,7 @@
     "scripts/backtest_blend_harness.py"
   ],
   "allowed_files": [
-    "src/forex-bot/forward_test/blend_runner.py",
+    "src/forex_bot/forward_test/blend_runner.py",
     "tests/unit/forward_test/test_blend_position_close.py"
   ],
   "files_changed": 2,
@@ -42,10 +42,10 @@
     "justification": "Source inspection shows the paper execution creates the order-manager Position, while downstream callbacks can carry display or default identities. The mapping boundary now resolves the canonical ID, filters cancelled risk slots, and mirrors only when a paper position is absent."
   },
   "verification": {
-    "py_compile": "python3 -m py_compile src/forex-bot/forward_test/blend_runner.py tests/unit/forward_test/test_blend_position_close.py; exit 0",
+    "py_compile": "python3 -m py_compile src/forex_bot/forward_test/blend_runner.py tests/unit/forward_test/test_blend_position_close.py; exit 0",
     "targeted_test": "python3 -m pytest tests/unit/forward_test/test_blend_position_close.py -v; 4 passed in 0.48s; existing risk lifecycle: 19 passed in 0.73s",
-    "ruff": "python3 -m ruff check src/forex-bot/forward_test/blend_runner.py tests/unit/forward_test/test_blend_position_close.py; All checks passed",
-    "quality_gate": "python3 /root/.openclaw/workspace/scripts/builder_quality_gate.py --workspace $(pwd) --files src/forex-bot/forward_test/blend_runner.py,tests/unit/forward_test/test_blend_position_close.py --skip-mypy; 11 passed, 0 failed, 0 skipped",
+    "ruff": "python3 -m ruff check src/forex_bot/forward_test/blend_runner.py tests/unit/forward_test/test_blend_position_close.py; All checks passed",
+    "quality_gate": "python3 /root/.openclaw/workspace/scripts/builder_quality_gate.py --workspace $(pwd) --files src/forex_bot/forward_test/blend_runner.py,tests/unit/forward_test/test_blend_position_close.py --skip-mypy; 11 passed, 0 failed, 0 skipped",
     "harness_replay": "python3 scripts/backtest_blend_harness.py --start 2026-01-01 --end 2026-07-13 --symbol XAUUSD --costs --db-path $AYUMI_ROOT/data/ayumi_market.duckdb --output /tmp/aa2d0a90_results.json; exit 0; open_positions=0, 13,673 events, one trade; unbounded -123700.35 result remains the independent sizing/card 3 defect"
   },
   "ac_status": {

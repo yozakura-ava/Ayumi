@@ -129,7 +129,7 @@ def test_route_signal_cancel_risk_receives_signal_id_and_risk_amount(monkeypatch
     legacy single-arg form.
     """
     # Import inside the test so we don't trigger heavy imports at collection.
-    sys.path.insert(0, str(WORKSPACE / "src" / "forex-bot"))
+    sys.path.insert(0, str(WORKSPACE / "src" / "forex_bot"))
     sys.path.insert(0, str(WORKSPACE))
     from datetime import datetime, timezone
 
@@ -209,7 +209,7 @@ def test_route_signal_paper_failure_calls_cancel_risk_with_two_args():
     is exactly what the 3 cancel paths invoke, so testing it covers the
     real-world contract.
     """
-    sys.path.insert(0, str(WORKSPACE / "src" / "forex-bot"))
+    sys.path.insert(0, str(WORKSPACE / "src" / "forex_bot"))
     sys.path.insert(0, str(WORKSPACE))
     from datetime import datetime, timezone
 

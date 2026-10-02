@@ -101,7 +101,7 @@ fi
 # Launcher pinned to blend launcher (legacy launcher removed per card a7c12aea)
 LAUNCHER="scripts/launch_blend_forward_test.py"
 
-export PYTHONPATH="src/forex-bot:src"
+export PYTHONPATH="src/forex_bot:src"
 nohup "$PYTHON" "$LAUNCHER" --symbols GBPUSD,USDJPY $MODE >> "$LOG_FILE" 2>&1 &
 NEW_PID=$!
 echo "$NEW_PID" > "$PID_FILE"

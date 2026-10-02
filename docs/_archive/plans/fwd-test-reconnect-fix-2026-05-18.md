@@ -20,7 +20,7 @@ Two issues in the forward test:
 
 ### Issue 1: PID File Permission
 
-**File:** `src/forex-bot/adapters/ctrader/pid_guard.py` lines 67 and 165
+**File:** `src/forex_bot/adapters/ctrader/pid_guard.py` lines 67 and 165
 
 `os.open(str(self._path), os.O_RDWR | os.O_CREAT, 0o644)` — the `0o644` mode only applies on *creation*. When a root process creates the file (mode `rw-r--r--`, owner root), a subsequent $USER process cannot open it `O_RDWR` because group/other only have read permission.
 
@@ -60,7 +60,7 @@ The cascade fix should be validated first. If disconnects persist at a low rate 
 
 ### Change 1: Remove Application-Level Reconnect from `OpenApiSpotFeed`
 
-**File:** `src/forex-bot/adapters/ctrader/open_api_spot_feed.py`
+**File:** `src/forex_bot/adapters/ctrader/open_api_spot_feed.py`
 
 **Remove entirely:**
 - `_schedule_reconnect()` method (lines 1077–1103)
@@ -131,7 +131,7 @@ def _reconnect_restore(self):
 
 ### Change 2: Fix PID Guard File Permissions
 
-**File:** `src/forex-bot/adapters/ctrader/pid_guard.py`
+**File:** `src/forex_bot/adapters/ctrader/pid_guard.py`
 
 Line 67 in `_acquire()`:
 ```python
@@ -171,8 +171,8 @@ systemctl status ayumi-forward-test
 
 | File | Change | Risk |
 |------|--------|------|
-| `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` | Remove `_schedule_reconnect`, `_do_reconnect`, state vars, constants. Add `_reconnect_restore` and modify `_on_connected` | Medium — core reconnection path |
-| `src/forex-bot/adapters/ctrader/pid_guard.py` | Change `0o644` → `0o666` in two locations | Low — purely defensive |
+| `src/forex_bot/adapters/ctrader/open_api_spot_feed.py` | Remove `_schedule_reconnect`, `_do_reconnect`, state vars, constants. Add `_reconnect_restore` and modify `_on_connected` | Medium — core reconnection path |
+| `src/forex_bot/adapters/ctrader/pid_guard.py` | Change `0o644` → `0o666` in two locations | Low — purely defensive |
 
 ---
 

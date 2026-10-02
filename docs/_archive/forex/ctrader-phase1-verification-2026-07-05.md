@@ -53,9 +53,9 @@ All 4 acceptance criteria are met. The dual-connection model with independent st
 
 ## References
 
-- `src/forex-bot/adapters/ctrader/connection_state.py:42-54` — `ConnectionState` enum
-- `src/forex-bot/adapters/ctrader/connection_state.py:48-118` — `_VALID_TRANSITIONS`
-- `src/forex-bot/adapters/ctrader/connection_manager.py:55-58` — `ConnectionRole` enum
-- `src/forex-bot/adapters/ctrader/connection_manager.py:267-282` — `register()` method
-- `src/forex-bot/adapters/ctrader/connection_manager.py:303-369` — `is_fully_operational`, `is_tradeable`, `is_data_available` (SplitBrainGate)
+- `src/forex_bot/adapters/ctrader/connection_state.py:42-54` — `ConnectionState` enum
+- `src/forex_bot/adapters/ctrader/connection_state.py:48-118` — `_VALID_TRANSITIONS`
+- `src/forex_bot/adapters/ctrader/connection_manager.py:55-58` — `ConnectionRole` enum
+- `src/forex_bot/adapters/ctrader/connection_manager.py:267-282` — `register()` method
+- `src/forex_bot/adapters/ctrader/connection_manager.py:303-369` — `is_fully_operational`, `is_tradeable`, `is_data_available` (SplitBrainGate)
 - `docs/forex/architecture-dual-connection.md` §11 — Gap analysis reference

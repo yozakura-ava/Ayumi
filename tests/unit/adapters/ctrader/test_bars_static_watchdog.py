@@ -46,7 +46,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-sys.path.insert(0, str(Path.cwd() / "src" / "forex-bot"))
+sys.path.insert(0, str(Path.cwd() / "src" / "forex_bot"))
 
 from adapters.ctrader.forward_test_engine import (  # noqa: E402, I001
     ForwardTestConfig,
@@ -395,7 +395,7 @@ def test_heartbeat_contains_watchdog_keys_ast():
     ``bars_static_sec`` / ``bars_static`` / ``ticks_since_last_bar``
     so a future refactor that drops them is caught at CI time.
     """
-    src = (Path.cwd() / "src" / "forex-bot" / "adapters" / "ctrader" / "forward_test_engine.py").read_text()
+    src = (Path.cwd() / "src" / "forex_bot" / "adapters" / "ctrader" / "forward_test_engine.py").read_text()
     # Locate the _write_heartbeat function body.
     import ast
 

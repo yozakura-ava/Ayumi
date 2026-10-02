@@ -13,7 +13,7 @@ import sys
 import pytest
 
 # Add src to path so imports work without full package install
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src", "forex-bot"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src", "forex_bot"))
 
 from adapters.ctrader.models import SYMBOL_METADATA, get_symbol_info
 from utils.pip_value import pip_value_for_symbol

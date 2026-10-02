@@ -15,11 +15,11 @@
 
 | Source            | Use case                       | Format             | Coverage           | Module / entry point                                                       |
 | ----------------- | ------------------------------ | ------------------ | ------------------ | -------------------------------------------------------------------------- |
-| Dukascopy (bi5)   | Historical tick backtests      | LZMA `>IIIff` blobs | 2015–present       | `src/forex-bot/data/dukascopy_importer.py` → `DukascopyImporter`            |
+| Dukascopy (bi5)   | Historical tick backtests      | LZMA `>IIIff` blobs | 2015–present       | `src/forex_bot/data/dukascopy_importer.py` → `DukascopyImporter`            |
 | Dukascopy (CSV)   | Tick staging (from bi5)        | `timestamp,…` CSV   | Same as bi5        | `scripts/import_ticks.py` → `import_csv()`                                 |
 | HistData.com M1   | Legacy M1 bar backtests        | M1 OHLCV CSV       | Variable, ≥10 yrs  | Loaded by `ml.data_source.SQLiteCandleLoader`                              |
-| cTrader Open API  | Live tick stream + execution   | Protobuf over TCP  | Live only          | `src/forex-bot/ctrader/` + `ctrader_client.py`                             |
-| FRED / ECB / MT5  | Carry signals (regime feature) | Mixed              | Daily              | `src/forex-bot/data/carry_signals.py`                                      |
+| cTrader Open API  | Live tick stream + execution   | Protobuf over TCP  | Live only          | `src/forex_bot/ctrader/` + `ctrader_client.py`                             |
+| FRED / ECB / MT5  | Carry signals (regime feature) | Mixed              | Daily              | `src/forex_bot/data/carry_signals.py`                                      |
 
 The rest of this document is focused on the **Dukascopy bi5** path, which
 is the reference historical source for tick-level backtests. The other
@@ -68,7 +68,7 @@ and trigger the retry policy.
 ### Module API
 
 The clean Python entry point is `DukascopyImporter` in
-`src/forex-bot/data/dukascopy_importer.py`:
+`src/forex_bot/data/dukascopy_importer.py`:
 
 ```python
 from datetime import date
@@ -191,7 +191,7 @@ audit and the implications for live-vs-backtest divergence.
 
 ## See also
 
-* `src/forex-bot/data/dukascopy_importer.py` — module reference.
+* `src/forex_bot/data/dukascopy_importer.py` — module reference.
 * `scripts/harvest_ticks_overnight.py` — long-running harvester.
 * `scripts/import_ticks.py` — CSV → DuckDB importer.
 * `docs/runbooks/data-pipeline.md` — operational runbook.

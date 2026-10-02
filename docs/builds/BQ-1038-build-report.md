@@ -83,7 +83,7 @@ Conclusion: **measured CPU% > 20%**. Advisory enforcement is insufficient for ha
 - `tests/test_cpu_limit_e2e.py` — new E2E measurement test (skipped by default)
 - `docs/builds/BQ-1038-build-report.md` — this report
 - `docs/LIMITATIONS.md` — addendum added (see section 5)
-- `src/forex-bot/common/resource_limits.py` — unchanged (no bugs surfaced)
+- `src/forex_bot/common/resource_limits.py` — unchanged (no bugs surfaced)
 - `tests/test_resource_limits.py` — unchanged
 - `requirements.txt` — unchanged (already declares `pytest-memray>=1.6`)
 
@@ -95,7 +95,7 @@ Added to `docs/LIMITATIONS.md`:
 
 > ### CPU limiter is advisory-only (BQ-1038)
 >
-> `cpu_limited()` in `src/forex-bot/common/resource_limits.py` enforces CPU
+> `cpu_limited()` in `src/forex_bot/common/resource_limits.py` enforces CPU
 > throttling via `psutil.Process.cpu_affinity()` and `os.nice(19)`. This is
 > advisory; on an 8-core host a 60-second CPU-busy loop under `cpu_limited(20)`
 > measured 24.8–43.5% CPU usage, exceeding the 20% target. For hard CPU caps

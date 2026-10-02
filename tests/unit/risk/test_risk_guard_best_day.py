@@ -25,8 +25,8 @@ from unittest.mock import patch
 
 import pytest
 
-sys.path.insert(0, "src/forex-bot")
-sys.path.insert(0, "src/forex-bot/adapters/ctrader")
+sys.path.insert(0, "src/forex_bot")
+sys.path.insert(0, "src/forex_bot/adapters/ctrader")
 
 from adapters.ctrader.risk_guard import (  # noqa: I001
     DailyTradingStats,

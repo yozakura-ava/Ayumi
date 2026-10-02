@@ -122,7 +122,7 @@ adjusted_confidence = fetcher.apply_to_confidence(
 
 ### ConfidenceEngine Wiring (Future)
 
-The current ConfidenceEngine (`src/forex-bot/confidence/engine.py`)
+The current ConfidenceEngine (`src/forex_bot/confidence/engine.py`)
 does not yet call `apply_to_confidence()`. A follow-up card should
 wire the helper into the scoring pipeline, e.g.:
 

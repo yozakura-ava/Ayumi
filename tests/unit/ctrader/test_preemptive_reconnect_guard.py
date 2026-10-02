@@ -19,8 +19,8 @@ import uuid
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-# Ensure src/forex-bot is importable
-_SRC = str(Path(__file__).resolve().parents[3] / "src" / "forex-bot")
+# Ensure src/forex_bot is importable
+_SRC = str(Path(__file__).resolve().parents[3] / "src" / "forex_bot")
 if _SRC not in sys.path:
     sys.path.insert(0, _SRC)
 

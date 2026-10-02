@@ -1,10 +1,10 @@
 """Discover available symbols and backfill historical data.
 
 Usage:
-    PYTHONPATH=src/forex-bot:src python scripts/discover_symbols.py --discover
-    PYTHONPATH=src/forex-bot:src python scripts/discover_symbols.py --backfill --timeframe H1
-    PYTHONPATH=src/forex-bot:src python scripts/discover_symbols.py --backfill --symbols EUR/GBP,XAG/USD --timeframe H1
-    PYTHONPATH=src/forex-bot:src python scripts/discover_symbols.py --status
+    PYTHONPATH=src/forex_bot:src python scripts/discover_symbols.py --discover
+    PYTHONPATH=src/forex_bot:src python scripts/discover_symbols.py --backfill --timeframe H1
+    PYTHONPATH=src/forex_bot:src python scripts/discover_symbols.py --backfill --symbols EUR/GBP,XAG/USD --timeframe H1
+    PYTHONPATH=src/forex_bot:src python scripts/discover_symbols.py --status
 """
 
 import argparse

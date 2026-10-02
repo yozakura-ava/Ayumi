@@ -73,7 +73,7 @@ The current 6-strategy pool was killed by DSR on XAUUSD (Scenario 3 in `plan-b-s
                                                                    ▼
                                                 ┌──────────────────────────────────┐
                                                 │   Backtest Engine                │
-                                                │   (existing src/forex-bot/       │
+                                                │   (existing src/forex_bot/       │
                                                 │    backtest/engine.py)           │
                                                 │                                  │
                                                 │   Inputs: bars + strategy +      │
@@ -183,25 +183,25 @@ The current 6-strategy pool was killed by DSR on XAUUSD (Scenario 3 in `plan-b-s
 
 | Component | Path (existing or planned) | State | Owner lane | Est. SP |
 |---|---|---|---|---|
-| **Backtest engine** | `src/forex-bot/backtest/engine.py` | ✅ Reusable (working) | n/a | 0.0 |
-| **Walk-forward runner** | `src/forex-bot/backtest/walk_forward_runner.py` | ✅ Reusable (working, embargo_bars plumbed) | n/a | 0.0 |
-| **DSR computation** | `src/forex-bot/backtest/dsr.py` | ✅ Reusable (Bailey & López de Prado, n_trades≥30 guard) | n/a | 0.0 |
-| **DSR integration (post-WF gate)** | `src/forex-bot/quant/dsr_integration.py` | ✅ Reusable (tier rank, JSONL consumer) | n/a | 0.0 |
-| **OOS gate tier config** | `src/forex-bot/quant/oos_gate.py` | ✅ Reusable (A=1.50/0.05, B=0.95/0.10, C=0.50/0.10) | n/a | 0.0 |
-| **Optuna blend optimizer** | `src/forex-bot/ml/blend_optimizer.py` | ✅ Reusable (CPU budget metering, softmax weights) | n/a | 0.0 |
-| **Portfolio blend driver** | `src/forex-bot/backtest/portfolio_blend.py` | ✅ Reusable (5 weight methods: inverse_variance, equal_risk, profit_factor, sharpe, combined_score; FTMO criteria) | n/a | 0.0 |
-| **Strategy registry** | `src/forex-bot/strategies/registry.py` | ✅ Reusable (15 strategies pre-loaded) | n/a | 0.0 |
+| **Backtest engine** | `src/forex_bot/backtest/engine.py` | ✅ Reusable (working) | n/a | 0.0 |
+| **Walk-forward runner** | `src/forex_bot/backtest/walk_forward_runner.py` | ✅ Reusable (working, embargo_bars plumbed) | n/a | 0.0 |
+| **DSR computation** | `src/forex_bot/backtest/dsr.py` | ✅ Reusable (Bailey & López de Prado, n_trades≥30 guard) | n/a | 0.0 |
+| **DSR integration (post-WF gate)** | `src/forex_bot/quant/dsr_integration.py` | ✅ Reusable (tier rank, JSONL consumer) | n/a | 0.0 |
+| **OOS gate tier config** | `src/forex_bot/quant/oos_gate.py` | ✅ Reusable (A=1.50/0.05, B=0.95/0.10, C=0.50/0.10) | n/a | 0.0 |
+| **Optuna blend optimizer** | `src/forex_bot/ml/blend_optimizer.py` | ✅ Reusable (CPU budget metering, softmax weights) | n/a | 0.0 |
+| **Portfolio blend driver** | `src/forex_bot/backtest/portfolio_blend.py` | ✅ Reusable (5 weight methods: inverse_variance, equal_risk, profit_factor, sharpe, combined_score; FTMO criteria) | n/a | 0.0 |
+| **Strategy registry** | `src/forex_bot/strategies/registry.py` | ✅ Reusable (15 strategies pre-loaded) | n/a | 0.0 |
 | **WF+DSR driver script** | `scripts/run_blend_walkforward_for_dsr.py` | ✅ Reusable (produces JSONL → DSR) | n/a | 0.0 |
-| **Regime detector** | `src/forex-bot/regime/detector.py` | ⚠️ Wiring-needed (Bug #4 fix at WINDOW=100; per-strategy affinity gates not wired) | Strategy lane | 1.0 |
-| **Confidence engine** | `src/forex-bot/confidence/` | ⚠️ Wiring-needed (built, not wired to blend driver) | Strategy lane | 1.5 |
-| **ML confidence learner (RandomForest)** | `src/forex-bot/ml/confidence_learner.py` | ⚠️ Wiring-needed (frozen during opt per Kaito) | ML lane | 1.0 |
-| **SRF weekly sweep cron** | `src/forex-bot/srf/weekly_sweep.py` | ⚠️ Stub (writes `weekly_sweep:ok`, real wiring is application lane per `srf-pipeline-decision.md`) | Application lane | 1.5 |
+| **Regime detector** | `src/forex_bot/regime/detector.py` | ⚠️ Wiring-needed (Bug #4 fix at WINDOW=100; per-strategy affinity gates not wired) | Strategy lane | 1.0 |
+| **Confidence engine** | `src/forex_bot/confidence/` | ⚠️ Wiring-needed (built, not wired to blend driver) | Strategy lane | 1.5 |
+| **ML confidence learner (RandomForest)** | `src/forex_bot/ml/confidence_learner.py` | ⚠️ Wiring-needed (frozen during opt per Kaito) | ML lane | 1.0 |
+| **SRF weekly sweep cron** | `src/forex_bot/srf/weekly_sweep.py` | ⚠️ Stub (writes `weekly_sweep:ok`, real wiring is application lane per `srf-pipeline-decision.md`) | Application lane | 1.5 |
 | **Nightly sweep cron** | OpenClaw cron (`nightly_topk`) | ⚠️ Wiring-needed (no scheduler adapter to factory driver) | Infra lane | 0.5 |
-| **Strategy template base class** | new: `src/forex-bot/factory/template.py` | 🆕 Net-new (parameter space + Optuna adapter) | Strategy lane | 1.5 |
-| **5 archetype templates** | new: `src/forex-bot/factory/templates/` | 🆕 Net-new (momentum, mean_reversion, breakout, trend, session) | Strategy lane | 4.0 (0.8 each) |
-| **Factory driver (orchestrator)** | new: `src/forex-bot/factory/run_factory.py` | 🆕 Net-new (template → sweep → WF → DSR → tier) | Strategy lane | 2.0 |
-| **Decay detector (live)** | new: `src/forex-bot/factory/decay_detector.py` | 🆕 Net-new (rolling 60d Sharpe + DD + trade count) | Infra lane | 1.5 |
-| **Auto-replacement protocol** | new: `src/forex-bot/factory/replace.py` | 🆕 Net-new (trigger conditions + promotion flow) | Infra lane | 1.0 |
+| **Strategy template base class** | new: `src/forex_bot/factory/template.py` | 🆕 Net-new (parameter space + Optuna adapter) | Strategy lane | 1.5 |
+| **5 archetype templates** | new: `src/forex_bot/factory/templates/` | 🆕 Net-new (momentum, mean_reversion, breakout, trend, session) | Strategy lane | 4.0 (0.8 each) |
+| **Factory driver (orchestrator)** | new: `src/forex_bot/factory/run_factory.py` | 🆕 Net-new (template → sweep → WF → DSR → tier) | Strategy lane | 2.0 |
+| **Decay detector (live)** | new: `src/forex_bot/factory/decay_detector.py` | 🆕 Net-new (rolling 60d Sharpe + DD + trade count) | Infra lane | 1.5 |
+| **Auto-replacement protocol** | new: `src/forex_bot/factory/replace.py` | 🆕 Net-new (trigger conditions + promotion flow) | Infra lane | 1.0 |
 | **Result storage (DuckDB schema)** | new: `data/research/factory.duckdb` + schema | 🆕 Net-new (`factory_runs`, `deploy_pool`, `decay_log` tables) | Infra lane | 1.0 |
 | **Factory dashboards** | new: `docs/factory/dashboards/*.md` (templated) | 🆕 Net-new (per-sweep markdown report) | Infra lane | 1.0 |
 | **Tests for factory modules** | new: `tests/factory/` | 🆕 Net-new (template spec, tier assignment, decay triggers) | Tsubaki lane | 1.5 |
@@ -233,7 +233,7 @@ The current 6-strategy pool was killed by DSR on XAUUSD (Scenario 3 in `plan-b-s
 All templates inherit from a new abstract base:
 
 ```python
-# new file: src/forex-bot/factory/template.py
+# new file: src/forex_bot/factory/template.py
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -285,7 +285,7 @@ class StrategyTemplate(ABC):
 
 **Adding a new template** (e.g., `volatility_breakout`, `multi_timeframe_trend`, `news_announcement_drift`):
 
-1. Create `src/forex-bot/factory/templates/<archetype>.py`
+1. Create `src/forex_bot/factory/templates/<archetype>.py`
 2. Subclass `StrategyTemplate`; implement the 4 abstract methods
 3. Register it via `FactoryRegistry.register(template)` (a new module-level registry)
 4. The factory orchestrator picks it up automatically — no other code changes needed
@@ -774,22 +774,22 @@ Per Craig ground rule #9 + Mick's kill criteria:
 
 | New file | Purpose | Phase |
 |---|---|---|
-| `src/forex-bot/factory/__init__.py` | Package init | 1 |
-| `src/forex-bot/factory/template.py` | `StrategyTemplate` abstract base + `ParamSpec` | 2 |
-| `src/forex-bot/factory/registry.py` | `FactoryRegistry` for templates | 2 |
-| `src/forex-bot/factory/run_factory.py` | Main factory orchestrator CLI | 1 |
-| `src/forex-bot/factory/decay_detector.py` | Live decay monitor | 4 |
-| `src/forex-bot/factory/replace.py` | Auto-replacement protocol | 4 |
-| `src/forex-bot/factory/dsr_pipeline.py` | DSR tier rank wrapper around existing `dsr_integration` | 1 |
-| `src/forex-bot/factory/oos.py` | OOS holdout enforcement | 1 |
-| `src/forex-bot/factory/regime.py` | Regime filter wrapper (post Bug #4 fix) | 1 |
-| `src/forex-bot/factory/templates/momentum.py` | Momentum template | 2 |
-| `src/forex-bot/factory/templates/mean_reversion.py` | Mean reversion template | 2 |
-| `src/forex-bot/factory/templates/breakout.py` | Breakout template | 2 |
-| `src/forex-bot/factory/templates/trend_following.py` | Trend following template | 2 |
-| `src/forex-bot/factory/templates/session_based.py` | Session-based template | 2 |
-| `src/forex-bot/factory/schema.sql` | DuckDB tables: factory_runs, deploy_pool, decay_log | 1 |
-| `src/forex-bot/factory/storage.py` | DuckDB read/write helpers | 1 |
+| `src/forex_bot/factory/__init__.py` | Package init | 1 |
+| `src/forex_bot/factory/template.py` | `StrategyTemplate` abstract base + `ParamSpec` | 2 |
+| `src/forex_bot/factory/registry.py` | `FactoryRegistry` for templates | 2 |
+| `src/forex_bot/factory/run_factory.py` | Main factory orchestrator CLI | 1 |
+| `src/forex_bot/factory/decay_detector.py` | Live decay monitor | 4 |
+| `src/forex_bot/factory/replace.py` | Auto-replacement protocol | 4 |
+| `src/forex_bot/factory/dsr_pipeline.py` | DSR tier rank wrapper around existing `dsr_integration` | 1 |
+| `src/forex_bot/factory/oos.py` | OOS holdout enforcement | 1 |
+| `src/forex_bot/factory/regime.py` | Regime filter wrapper (post Bug #4 fix) | 1 |
+| `src/forex_bot/factory/templates/momentum.py` | Momentum template | 2 |
+| `src/forex_bot/factory/templates/mean_reversion.py` | Mean reversion template | 2 |
+| `src/forex_bot/factory/templates/breakout.py` | Breakout template | 2 |
+| `src/forex_bot/factory/templates/trend_following.py` | Trend following template | 2 |
+| `src/forex_bot/factory/templates/session_based.py` | Session-based template | 2 |
+| `src/forex_bot/factory/schema.sql` | DuckDB tables: factory_runs, deploy_pool, decay_log | 1 |
+| `src/forex_bot/factory/storage.py` | DuckDB read/write helpers | 1 |
 | `tests/factory/test_templates.py` | Template instantiation tests | 2 |
 | `tests/factory/test_oos.py` | OOS isolation tests | 1 |
 | `tests/factory/test_dsr_pipeline.py` | Tier rank edge cases | 1 |

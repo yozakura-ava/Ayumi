@@ -10,11 +10,11 @@
 
 The cron is **registered, enabled, and firing weekly** (last run 2026-07-25
 08:00 UTC, status `ok` in OpenClaw). However the underlying Python module
-`src/forex-bot/srf/weekly_sweep.py` writes `exit_code=1` / `weekly_sweep:partial`
+`src/forex_bot/srf/weekly_sweep.py` writes `exit_code=1` / `weekly_sweep:partial`
 to `cron_runs` because every strategy × pair × timeframe combo throws
 `StrategyRunner.__init__() got an unexpected keyword argument 'pair'`.
 
-**Decision: IMPLEMENT minimal stub** at `src/forex-bot/srf/weekly_sweep.py`
+**Decision: IMPLEMENT minimal stub** at `src/forex_bot/srf/weekly_sweep.py`
 that preserves the cron contract (same CLI flags, same `cron_runs` row
 schema, exit_code=0) and routes the real sweep wiring to application lane.
 Cron **kept active** — no removal needed.
@@ -32,7 +32,7 @@ The card's stated symptoms:
   PROJECT_ROOT resolved by `weekly_sweep.py`), is 4.7 MB, and is actively
   being written to. The cron payload runs from
   `$AYUMI_ROOT`, so the path is correct.
-* `srf.weekly_sweep` is importable when `PYTHONPATH=src/forex-bot` is set
+* `srf.weekly_sweep` is importable when `PYTHONPATH=src/forex_bot` is set
   (or under `.venv/bin/python`, which the cron-issuing agentTurn LLM
   activates). The OpenClaw cron registers
   `status: ok, lastRunStatus: ok` precisely because the LLM recovers from
@@ -52,7 +52,7 @@ all combos failed at `StrategyRunner(...)` instantiation.
 
 ## 2. Root cause
 
-`src/forex-bot/srf/weekly_sweep.py` calls:
+`src/forex_bot/srf/weekly_sweep.py` calls:
 
 ```python
 runner = StrategyRunner(
@@ -65,7 +65,7 @@ runner = StrategyRunner(
 successes += 1
 ```
 
-But `src/forex-bot/srf/runner.py` defines:
+But `src/forex_bot/srf/runner.py` defines:
 
 ```python
 def __init__(
@@ -83,7 +83,7 @@ design work — not an infra fix.
 
 ## 3. What was investigated
 
-* `git log -- src/forex-bot/srf/` — module lineage (Phase 2c/3 added
+* `git log -- src/forex_bot/srf/` — module lineage (Phase 2c/3 added
   Jul 12, 2026; last fix `40c6fbc` Jul 21, 2026).
 * `openclaw cron list --json` — confirmed cron `b5a3e5fb-9763-…` is
   registered, enabled, schedule `0 4 * * 6` America/Toronto, payload
@@ -149,7 +149,7 @@ The new stub was executed against the real `research.duckdb`:
 
 ```text
 $ cd $AYUMI_ROOT
-$ PYTHONPATH=src/forex-bot .venv/bin/python -m srf.weekly_sweep --trials 50
+$ PYTHONPATH=src/forex_bot .venv/bin/python -m srf.weekly_sweep --trials 50
 INFO  Weekly sweep (stub) started: pairs=[…] timeframes=[…] trials_per_combo=50
 INFO  Found 17 production strategies in registry
 INFO  Logged cron_runs row: exit_code=0 run_count=136 status=weekly_sweep:ok
@@ -173,7 +173,7 @@ cron_start                       exit_code  run_count  status
 
 | Path | Change |
 | --- | --- |
-| `src/forex-bot/srf/weekly_sweep.py` | Replaced with minimal stub |
+| `src/forex_bot/srf/weekly_sweep.py` | Replaced with minimal stub |
 | `docs/infra/srf-pipeline-decision.md` | This document (new) |
 
 No changes to: `srf/runner.py`, `srf/schema.py`, `srf/__main__.py`,

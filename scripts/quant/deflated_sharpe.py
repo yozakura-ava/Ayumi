@@ -45,9 +45,9 @@ from typing import Sequence
 
 HERE = Path(__file__).resolve()
 PROJECT_ROOT = HERE.parents[2]
-SRC_FOREX_BOT = PROJECT_ROOT / "src" / "forex-bot"
+SRC_FOREX_BOT = PROJECT_ROOT / "src" / "forex_bot"
 
-# Add src/forex-bot to path so `quant` package is importable.
+# Add src/forex_bot to path so `quant` package is importable.
 # This matches the pattern in the project's conftest.py.
 if str(SRC_FOREX_BOT) not in sys.path:
     sys.path.insert(0, str(SRC_FOREX_BOT))

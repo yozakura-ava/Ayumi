@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "src" / "forex-bot"))
+sys.path.insert(0, str(ROOT / "src" / "forex_bot"))
 sys.path.insert(0, str(ROOT / "src"))
 
 from monitoring.drift_detector import DriftDetector  # noqa: E402

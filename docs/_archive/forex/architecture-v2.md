@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary
 
-This spec defines the target architecture for the Ayumi forex-bot v2. The current codebase (~27,000 lines across 115 Python files) is functional but suffers from massive code duplication (4 independent engine classes, 7+ copies of each technical indicator, 5+ pip-value implementations), 48 stub test files, dead modules, and subtle bugs that undermine backtest validity.
+This spec defines the target architecture for the Ayumi forex_bot v2. The current codebase (~27,000 lines across 115 Python files) is functional but suffers from massive code duplication (4 independent engine classes, 7+ copies of each technical indicator, 5+ pip-value implementations), 48 stub test files, dead modules, and subtle bugs that undermine backtest validity.
 
 The v2 architecture consolidates to a **single composed backtest engine**, a **shared indicators library**, a **formal strategy protocol**, and **unified signal types** — while preserving the proven strategies (SRM, Killzone Momentum, TTC signal engine) and the operational live paper trading system.
 
@@ -26,7 +26,7 @@ The v2 architecture consolidates to a **single composed backtest engine**, a **s
 ## 2. Module Responsibility Matrix
 
 ```
-src/forex-bot/
+src/forex_bot/
   core/              # Shared types: Bar, MarketState, enums, PipCalculator, SpreadModel
   indicators/        # Single correct implementation of ATR, RSI, ADX, EMA, SMA, STD, Bollinger, MACD, Stochastic
   engine/            # Single backtest engine built from composable mixins
@@ -861,7 +861,7 @@ Before Phase 3E cleanup (deleting old engines), all of the following must pass:
 
 **Symptom.** The forward test had been running for hours with thousands of ticks and a handful of bars built, but every one of the nine registered strategies reported `evals=0` and `last=N days ago` in the heartbeat JSON. With market data flowing and bars finalising, no strategy was ever invoked.
 
-**Root cause.** The bug lived in the launcher, not the base engine. `BlendForwardTestEngine._evaluate_strategies` in `scripts/launch_blend_forward_test.py` (line 229) overrode the base class method from `src/forex-bot/adapters/ctrader/forward_test_engine.py:836` to add blend-aware signal routing, but the override never incremented the per-strategy health counters. The base class increments `_strategy_eval_counts[name]`, `_strategy_no_signal_counts[name]`, and `_strategy_last_eval[name]` explicitly inside its evaluation loop; the subclass assumed that bookkeeping happened implicitly elsewhere. It does not.
+**Root cause.** The bug lived in the launcher, not the base engine. `BlendForwardTestEngine._evaluate_strategies` in `scripts/launch_blend_forward_test.py` (line 229) overrode the base class method from `src/forex_bot/adapters/ctrader/forward_test_engine.py:836` to add blend-aware signal routing, but the override never incremented the per-strategy health counters. The base class increments `_strategy_eval_counts[name]`, `_strategy_no_signal_counts[name]`, and `_strategy_last_eval[name]` explicitly inside its evaluation loop; the subclass assumed that bookkeeping happened implicitly elsewhere. It does not.
 
 **Why it existed.** The subclass predates the health-counter instrumentation. When the per-strategy health fields were added to the base engine in an earlier refactor, the launcher override was not re-audited. The override's only intentional divergence was blend-routing — counters were an accidental casualty of the assumption that "the base loop is still doing its job." It is not, once you replace the method.
 
@@ -875,7 +875,7 @@ Before Phase 3E cleanup (deleting old engines), all of the following must pass:
 
 **Scope.** Full rebuild of the cTrader adapter layer. Replaced 5 legacy modules with a clean, testable infrastructure spanning session, credentials, token lifecycle, market data, order gateway, position tracking, and event handling.
 
-**New modules (`src/forex-bot/adapters/ctrader/`):**
+**New modules (`src/forex_bot/adapters/ctrader/`):**
 - `session.py` — `cTraderSession` state machine (replaces `auth.py`)
 - `credential_store.py` — atomic credential persistence (replaces `credentials.py`)
 - `token_lifecycle.py` — token rotation and validation (replaces `token_manager.py`, `oauth_refresh.py`)

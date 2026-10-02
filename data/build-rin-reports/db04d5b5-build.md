@@ -20,7 +20,7 @@
 |---|---|---|---|
 | 1 | `python3 -m pytest tests/tournament -q` green | ✅ | `20 passed, 2 warnings in 9.26s` (§3.1) |
 | 1 | `python3 scripts/run_tournament.py --smoke` exits 0 with scorecard | ✅ | rc=0, JSON at `data/tournament/scorecard_smoke.json` (§3.2) |
-| 2 | ≥2 existing strategies run **unmodified** | ✅ | `srmr_plus` + `bb_rsi_reversion` via `STRATEGY_CLASS_MAP`; `git diff origin/main...HEAD --stat` shows 0 changes in `src/forex-bot/strategies/` (§3.3) |
+| 2 | ≥2 existing strategies run **unmodified** | ✅ | `srmr_plus` + `bb_rsi_reversion` via `STRATEGY_CLASS_MAP`; `git diff origin/main...HEAD --stat` shows 0 changes in `src/forex_bot/strategies/` (§3.3) |
 | 3 | Scorecard includes FTMO-constraint columns (3% daily / 10% total) | ✅ | Two separate columns `daily_dd_breaches` (3%) and `total_dd_breaches` (10%), not aliased (§3.4) |
 | 4 | Decomposition follow-up lists next 2-3 build cards ≤2 SP each | ✅ | `docs/plans/ayumi-tournament-harness-spec.md` §7 (3 cards, each ≤2 SP) |
 | 5 | Rin review + builder quality gate before merge | ⏳ pending | Rin review dispatched via parent orchestrator (Reina) — see §6 |
@@ -81,11 +81,11 @@ Exit code: **0**. Last non-empty line: `TOURNAMENT_OK rows=2 top=bb_rsi_reversio
 ### 3.3 No strategy code touched
 
 ```
-$ git diff origin/main...HEAD --stat -- src/forex-bot/strategies/
+$ git diff origin/main...HEAD --stat -- src/forex_bot/strategies/
 (no output — 0 files modified)
 ```
 
-`git diff origin/main...HEAD --stat -- src/forex-bot/` likewise returns
+`git diff origin/main...HEAD --stat -- src/forex_bot/` likewise returns
 0 changed files. Strategies are reached exclusively via the existing
 `strategies.registry.default_registry()` (`srmr_plus` + `bb_rsi_reversion`
 in `src/tournament/harness.py:STRATEGY_CLASS_MAP`).
@@ -105,7 +105,7 @@ SCORECARD_ROW_COLUMNS = (
 ```
 
 Both FTMO limits are sourced from the canonical
-`src/forex-bot/risk/ftmo_params.py`:
+`src/forex_bot/risk/ftmo_params.py`:
 
 | Limit | Constant | Decimal |
 |---|---|---|

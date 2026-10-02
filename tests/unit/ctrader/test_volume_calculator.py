@@ -8,8 +8,8 @@ import sys
 
 import pytest
 
-# Ensure src/forex-bot is importable
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "src", "forex-bot"))
+# Ensure src/forex_bot is importable
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "src", "forex_bot"))
 
 from adapters.ctrader.market_data_feed import SymbolInfo
 from adapters.ctrader.volume_calculator import VolumeCalculator

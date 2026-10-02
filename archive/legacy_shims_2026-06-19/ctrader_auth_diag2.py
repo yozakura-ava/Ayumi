@@ -2,7 +2,7 @@ import os  # noqa: E401, I001
 import sys
 
 sys.path.insert(0, "$AYUMI_ROOT")
-sys.path.insert(0, "$AYUMI_ROOT/src/forex-bot")
+sys.path.insert(0, "$AYUMI_ROOT/src/forex_bot")
 os.chdir("$AYUMI_ROOT")
 
 from dotenv import load_dotenv

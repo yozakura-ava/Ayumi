@@ -18,9 +18,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-# Allow running both from repo root and from src/forex-bot/.
+# Allow running both from repo root and from src/forex_bot/.
 _HERE = Path(__file__).resolve()
-for base in (_HERE.parent.parent / "src" / "forex-bot", _HERE.parent.parent.parent):
+for base in (_HERE.parent.parent / "src" / "forex_bot", _HERE.parent.parent.parent):
     if (base / "backtest" / "walk_forward.py").exists():
         sys.path.insert(0, str(base))
         break

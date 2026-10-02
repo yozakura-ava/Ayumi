@@ -37,10 +37,10 @@ import sys
 import tempfile
 from pathlib import Path
 
-# Ensure src/forex-bot and scripts/ are importable for
+# Ensure src/forex_bot and scripts/ are importable for
 # adapters.ctrader.kill_switch and backtest_blend_harness.
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-for sub in ("src/forex-bot", "scripts"):
+for sub in ("src/forex_bot", "scripts"):
     p = str(_REPO_ROOT / sub)
     if p not in sys.path:
         sys.path.insert(0, p)

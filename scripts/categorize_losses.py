@@ -4,7 +4,7 @@
 BQ-344: Loss Trade Categorization Script
 
 Reads a backtest JSON file containing closed trade records (SimulatedTrade
-schema from ``forex-bot.backtest.multi_strategy_engine``) and assigns each
+schema from ``forex_bot.backtest.multi_strategy_engine``) and assigns each
 loss to a likely cause using rule-based heuristics.  No ML, no external
 APIs.
 
@@ -14,7 +14,7 @@ The script accepts either:
 
 * A bare JSON list of trade records, e.g. ``[{...}, {...}]``.
 * A JSON object containing a ``trades`` array (matches the shape produced
-  by ``forex-bot.backtest`` exporters that wrap trades under that key).
+  by ``forex_bot.backtest`` exporters that wrap trades under that key).
 * A JSON object matching ``BacktestMetrics`` style where ``trades`` is the
   list of records (commonly seen in walk-forward exports).
 

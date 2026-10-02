@@ -52,7 +52,7 @@ Duplicate instances (root cause)
 **Files:**
 - `scripts/launch_blend_forward_test.py` — add PID guard at entry point
 - `scripts/launch_forward_test.py` — same guard
-- `src/forex-bot/adapters/ctrader/pid_guard.py` — **NEW** reusable PID guard module
+- `src/forex_bot/adapters/ctrader/pid_guard.py` — **NEW** reusable PID guard module
 
 **Acceptance criteria:**
 - [ ] `pid_guard.py` implements `acquire_pid_lock(path) -> context manager` with stale-PID detection (check `/proc/{pid}`) and clean unlock on exit
@@ -74,7 +74,7 @@ Duplicate instances (root cause)
 3. Add a cooldown/dedup to `_handle_error` so even genuine auth errors don't rapid-fire refresh — minimum 60s between reactive refresh attempts
 
 **Files:**
-- `src/forex-bot/adapters/ctrader/open_api_spot_feed.py`
+- `src/forex_bot/adapters/ctrader/open_api_spot_feed.py`
 
 **Acceptance criteria:**
 - [ ] `ALREADY_LOGGED_IN` removed from `auth_errors` set in `_handle_error`
@@ -97,7 +97,7 @@ Duplicate instances (root cause)
 5. Add `_stable_auth_time` tracking — if auth has been stable for >30s, reset backoff
 
 **Files:**
-- `src/forex-bot/adapters/ctrader/open_api_spot_feed.py`
+- `src/forex_bot/adapters/ctrader/open_api_spot_feed.py`
 
 **Acceptance criteria:**
 - [ ] `_auth_error_count` initialized to 0 in `__init__`
@@ -144,7 +144,7 @@ Duplicate instances (root cause)
 4. Monitor for 30 minutes post-deploy: confirm signals are being evaluated
 
 **Files:**
-- `src/forex-bot/adapters/ctrader/forward_test_engine.py` — startup diagnostic
+- `src/forex_bot/adapters/ctrader/forward_test_engine.py` — startup diagnostic
 - `scripts/launch_blend_forward_test.py` — verify tick callback wiring
 
 **Acceptance criteria:**
@@ -158,7 +158,7 @@ Duplicate instances (root cause)
 ## File Tree
 
 ```
-src/forex-bot/adapters/ctrader/
+src/forex_bot/adapters/ctrader/
 ├── open_api_spot_feed.py        # MODIFY: B2 (ALREADY_LOGGED_IN fix), B3 (backoff/circuit breaker)
 ├── pid_guard.py                  # NEW: B1 (reusable PID file lock)
 └── forward_test_engine.py        # MODIFY: B5 (startup diagnostics, periodic health)

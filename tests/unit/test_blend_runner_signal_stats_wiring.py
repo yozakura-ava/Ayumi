@@ -44,7 +44,7 @@ WORKSPACE = Path("$AYUMI_ROOT")
 # The harness sets cwd to the worktree, so use Path.cwd() to find the
 # local src/ for the AST check below.
 WORKTREE = Path.cwd()
-SRC = WORKTREE / "src" / "forex-bot"
+SRC = WORKTREE / "src" / "forex_bot"
 
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))

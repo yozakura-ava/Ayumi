@@ -32,7 +32,7 @@ WORKSPACE = Path("$AYUMI_ROOT")
 LAUNCHER = WORKSPACE / "scripts" / "launch_blend_forward_test.py"
 
 sys.path.insert(0, str(WORKSPACE))
-sys.path.insert(0, str(WORKSPACE / "src" / "forex-bot"))
+sys.path.insert(0, str(WORKSPACE / "src" / "forex_bot"))
 
 from launch_blend_forward_test import CorrelationGate  # noqa: E402  # isort: skip
 
@@ -542,7 +542,7 @@ def test_slot_tracker_callback_fires_on_ratchet_to_breakeven():
     """
     from unittest.mock import MagicMock
 
-    sys.path.insert(0, str(WORKSPACE / "src" / "forex-bot"))
+    sys.path.insert(0, str(WORKSPACE / "src" / "forex_bot"))
 
     from adapters.ctrader.models import Position, PositionStatus, TradeDirection
     from adapters.ctrader.position_monitor import PositionMonitor
@@ -614,7 +614,7 @@ def test_slot_tracker_callback_not_called_on_amend_failure():
     """
     from unittest.mock import MagicMock
 
-    sys.path.insert(0, str(WORKSPACE / "src" / "forex-bot"))
+    sys.path.insert(0, str(WORKSPACE / "src" / "forex_bot"))
 
     from adapters.ctrader.models import Position, PositionStatus, TradeDirection
     from adapters.ctrader.position_monitor import PositionMonitor
@@ -673,7 +673,7 @@ def test_slot_tracker_exception_does_not_break_ratchet():
     """
     from unittest.mock import MagicMock
 
-    sys.path.insert(0, str(WORKSPACE / "src" / "forex-bot"))
+    sys.path.insert(0, str(WORKSPACE / "src" / "forex_bot"))
 
     from adapters.ctrader.models import Position, PositionStatus, TradeDirection
     from adapters.ctrader.position_monitor import PositionMonitor

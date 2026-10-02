@@ -75,7 +75,7 @@ TP1 (take-profit level 1) is a strategy-level concern, not connection infrastruc
 
 **Verdict: DEFER**
 
-- No `order_book` or `OrderBook` references found anywhere in `src/forex-bot/adapters/ctrader/`
+- No `order_book` or `OrderBook` references found anywhere in `src/forex_bot/adapters/ctrader/`
 - This is an order book / depth-of-market feature that doesn't exist in the current codebase
 - The forward test runs spot feed + trade client; order book depth is not part of the current trading strategy
 - Low priority: not blocking forward test or live trading

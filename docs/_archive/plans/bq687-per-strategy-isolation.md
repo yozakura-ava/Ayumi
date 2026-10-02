@@ -25,7 +25,7 @@
 
 ## 1. Problem Statement
 
-`MultiStrategyBacktestEngine` (`src/forex-bot/backtest/multi_strategy_engine.py`) runs multiple strategies in `run_all_strategies()` and `run_combined_strategies()`. Currently, all strategies **share mutable engine state** within a run:
+`MultiStrategyBacktestEngine` (`src/forex_bot/backtest/multi_strategy_engine.py`) runs multiple strategies in `run_all_strategies()` and `run_combined_strategies()`. Currently, all strategies **share mutable engine state** within a run:
 
 - `self.balance`
 - `self.peak_balance`, `self.max_drawdown`
@@ -438,8 +438,8 @@ def test_kelly_closed_trades_isolated_per_strategy():
 
 | File | Change |
 |------|--------|
-| `src/forex-bot/backtest/multi_strategy_engine.py` | Major refactor: add `StrategyRunState`, update all method signatures, remove `_reset()`, add error containment |
-| `src/forex-bot/backtest/vaps_engine.py` | Update `_open_trade` override signature |
+| `src/forex_bot/backtest/multi_strategy_engine.py` | Major refactor: add `StrategyRunState`, update all method signatures, remove `_reset()`, add error containment |
+| `src/forex_bot/backtest/vaps_engine.py` | Update `_open_trade` override signature |
 | `tests/test_per_strategy_isolation.py` | New file: 4 test cases |
 
 ---

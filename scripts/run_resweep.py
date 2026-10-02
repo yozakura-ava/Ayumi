@@ -28,7 +28,7 @@ from pathlib import Path
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-FOREX_BOT = PROJECT_ROOT / "src" / "forex-bot"
+FOREX_BOT = PROJECT_ROOT / "src" / "forex_bot"
 sys.path.insert(0, str(FOREX_BOT))
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 

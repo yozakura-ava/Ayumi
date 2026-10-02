@@ -34,7 +34,7 @@ single-occurrence structural exposure.
 
 ## AC2 — Is SL attached before or after execType=3 (filled) on LATE_FILL?
 
-**After.** Source: `src/forex-bot/adapters/ctrader/forward_test_engine.py`
+**After.** Source: `src/forex_bot/adapters/ctrader/forward_test_engine.py`
 ~2240–2360 (late-fill callback path). The callback fires on
 `rv_status == FILLED` (i.e. after the fill/execType=3 equivalent), then
 calls `amend_sl_tp` with bounded retry (3 attempts, 0.2–0.6s backoff).
@@ -86,8 +86,8 @@ import json
 rows=[json.loads(l) for l in open('data/signal_stats.jsonl')]
 w=[r for r in rows if r['timestamp'][:10] between aug13-27]  # 7 rows, 0 closed
 E
-sed -n '2240,2360p' src/forex-bot/adapters/ctrader/forward_test_engine.py  # late-fill amend-after-fill
-sed -n '458,530p' src/forex-bot/adapters/ctrader/order_manager.py          # fuzzy match fails w/o on_filled
+sed -n '2240,2360p' src/forex_bot/adapters/ctrader/forward_test_engine.py  # late-fill amend-after-fill
+sed -n '458,530p' src/forex_bot/adapters/ctrader/order_manager.py          # fuzzy match fails w/o on_filled
 ```
 
 — Reina, sprint heartbeat 2026-09-17 04:0x UTC. DELEG-REF: dfb095b1-e835-4ae8-81f9-0e665c34ebc9

@@ -11,11 +11,11 @@ to fix on the live late-fill handler module.
 ## Provenance — source location
 
 `execution_event_handler.py` source was NOT at the card's claimed path
-(`src/forex-bot/adapters/ctrader/execution_event_handler.py` had only a stale
+(`src/forex_bot/adapters/ctrader/execution_event_handler.py` had only a stale
 `.pyc`, no `.py`). Live source located at:
 
 ```
-/home/TacoPants/projects/Ayumi/worktrees/live-lint-270783df/src/forex-bot/adapters/ctrader/execution_event_handler.py
+/home/TacoPants/projects/Ayumi/worktrees/live-lint-270783df/src/forex_bot/adapters/ctrader/execution_event_handler.py
 ```
 
 That path is in an orphan worktree directory (`worktrees/`, not `.worktrees/`)
@@ -119,7 +119,7 @@ New test file: `tests/unit/ctrader/test_new_order_timeout_indeterminate.py`
 ### Fix #5 — MEDIUM — Blend-health counter surfacing
 
 Already applied to main in iter-1 (confirmed via grep of
-`src/forex-bot/engine/health_monitor.py` lines 152-165):
+`src/forex_bot/engine/health_monitor.py` lines 152-165):
 
 ```python
 unmatched_late_raw = self._safe_attr(self._order_gateway, "_unmatched_late_fills_count", 0)
@@ -140,7 +140,7 @@ No further work needed on this finding — main is current.
 ### Fix #6 — BUNDLE — OpenApiSpotFeed mirror consistency
 
 Already applied to main in iter-1 (confirmed via grep of
-`src/forex-bot/adapters/ctrader/open_api_spot_feed.py`):
+`src/forex_bot/adapters/ctrader/open_api_spot_feed.py`):
 
 * `_consume_order_state_across_all_maps(client_order_id, client_msg_id)` —
   pops `_pending_orders` (by client_order_id), `_pending_client_msg_ids`
@@ -184,17 +184,17 @@ $ AYUMI_ROOT=$(pwd) python3 -m pytest \
 ### Files touched
 
 ```
-A  src/forex-bot/adapters/ctrader/execution_event_handler.py   (NEW, 684 lines)
+A  src/forex_bot/adapters/ctrader/execution_event_handler.py   (NEW, 684 lines)
 A  tests/unit/ctrader/test_new_order_timeout_indeterminate.py  (NEW, 5 scenarios)
 ```
 
 No edits to:
 
-* `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` (iter-1 already
+* `src/forex_bot/adapters/ctrader/open_api_spot_feed.py` (iter-1 already
   correct — verified via grep)
-* `src/forex-bot/adapters/ctrader/forward_test_engine.py` (iter-1 already
+* `src/forex_bot/adapters/ctrader/forward_test_engine.py` (iter-1 already
   correct — verified via grep)
-* `src/forex-bot/engine/health_monitor.py` (iter-1 already correct —
+* `src/forex_bot/engine/health_monitor.py` (iter-1 already correct —
   verified via grep)
 
 ## Build metadata (BUILD-METADATA)

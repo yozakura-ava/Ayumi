@@ -13,7 +13,7 @@ each is guarded by `ExecutionPermissionPolicy` or is out of scope for P5A.
 
 ```bash
 grep -rn 'new_order\|send_order\|ProtoOANewOrderReq\|close_position\|cancel_order\|amend_sl_tp' \
-  src/forex-bot/adapters/ctrader/ --include='*.py'
+  src/forex_bot/adapters/ctrader/ --include='*.py'
 ```
 
 ## Active Guarded Paths (P5A protected)
@@ -40,14 +40,14 @@ grep -rn 'new_order\|send_order\|ProtoOANewOrderReq\|close_position\|cancel_orde
 ### 4. `OrderManager.place_order()` → `_api_client.send_order()`
 
 - **File:** `order_manager.py:294`
-- **Status:** **DEAD + DANGEROUS.** Zero production callers (`grep -rn 'place_order' src/forex-bot/ --include='*.py'` returns zero hits outside tests). AND if called, routes through `_api_client` (a `cTraderAPIClient` instance) that does NOT have `set_permission_policy()` called on it — see dual-instance issue below.
+- **Status:** **DEAD + DANGEROUS.** Zero production callers (`grep -rn 'place_order' src/forex_bot/ --include='*.py'` returns zero hits outside tests). AND if called, routes through `_api_client` (a `cTraderAPIClient` instance) that does NOT have `set_permission_policy()` called on it — see dual-instance issue below.
 - **Risk:** If `place_order()` is ever called, it bypasses the defense-in-depth policy gate entirely. The `_api_client` instance's `new_order()` guard evaluates `self._permission_policy` as `None`, so the check is skipped.
 - **Mitigation:** Phase 6 must either (a) wire policy into `_api_client` at construction in `_start_live_mode()`, or (b) remove `place_order()` as dead code.
 
 ### 5. `OrderGateway._create_request()` → `ProtoOANewOrderReq`
 
 - **File:** `order_gateway.py:96`
-- **Status:** `OrderGateway` class is defined but **never instantiated** anywhere in production code (`grep -rn 'OrderGateway(' src/forex-bot/ --include='*.py'` returns zero hits outside tests).
+- **Status:** `OrderGateway` class is defined but **never instantiated** anywhere in production code (`grep -rn 'OrderGateway(' src/forex_bot/ --include='*.py'` returns zero hits outside tests).
 - **Risk:** None currently. If instantiated in future, it bypasses the policy.
 - **Mitigation:** Phase 6: either wire `OrderGateway` through the policy or remove it.
 
@@ -89,7 +89,7 @@ Per Rei's original review: there is a theoretical time-of-check-to-time-of-use w
 
 ```bash
 grep -rn 'new_order\|send_order\|ProtoOANewOrderReq\|close_position\|cancel_order\|amend_sl_tp' \
-  src/forex-bot/adapters/ctrader/ --include='*.py'
+  src/forex_bot/adapters/ctrader/ --include='*.py'
 ```
 
 ## Conclusion

@@ -77,7 +77,7 @@ git push origin main
 
 ```
 src/
-├── forex-bot/          # Kai's domain - trading systems
+├── forex_bot/          # Kai's domain - trading systems
 ├── crypto/             # Nash's domain - crypto tools
 ├── infrastructure/     # DevOps, CI/CD, deployment
 └── shared/             # Common libraries and utilities

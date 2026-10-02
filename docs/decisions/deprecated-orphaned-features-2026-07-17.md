@@ -17,7 +17,7 @@ During the ayumi-cleanup sprint (Jul 2026), 6 test files were deleted because th
 ### 1. Crypto Copy-Trading
 
 - **Tested modules:** `crypto.models.trade`, `crypto.services.repository`
-- **Source status:** No `src/forex-bot/crypto/` package exists
+- **Source status:** No `src/forex_bot/crypto/` package exists
 - **Data artifacts:** `data/crypto/copy_trading.db` (110 KB SQLite, last modified Apr 8 2026)
 - **Existing crypto references:** Other crypto references in codebase are for BTC regime overlays and instrument metadata (pip values, symbol gating) — unrelated to copy-trading
 - **Decision:** NOT_WANTED. The copy-trading concept was never integrated. The `copy_trading.db` is orphaned data and can be safely removed in a future cleanup.

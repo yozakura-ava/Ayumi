@@ -34,7 +34,7 @@ REPORTS_DIR = AYUMI_ROOT / "reports"
 _EASTERN = ZoneInfo("America/New_York")
 _UTC = timezone.utc
 
-# Pip values based on PipCalculator.pip_value() (src/forex-bot/core/pip.py)
+# Pip values based on PipCalculator.pip_value() (src/forex_bot/core/pip.py)
 SYMBOL_INFO = {
     "EURUSD": {"pip_value": 0.0001, "description": "Euro / US Dollar"},
     "GBPUSD": {"pip_value": 0.0001, "description": "British Pound / US Dollar"},

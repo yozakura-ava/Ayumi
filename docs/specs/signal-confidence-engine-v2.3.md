@@ -1086,7 +1086,7 @@ Test setups that pass ALL gates with confidence ≥ threshold. Optimize for **ex
 ## 13. File Structure
 
 ```
-src/forex-bot/
+src/forex_bot/
 ├── signal_engine/
 │   ├── __init__.py
 │   ├── glossary.py                 # All term definitions (from §1.1)

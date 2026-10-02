@@ -117,11 +117,11 @@ volume, pnl, pnl_pct, duration_minutes, strategy_name, signal_rationale
 
 | Component | File | Status |
 |-----------|------|--------|
-| PaperTrader | `src/forex-bot/adapters/ctrader/paper_trader.py` | Done |
-| RiskGuard | `src/forex-bot/adapters/ctrader/risk_guard.py` | Done |
-| OrderManager | `src/forex-bot/adapters/ctrader/order_manager.py` | Done |
-| cTrader API Client | `src/forex-bot/adapters/ctrader/api_client.py` | Done |
-| Market Data Feed | `src/forex-bot/adapters/ctrader/market_data_feed.py` | In Review (AYUAA-409) |
+| PaperTrader | `src/forex_bot/adapters/ctrader/paper_trader.py` | Done |
+| RiskGuard | `src/forex_bot/adapters/ctrader/risk_guard.py` | Done |
+| OrderManager | `src/forex_bot/adapters/ctrader/order_manager.py` | Done |
+| cTrader API Client | `src/forex_bot/adapters/ctrader/api_client.py` | Done |
+| Market Data Feed | `src/forex_bot/adapters/ctrader/market_data_feed.py` | In Review (AYUAA-409) |
 | FTMO Risk Research | `docs/forex/ftmo-challenge-risk-parameters-and-trade-plan.md` | Done |
 
 ## Blocking Items

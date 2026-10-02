@@ -11,7 +11,7 @@ Post-mortems from AYUAA-778 and AYUAA-807 showed data-stream failures going unde
 
 ## Decision
 
-Extract a standalone, composable `HealthMonitor` class in `src/forex-bot/engine/health_monitor.py` that both engines can use.
+Extract a standalone, composable `HealthMonitor` class in `src/forex_bot/engine/health_monitor.py` that both engines can use.
 
 ## Design
 

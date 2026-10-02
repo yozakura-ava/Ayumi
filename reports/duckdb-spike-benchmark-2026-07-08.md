@@ -162,7 +162,7 @@ This is by design (DuckDB doesn't want mixed read/write semantics on one file). 
 
 2. **Single-process, in-memory only.** We didn't test persistent DuckDB files in a long-running process, MVCC, or backup/restore. Those are migration-phase concerns.
 
-3. **No write path tested.** This spike was read-only. The bar-data writer in `src/forex-bot/` (if any) needs separate validation before Phase 8b.
+3. **No write path tested.** This spike was read-only. The bar-data writer in `src/forex_bot/` (if any) needs separate validation before Phase 8b.
 
 4. **No type-stress test.** All numeric columns were clean doubles. Real-world Dukascopy CSVs sometimes have malformed rows; DuckDB's CSV sniffer has `ignore_errors=true` and `sample_size` knobs but they weren't exercised.
 

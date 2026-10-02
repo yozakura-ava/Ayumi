@@ -5,5 +5,5 @@ the infrastructure rebuild. It exists to support the legacy launcher
 (launch_blend_forward_test.py) and its tests via compatibility shims.
 
 Do not import from this package directly in new code. The modern equivalents
-live in src/forex-bot/adapters/ctrader/.
+live in src/forex_bot/adapters/ctrader/.
 """

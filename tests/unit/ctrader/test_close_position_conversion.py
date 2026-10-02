@@ -18,8 +18,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-# Ensure src/forex-bot is importable (same pattern as test_amend_sl_tp.py)
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "src", "forex-bot"))
+# Ensure src/forex_bot is importable (same pattern as test_amend_sl_tp.py)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "src", "forex_bot"))
 
 
 @pytest.fixture

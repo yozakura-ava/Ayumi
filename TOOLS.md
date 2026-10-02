@@ -1,7 +1,7 @@
 # TOOLS.md — Senior Software Engineer
 
 ## Development
-- Python: `src/forex-bot/`
+- Python: `src/forex_bot/`
 - Tests: `pytest tests/ -q`
 - Shared venv: `$AYUMI_ROOT/.venv`
 - Activate: `source $AYUMI_ROOT/.venv/bin/activate`
@@ -12,8 +12,8 @@
 - Commit: conventional format, include `Co-Authored-By: Paperclip <noreply@paperclip.ing>`
 
 ## Key Paths
-- Strategies: `src/forex-bot/strategies/`
-- Backtest: `src/forex-bot/backtest/`
-- ML pipeline: `src/forex-bot/ml/`
+- Strategies: `src/forex_bot/strategies/`
+- Backtest: `src/forex_bot/backtest/`
+- ML pipeline: `src/forex_bot/ml/`
 - Tests: `tests/`
 - Docs: `docs/forex/`, `docs/decisions/`

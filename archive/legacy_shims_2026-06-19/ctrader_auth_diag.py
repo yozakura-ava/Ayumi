@@ -1,7 +1,7 @@
 import os, sys, time, logging, json, threading  # noqa: E401, F401, I001
 
 sys.path.insert(0, "$AYUMI_ROOT")
-sys.path.insert(0, "$AYUMI_ROOT/src/forex-bot")
+sys.path.insert(0, "$AYUMI_ROOT/src/forex_bot")
 os.chdir("$AYUMI_ROOT")
 
 from dotenv import load_dotenv  # noqa: I001

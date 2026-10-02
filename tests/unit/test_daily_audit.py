@@ -29,7 +29,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 
 # Ensure src/ is on sys.path for DriftDetector import
 SRC_DIR = Path(__file__).resolve().parent.parent.parent / "src"
-sys.path.insert(0, str(SRC_DIR / "forex-bot"))
+sys.path.insert(0, str(SRC_DIR / "forex_bot"))
 sys.path.insert(0, str(SRC_DIR))
 
 from daily_audit import (

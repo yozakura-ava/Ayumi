@@ -16,18 +16,18 @@
 
 | Plan Phase | Plan Concept | Exists? | Status | Effort to Complete |
 |-----------|--------------|---------|--------|-------------------|
-| **Phase 2** | `cpu_limited` / `memory_capped` resource wrappers | ✅ `src/forex-bot/common/resource_limits.py` (324 lines) | **Wired in ZERO scripts** — 20 `scripts/run_*.py` exist; none import `resource_limits` | **0.5 SP** — wire into existing launchers + add CI check |
+| **Phase 2** | `cpu_limited` / `memory_capped` resource wrappers | ✅ `src/forex_bot/common/resource_limits.py` (324 lines) | **Wired in ZERO scripts** — 20 `scripts/run_*.py` exist; none import `resource_limits` | **0.5 SP** — wire into existing launchers + add CI check |
 | **Phase 2** | `ProcessPoolExecutor(max_workers=2)` cap | ✅ `SweepRunner.__init__` accepts `max_workers` (param sweep line 91) | **Default is `os.cpu_count()`** (uncapped) — 5 of 7 sweep scripts use `max_workers=1` (hardcoded) | **0.5 SP** — change default to 2 + add CLI flag |
-| **Phase 2** | `data/forward_test.pid` lock | ✅ `src/forex-bot/adapters/ctrader/pid_guard.py` + `acquire_pid_lock()` | **Live in production** — `data/forward_test.pid` exists, owned by PID 2125800 | **0 SP** — already done |
+| **Phase 2** | `data/forward_test.pid` lock | ✅ `src/forex_bot/adapters/ctrader/pid_guard.py` + `acquire_pid_lock()` | **Live in production** — `data/forward_test.pid` exists, owned by PID 2125800 | **0 SP** — already done |
 | **Phase 2** | Engine consolidation (5→1) | ✅ Canonical `ForwardTestEngine` declared (engine-inventory audit) | **Phase 1A-1 complete** (separate audit) | **0.5 SP** — drop in the 4 deprecation banners |
-| **Phase 4** | `regime_thresholds` (per-regime) | ✅ `src/forex-bot/risk/regime_thresholds.py` (157 lines) + `correlation_sizer.compute_adjusted_size(regime=...)` | **Live but uncalled** — no caller passes `regime` argument to `SLPositionSizer` | **1 SP** — thread regime from `ForwardTestEngine` into `BlendForwardTestRunner` |
+| **Phase 4** | `regime_thresholds` (per-regime) | ✅ `src/forex_bot/risk/regime_thresholds.py` (157 lines) + `correlation_sizer.compute_adjusted_size(regime=...)` | **Live but uncalled** — no caller passes `regime` argument to `SLPositionSizer` | **1 SP** — thread regime from `ForwardTestEngine` into `BlendForwardTestRunner` |
 | **Phase 4** | Edge telemetry (R-multiple expectancy) | ❌ Not present | No `expectancy`, `R-multiple`, `edge_telemetry` symbols exist | **2 SP** — new `edge_telemetry.py` + wire into `SLPositionSizer.risk_per_trade_pct` |
 | **Phase 4** | `live_fire_min_confidence` lower 0.65→0.55 | ✅ Config field exists `forward_test_engine.py:118` | **Default 0.65** — no test or config pins it at 0.55 | **0.5 SP** — change default + 1-line config doc |
-| **Phase 5** | `AnomalyMonitor` (L0) | ✅ `src/forex-bot/engine/anomaly_monitor.py:54` `class HealthMonitor` | **Live in production** — wired in `ForwardTestEngine._build_components` | **0 SP** — already done |
-| **Phase 5** | `HealthMonitor` (structured heartbeat) | ✅ `src/forex-bot/engine/health_monitor.py` emits `[B5 Health]` / `[S1 Health]` | **Live in production** | **0 SP** — already done |
-| **Phase 5** | `KillSwitchManager` (L4) | ✅ `src/forex-bot/adapters/ctrader/kill_switch.py:307+` `class KillSwitchManager` | **Live in production** — has `global_pause` / `global_kill` / `global_freeze` / per-strategy `is_strategy_frozen` (line 449) | **0 SP** — already done |
+| **Phase 5** | `AnomalyMonitor` (L0) | ✅ `src/forex_bot/engine/anomaly_monitor.py:54` `class HealthMonitor` | **Live in production** — wired in `ForwardTestEngine._build_components` | **0 SP** — already done |
+| **Phase 5** | `HealthMonitor` (structured heartbeat) | ✅ `src/forex_bot/engine/health_monitor.py` emits `[B5 Health]` / `[S1 Health]` | **Live in production** | **0 SP** — already done |
+| **Phase 5** | `KillSwitchManager` (L4) | ✅ `src/forex_bot/adapters/ctrader/kill_switch.py:307+` `class KillSwitchManager` | **Live in production** — has `global_pause` / `global_kill` / `global_freeze` / per-strategy `is_strategy_frozen` (line 449) | **0 SP** — already done |
 | **Phase 5** | `remediation_validated.flag` handling | ✅ `forward_test_engine.py:80` + `_enforce_remediation_gate` (line 562) | **Live, auto-recreating** — flag exists at `data/ayumi/remediation_validated.flag` (just auto-recreated 13:58Z) | **0 SP** — already done (and self-healing) |
-| **Phase 5** | `signal_validator.py` retire or document | ⚠️ File exists `src/forex-bot/signal_validator.py` (192 lines) | **Has `TradeRulesEngine` class** — 1 test file `tests/strategies/test_signal_validator.py`. Status ambiguous | **0.5 SP** — confirm "live" or delete |
+| **Phase 5** | `signal_validator.py` retire or document | ⚠️ File exists `src/forex_bot/signal_validator.py` (192 lines) | **Has `TradeRulesEngine` class** — 1 test file `tests/strategies/test_signal_validator.py`. Status ambiguous | **0.5 SP** — confirm "live" or delete |
 | **Phase 5** | L1.5 auto-remediate (4 known patterns) | ❌ Not present | No remediation script library, no `remediation_log`, no cycle detector | **2 SP** — seed with 4 known patterns from 2026-06-30 audit |
 | **Phase 5** | L2/L3 git-log guard | ❌ Not present | No `git log --oneline -7d <file>` check anywhere | **0.5 SP** — helper function + integration in L2/L3 paths |
 | **Phase 5** | Remediation cycle detector (>3 in 7d) | ❌ Not present | No remediation counter anywhere | **0.5 SP** — append-only JSONL counter + check before apply |
@@ -52,7 +52,7 @@
 ### 1.1 `cpu_limited` / `memory_capped` — **EXISTS, NOT WIRED**
 
 **Existing implementation:**
-- `src/forex-bot/common/resource_limits.py` (324 lines, tests at `tests/test_resource_limits.py` 221 lines)
+- `src/forex_bot/common/resource_limits.py` (324 lines, tests at `tests/test_resource_limits.py` 221 lines)
 - Three public APIs:
   - `@contextmanager cpu_limited(percent: int = 20)` — line 235
   - `@contextmanager memory_capped(mb: int = 2048)` — line 262
@@ -78,7 +78,7 @@ Note: the existing `memory_capped` default is 2048 MB (2 GB). The plan's "3 GB h
 ### 1.2 `ProcessPoolExecutor` cap — **EXISTS, DEFAULT UNSAFE**
 
 **Existing implementation:**
-- `src/forex-bot/backtest/parameter_sweep/sweep_runner.py:91-113`:
+- `src/forex_bot/backtest/parameter_sweep/sweep_runner.py:91-113`:
   ```python
   def __init__(self, ..., max_workers: int | None = None):
       self._max_workers = max_workers if max_workers is not None else os.cpu_count()
@@ -86,7 +86,7 @@ Note: the existing `memory_capped` default is 2048 MB (2 GB). The plan's "3 GB h
       if self._max_workers is not None and self._max_workers > 1 and len(tasks) > 1:
           with ProcessPoolExecutor(max_workers=self._max_workers) as executor:
   ```
-- Same pattern in `src/forex-bot/backtest/parameter_sweep/sweep_runner.py:91` and `scripts/run_regime_router_sweep.py:71,348`
+- Same pattern in `src/forex_bot/backtest/parameter_sweep/sweep_runner.py:91` and `scripts/run_regime_router_sweep.py:71,348`
 
 **Defaults:**
 - `SweepRunner`: defaults to `os.cpu_count()` if not passed (uncapped!)
@@ -104,7 +104,7 @@ Note: the existing `memory_capped` default is 2048 MB (2 GB). The plan's "3 GB h
 ### 1.3 `data/forward_test.pid` — **EXISTS, LIVE IN PRODUCTION**
 
 **Existing implementation:**
-- `src/forex-bot/adapters/ctrader/pid_guard.py` — `acquire_pid_lock(path)` function
+- `src/forex_bot/adapters/ctrader/pid_guard.py` — `acquire_pid_lock(path)` function
 - Used in `scripts/launch_blend_forward_test.py:803` and `scripts/launch_forward_test.py`
 - **Live now:** `data/forward_test.pid` exists (mode auto, owned by user 1000, contains `2414795`)
 - Restart orchestration: `scripts/restart_forward_test.sh` (full PID/heartbeat/health check loop)
@@ -114,8 +114,8 @@ Note: the existing `memory_capped` default is 2048 MB (2 GB). The plan's "3 GB h
 ### 1.4 `TradeStore` single-writer bottleneck — **EXISTS, DOCUMENTED**
 
 **Existing implementation:**
-- `src/forex-bot/storage/trade_store.py` — `class TradeStore` with `threading.local` per-thread connections + single write lock
-- Schema in `src/forex-bot/storage/migrations.py` (4 tables: trades, equity_curve, daily_summary, rolling_metrics)
+- `src/forex_bot/storage/trade_store.py` — `class TradeStore` with `threading.local` per-thread connections + single write lock
+- Schema in `src/forex_bot/storage/migrations.py` (4 tables: trades, equity_curve, daily_summary, rolling_metrics)
 
 **Plan says:** "TradeStore single-writer bottleneck documented for Phase 6 concurrency tests."
 
@@ -126,10 +126,10 @@ The bottleneck is in the design (line 14-19 docstring): "Write operations are se
 ### 1.5 Engine consolidation (Kaito MUST) — **DECLARED IN PHASE 1A-1**
 
 `docs/audits/phase1a-engine-inventory-2026-07-08.md` already declares `ForwardTestEngine` as canonical. The 4 deprecation banners (~`# DEPRECATED: see docs/audits/phase1a-engine-inventory-2026-07-08.md`) are still needed in:
-- `src/forex-bot/engine/orchestrator.py:54` `MultiStrategyOrchestrator`
-- `src/forex-bot/engine/trading_orchestrator.py:311` `TradingOrchestrator`
-- `src/forex-bot/orchestrator/signal_orchestrator.py:45` `SignalOrchestrator`
-- `src/forex-bot/forward_test/blend_runner.py:28` `BlendForwardTestRunner` (partially — still in production use)
+- `src/forex_bot/engine/orchestrator.py:54` `MultiStrategyOrchestrator`
+- `src/forex_bot/engine/trading_orchestrator.py:311` `TradingOrchestrator`
+- `src/forex_bot/orchestrator/signal_orchestrator.py:45` `SignalOrchestrator`
+- `src/forex_bot/forward_test/blend_runner.py:28` `BlendForwardTestRunner` (partially — still in production use)
 
 **Effort: 0.5 SP** (banner comments, no logic change)
 
@@ -139,7 +139,7 @@ The bottleneck is in the design (line 14-19 docstring): "Write operations are se
 
 ### 2.1 `AnomalyMonitor` (L0) — **EXISTS, LIVE**
 
-`src/forex-bot/engine/anomaly_monitor.py:54`:
+`src/forex_bot/engine/anomaly_monitor.py:54`:
 - `class HealthMonitor` (note: file is named `anomaly_monitor.py` but class is `HealthMonitor` — naming mismatch!)
 - `HealthAlertKind` enum: `DATA_SILENCE`, `ZERO_SIGNALS`, `ZERO_PNL_VARIANCE` — exactly the 3 failure modes the plan cites
 - `HealthMonitorConfig`: thresholds for each kind
@@ -150,7 +150,7 @@ The bottleneck is in the design (line 14-19 docstring): "Write operations are se
 
 ### 2.2 `HealthMonitor` (structured heartbeat) — **EXISTS, LIVE**
 
-`src/forex-bot/engine/health_monitor.py`:
+`src/forex_bot/engine/health_monitor.py`:
 - `class HealthMonitor` (separate from `engine/anomaly_monitor.py` — confusing!)
 - Emits `[B5 Health]` / `[S1 Health]` log lines (Amendment A6 backward-compat tag convention)
 - `attach(session=, market_data_feed=, order_gateway=, position_tracker=, strategies=)` wiring
@@ -158,8 +158,8 @@ The bottleneck is in the design (line 14-19 docstring): "Write operations are se
 - Replaces inline health loop from `scripts/launch_blend_forward_test.py`
 
 **Naming concern:** Two `HealthMonitor` classes exist:
-- `src/forex-bot/engine/anomaly_monitor.py:54` `class HealthMonitor` — the L0 alert detector
-- `src/forex-bot/engine/health_monitor.py:30` `class HealthMonitor` — the heartbeat logger
+- `src/forex_bot/engine/anomaly_monitor.py:54` `class HealthMonitor` — the L0 alert detector
+- `src/forex_bot/engine/health_monitor.py:30` `class HealthMonitor` — the heartbeat logger
 
 This is a doc/naming cleanup issue, not a functional gap.
 
@@ -167,7 +167,7 @@ This is a doc/naming cleanup issue, not a functional gap.
 
 ### 2.3 `KillSwitchManager` (L4) — **EXISTS, LIVE, HAS FREEZE + KILL**
 
-`src/forex-bot/adapters/ctrader/kill_switch.py` (484 lines):
+`src/forex_bot/adapters/ctrader/kill_switch.py` (484 lines):
 - `class KillSwitchManager` (line 307+)
 - Modes: `global_pause`, `global_freeze`, `global_kill`, per-strategy `is_strategy_frozen(strategy_id)` (line 449)
 - Wired into production: `ForwardTestEngine._build_components` creates `KillSwitchManager`; `FTMOGuard` calls it on breach
@@ -178,7 +178,7 @@ This is a doc/naming cleanup issue, not a functional gap.
 
 ### 2.4 `remediation_validated.flag` handling — **EXISTS, SELF-HEALING**
 
-`src/forex-bot/adapters/ctrader/forward_test_engine.py:80`:
+`src/forex_bot/adapters/ctrader/forward_test_engine.py:80`:
 ```python
 _REMEDIATION_VALIDATED_FLAG = "data/ayumi/remediation_validated.flag"
 ```
@@ -202,7 +202,7 @@ This is exactly the "self-healing" pattern the plan calls for. Already survived 
 
 ### 2.5 `signal_validator.py` — **EXISTS, STATUS AMBIGUOUS**
 
-`src/forex-bot/signal_validator.py` (192 lines):
+`src/forex_bot/signal_validator.py` (192 lines):
 - Has `TradeRulesEngine` class (line 140 referenced from hybrid module)
 - 1 test file: `tests/strategies/test_signal_validator.py`
 - 2026-04-17 audit flagged it as "DEAD" but it appears still in use (hybrid engine imports it)
@@ -223,14 +223,14 @@ No `remediation_log`, no remediation script library, no per-pattern auto-fix pat
 4. USDJPY scaling (TP 100× bug)
 
 **What's needed (2 SP):**
-1. `src/forex-bot/self_healing/remediation_patterns.py` — dict of pattern_id → (detector_fn, fix_fn)
+1. `src/forex_bot/self_healing/remediation_patterns.py` — dict of pattern_id → (detector_fn, fix_fn)
 2. Wire into ForwardTestEngine health loop
 3. Add `data/remediation_log.jsonl` append-only audit
 4. Skip if `git log --oneline -7d <affected_file>` shows any change (L2/L3 guard below)
 
 ### 2.7 L2/L3 git-log guard — **DOES NOT EXIST**
 
-No `git log --oneline -7d <file>` check anywhere. Would be a small helper in `src/forex-bot/self_healing/git_guard.py` (~50 lines):
+No `git log --oneline -7d <file>` check anywhere. Would be a small helper in `src/forex_bot/self_healing/git_guard.py` (~50 lines):
 ```python
 def recent_code_change(filepath: str, days: int = 7) -> bool:
     """Return True if any commit touched filepath in the last `days` days."""
@@ -293,12 +293,12 @@ No workboard-card age tracking anywhere in Hayate. Hayate tracks its own `heartb
 ### 3.3 FTMO daily tracker — **PARTIAL (70% complete)**
 
 **What exists:**
-- `src/forex-bot/reporting/equity_tracker.py:178` computes `ftmo_status` field:
+- `src/forex_bot/reporting/equity_tracker.py:178` computes `ftmo_status` field:
   - `BREACH` if daily loss ≥ 10%
   - `WARNING` if daily loss ≥ 5% OR drawdown ≥ 5%
   - `OK` otherwise
-- `src/forex-bot/adapters/ctrader/risk_guard.py:416` `_check_best_day_rule` checks 50% rule
-- `src/forex-bot/risk/ftmo_guard.py:442` `check_best_day_rule` (public method, also 50% rule)
+- `src/forex_bot/adapters/ctrader/risk_guard.py:416` `_check_best_day_rule` checks 50% rule
+- `src/forex_bot/risk/ftmo_guard.py:442` `check_best_day_rule` (public method, also 50% rule)
 - Daily report writer: `equity_tracker.py:262` `write_daily_report(date)`
 - Active daily report output: `data/forex/equity_reports/2026-07-08.md`:
   ```
@@ -325,7 +325,7 @@ No workboard-card age tracking anywhere in Hayate. Hayate tracks its own `heartb
 
 ### 3.4 Challenge-completion detector (equity ≥ 1.10×) — **DOES NOT EXIST IN PRODUCTION**
 
-**Backtest-only equivalent:** `src/forex-bot/backtest/ftmo_simulation.py:77` `profit_target_reached` checks `current_balance >= starting_balance * 1.10`. This is backtest-side only.
+**Backtest-only equivalent:** `src/forex_bot/backtest/ftmo_simulation.py:77` `profit_target_reached` checks `current_balance >= starting_balance * 1.10`. This is backtest-side only.
 
 **Production equivalent:** None. The forward test can run indefinitely past the 10% target without freezing.
 
@@ -337,9 +337,9 @@ No workboard-card age tracking anywhere in Hayate. Hayate tracks its own `heartb
 
 ### 3.5 CET-midnight daily-loss reset — **LIVE, CORRECT**
 
-`src/forex-bot/risk/ftmo_guard.py:41` `_cet_date(now)` returns CET date as `YYYY-MM-DD` string.
-`src/forex-bot/risk/sl_position_sizer.py:345` `reset_daily(cet_date=...)` zeros the daily risk counter using CET date.
-`src/forex-bot/forward_test/blend_runner.py:142` explicitly references "CET date (FTMO spec)" and uses `_cet_date` from `risk.ftmo_guard`.
+`src/forex_bot/risk/ftmo_guard.py:41` `_cet_date(now)` returns CET date as `YYYY-MM-DD` string.
+`src/forex_bot/risk/sl_position_sizer.py:345` `reset_daily(cet_date=...)` zeros the daily risk counter using CET date.
+`src/forex_bot/forward_test/blend_runner.py:142` explicitly references "CET date (FTMO spec)" and uses `_cet_date` from `risk.ftmo_guard`.
 
 **Live evidence:** Forward test heartbeat logs show daily_pnl reset behavior per CET boundary.
 
@@ -375,7 +375,7 @@ No `scripts/kanban_hygiene.py` or similar. Workboard plugin has `workboard_board
 
 ### 4.1 `regime_thresholds` — **EXISTS, NOT WIRED TO SIZER**
 
-`src/forex-bot/risk/regime_thresholds.py` (157 lines):
+`src/forex_bot/risk/regime_thresholds.py` (157 lines):
 - `class Regime(str, Enum)`: STABLE / BREAKDOWN / TRANSITION
 - `class RegimeThresholds` (frozen dataclass)
 - `class RegimeAwareThresholds`:
@@ -383,7 +383,7 @@ No `scripts/kanban_hygiene.py` or similar. Workboard plugin has `workboard_board
   - `get_exposure_multiplier(regime)` returns 0.5 for BREAKDOWN, 1.0 for STABLE
   - `classify_signal(...)` — uses HMM
 
-`src/forex-bot/risk/correlation_sizer.py:159-181` `compute_adjusted_size(regime: RegimeLike | None = None, ...)`:
+`src/forex_bot/risk/correlation_sizer.py:159-181` `compute_adjusted_size(regime: RegimeLike | None = None, ...)`:
 - Accepts optional regime argument
 - If regime == BREAKDOWN: scale by 0.5
 - Currently NOT called by any production path
@@ -397,12 +397,12 @@ No `scripts/kanban_hygiene.py` or similar. Workboard plugin has `workboard_board
 
 ### 4.2 Edge telemetry (R-multiple expectancy) — **DOES NOT EXIST**
 
-Confirmed: `grep -rln "expectancy|r_multiple|edge_telemetry" src/forex-bot/risk/ → no results` (other than backtest-side `amalgamation.py` / `selective_pairing.py` which compute backtest expectancy, not live rolling).
+Confirmed: `grep -rln "expectancy|r_multiple|edge_telemetry" src/forex_bot/risk/ → no results` (other than backtest-side `amalgamation.py` / `selective_pairing.py` which compute backtest expectancy, not live rolling).
 
-`src/forex-bot/quant/go_nogo_criteria.py` has `PerWindowCriteria` (min_trades, win_rate, profit_factor, total_pnl, max_drawdown) but no R-multiple / expectancy primitive.
+`src/forex_bot/quant/go_nogo_criteria.py` has `PerWindowCriteria` (min_trades, win_rate, profit_factor, total_pnl, max_drawdown) but no R-multiple / expectancy primitive.
 
 **What's needed (2 SP):**
-1. New `src/forex-bot/risk/edge_telemetry.py`:
+1. New `src/forex_bot/risk/edge_telemetry.py`:
    ```python
    class EdgeTracker:
        """Per-(strategy, symbol) rolling N-trade R-multiple expectancy."""
@@ -428,7 +428,7 @@ Confirmed: `grep -rln "expectancy|r_multiple|edge_telemetry" src/forex-bot/risk/
 
 ### 4.3 `live_fire_min_confidence` lower 0.65→0.55 — **EXISTS, DEFAULT UNCHANGED**
 
-`src/forex-bot/adapters/ctrader/forward_test_engine.py:118`:
+`src/forex_bot/adapters/ctrader/forward_test_engine.py:118`:
 ```python
 live_fire_min_confidence: float = 0.65  # ConfidenceEngine threshold for live execution
 ```
@@ -439,7 +439,7 @@ Used at lines 425, 2178, 2181, 2184 (gating live execution). 1 test pins it: `te
 
 ### 4.4 Per-strategy × per-symbol edge telemetry — **PARTIAL (PnL only, no expectancy)**
 
-`src/forex-bot/adapters/ctrader/risk_guard.py:136`:
+`src/forex_bot/adapters/ctrader/risk_guard.py:136`:
 ```python
 self._per_strategy_pnl: dict[str, float] = {}
 ```
@@ -463,7 +463,7 @@ Exposed in stats at line 791: `"per_strategy_pnl": dict(self._per_strategy_pnl)`
 
 ### 4.5 Keep existing confidence gates — **CONFIRMED LIVE**
 
-`src/forex-bot/confidence/gates.py`:
+`src/forex_bot/confidence/gates.py`:
 - `class GateConfig` (line 19)
 - `class SpreadGate` — line 76
 - `class SessionGate`
@@ -542,24 +542,24 @@ No `docs/checkpoint-runbook.md` or per-failure-mode action guide. Hayate's HEART
 ## 6. Conflicts & Overlaps Identified
 
 ### 6.1 Two `HealthMonitor` classes (naming conflict)
-- `src/forex-bot/engine/anomaly_monitor.py:54` `class HealthMonitor` — L0 alert detector
-- `src/forex-bot/engine/health_monitor.py:30` `class HealthMonitor` — heartbeat logger
+- `src/forex_bot/engine/anomaly_monitor.py:54` `class HealthMonitor` — L0 alert detector
+- `src/forex_bot/engine/health_monitor.py:30` `class HealthMonitor` — heartbeat logger
 
 Both are imported as `HealthMonitor`. Module names differ but class names collide. Low-risk conflict (different modules) but creates import confusion.
 
 **Resolution: 0.25 SP** — rename one to `L0HealthMonitor` (anomaly side) or `HeartbeatLogger` (other side). Plan-level decision needed.
 
 ### 6.2 `FTMOConfig` exists in 2 places
-- `src/forex-bot/adapters/ctrader/risk_guard.py:92` `class FTMOConfig` — has `daily_loss_limit_pct`, `total_drawdown_limit_pct`, etc.
-- `src/forex-bot/risk/ftmo_guard.py:128` `class FTMOGuard` — no `FTMOConfig` class but `DEFAULT_MAX_DAILY_LOSS_PCT = 4.0` constant
+- `src/forex_bot/adapters/ctrader/risk_guard.py:92` `class FTMOConfig` — has `daily_loss_limit_pct`, `total_drawdown_limit_pct`, etc.
+- `src/forex_bot/risk/ftmo_guard.py:128` `class FTMOGuard` — no `FTMOConfig` class but `DEFAULT_MAX_DAILY_LOSS_PCT = 4.0` constant
 
 The plan says "FTMOConfig in risk/ftmo_guard.py is single source of truth" but the actual `FTMOConfig` class lives in `risk_guard.py` (line 92), not `ftmo_guard.py`. The plan's Phase 0 acceptance criterion ("Make FTMOConfig in risk/ftmo_guard.py the single source of truth; all other files import from it") needs reconciliation.
 
 **Resolution: 0.5 SP** — move `FTMOConfig` from `risk_guard.py` to `ftmo_guard.py`, update imports.
 
 ### 6.3 Two FTMOBestDay checkers
-- `src/forex-bot/adapters/ctrader/risk_guard.py:416` `_check_best_day_rule` (private)
-- `src/forex-bot/risk/ftmo_guard.py:442` `check_best_day_rule` (public)
+- `src/forex_bot/adapters/ctrader/risk_guard.py:416` `_check_best_day_rule` (private)
+- `src/forex_bot/risk/ftmo_guard.py:442` `check_best_day_rule` (public)
 
 Both check 50% rule but with slightly different code paths. The plan calls for "best-day rule implementation merged to main" — needs to be one canonical implementation.
 
@@ -583,7 +583,7 @@ Live state: The flag is auto-recreated from `docs/audits/ayumi-live-remediation-
 ### 6.6 `signal_validator.py` status
 The plan says: "signal_validator.py (flagged DEAD in 2026-04-17 audit) — explicitly retire or document why it lives"
 
-`src/forex-bot/signal_validator.py` has `class TradeRulesEngine` (per `src/forex-bot/hybrid/trade_rules.py:140` reference). It IS used in the hybrid engine. The "DEAD" flag from 2026-04-17 is stale.
+`src/forex_bot/signal_validator.py` has `class TradeRulesEngine` (per `src/forex_bot/hybrid/trade_rules.py:140` reference). It IS used in the hybrid engine. The "DEAD" flag from 2026-04-17 is stale.
 
 **Resolution: 0.5 SP** — confirm hybrid engine import chain, remove "DEAD" flag, OR delete file + 1 test
 
@@ -667,32 +667,32 @@ To re-verify any of the above findings, run these read-only commands from `$AYUM
 grep -rln "cpu_limited|memory_capped|add_resource_args" scripts/
 
 # ProcessPoolExecutor max_workers defaults
-grep -n "max_workers" src/forex-bot/backtest/parameter_sweep/sweep_runner.py
+grep -n "max_workers" src/forex_bot/backtest/parameter_sweep/sweep_runner.py
 
 # Live PID file
 cat data/forward_test.pid
 ls -la data/forward_test.pid
 
 # AnomalyMonitor wiring
-grep -n "HealthMonitor\|HealthMonitorConfig" src/forex-bot/adapters/ctrader/forward_test_engine.py | head -10
+grep -n "HealthMonitor\|HealthMonitorConfig" src/forex_bot/adapters/ctrader/forward_test_engine.py | head -10
 
 # Remediation flag live state
 cat data/ayumi/remediation_validated.flag
 
 # Best-day rule implementations
-grep -n "check_best_day_rule\|_check_best_day_rule" src/forex-bot/ -r
+grep -n "check_best_day_rule\|_check_best_day_rule" src/forex_bot/ -r
 
 # FTMOConfig definitions
-grep -n "class FTMOConfig\|class FTMOGuard\|class RiskGuard" src/forex-bot/ -r
+grep -n "class FTMOConfig\|class FTMOGuard\|class RiskGuard" src/forex_bot/ -r
 
 # live_fire_min_confidence default
-grep -n "live_fire_min_confidence" src/forex-bot/adapters/ctrader/forward_test_engine.py
+grep -n "live_fire_min_confidence" src/forex_bot/adapters/ctrader/forward_test_engine.py
 
 # Regime awareness in production
-grep -rn "regime=" src/forex-bot/adapters/ctrader/ src/forex-bot/forward_test/
+grep -rn "regime=" src/forex_bot/adapters/ctrader/ src/forex_bot/forward_test/
 
 # Edge telemetry / expectancy
-grep -rn "expectancy\|R-multiple\|r_multiple" src/forex-bot/risk/ src/forex-bot/orchestrator/
+grep -rn "expectancy\|R-multiple\|r_multiple" src/forex_bot/risk/ src/forex_bot/orchestrator/
 
 # Hayate outbox size + heartbeat count
 wc -l /root/.openclaw/ayumi-overseer-workspace/data/overseer-outbox.jsonl

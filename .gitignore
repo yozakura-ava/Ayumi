@@ -215,7 +215,7 @@ data/assessments/
 data/forex/dukascopy/
 tick_vault_data/
 reports/optuna_studies/
-src/forex-bot/data/
+src/forex_bot/data/
 data/forward_test_health*.json
 *.db-shm
 *.db-wal

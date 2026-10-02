@@ -88,7 +88,7 @@ def _tournament_matrix_spec() -> tuple[list[str], list[str], list[str]]:
     """Return ``(strategy_ids, symbols, timeframes)`` for the tournament.
 
     Imported lazily so the runner can boot even when tournament.harness
-    has transient import problems (the harness pulls in src/forex-bot/
+    has transient import problems (the harness pulls in src/forex_bot/
     strategies/* which can fail on partial checkouts).
     """
     from tournament.harness import STRATEGY_CLASS_MAP

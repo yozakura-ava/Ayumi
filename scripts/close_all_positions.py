@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path("$AYUMI_ROOT")
-SRC = ROOT / "src" / "forex-bot"
+SRC = ROOT / "src" / "forex_bot"
 sys.path.insert(0, str(SRC))
 os.chdir(str(ROOT))
 

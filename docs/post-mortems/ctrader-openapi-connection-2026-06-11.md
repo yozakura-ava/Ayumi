@@ -13,11 +13,11 @@ Previously `.env` had placeholders `new-access` and `new-refresh`.
 ## Bugs Fixed
 
 ### 1. Callback name typo: `setConnectCallback` → `setConnectedCallback`
-- File: `src/forex-bot/adapters/ctrader/open_api_trade_client.py:391`
+- File: `src/forex_bot/adapters/ctrader/open_api_trade_client.py:391`
 - SDK method is `setConnectedCallback` (past tense). Old name was silently ignored, so the connection callback never fired.
 
 ### 2. Same typo: `setDisconnectCallback` → `setDisconnectedCallback`
-- File: `src/forex-bot/adapters/ctrader/open_api_trade_client.py:392`
+- File: `src/forex_bot/adapters/ctrader/open_api_trade_client.py:392`
 - Same pattern as #1.
 
 ### 3. Swapped payload type constants
@@ -61,8 +61,8 @@ Hypothesis: cTrader OpenAPI has a single-session rule for the same (app_id, acco
 3. If using a single app for both spot feed and trade client is not allowed, may need a second app registration
 
 ## Files Modified
-- `src/forex-bot/adapters/ctrader/open_api_trade_client.py` (lines 68-69, 391-392)
-- `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` (lines 56-57, 546-580, 634-648)
+- `src/forex_bot/adapters/ctrader/open_api_trade_client.py` (lines 68-69, 391-392)
+- `src/forex_bot/adapters/ctrader/open_api_spot_feed.py` (lines 56-57, 546-580, 634-648)
 - `.env` (placeholder tokens replaced)
 - `/etc/systemd/system/ayumi-forward-test.service` (`--paper-only` → `--live`, in earlier session)
 
@@ -114,8 +114,8 @@ _pre_serialized = message  # Let TcpProtocol.send() handle wrapping
 - **Pre-fetch delay**: 3-second sleep between pre-fetch disconnect and spot feed connect
 
 ### Files Modified (2026-06-12)
-- `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` — ProtoMessage fix, removed backoffPolicy, token validation, kill switch auto-clear
-- `src/forex-bot/adapters/ctrader/connection_state.py` — RECONNECTING transitions
+- `src/forex_bot/adapters/ctrader/open_api_spot_feed.py` — ProtoMessage fix, removed backoffPolicy, token validation, kill switch auto-clear
+- `src/forex_bot/adapters/ctrader/connection_state.py` — RECONNECTING transitions
 - `scripts/launch_blend_forward_test.py` — 3s delay after pre-fetch disconnect
 - `.env` — valid tokens (again, after reactor race burned previous ones)
 - `data/kill_switches/global.state` — cleared stale FREEZE

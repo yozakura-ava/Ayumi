@@ -29,10 +29,10 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
-# Ensure src/forex-bot is importable for adapters.ctrader.order_manager +
+# Ensure src/forex_bot is importable for adapters.ctrader.order_manager +
 # risk.ftmo_guard.
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-_SRC = _REPO_ROOT / "src" / "forex-bot"
+_SRC = _REPO_ROOT / "src" / "forex_bot"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
@@ -45,7 +45,7 @@ def _harness_source_path() -> Path:
 
 
 def _order_manager_source_path() -> Path:
-    return _REPO_ROOT / "src" / "forex-bot" / "adapters" / "ctrader" / "order_manager.py"
+    return _REPO_ROOT / "src" / "forex_bot" / "adapters" / "ctrader" / "order_manager.py"
 
 
 def _build_synthetic_position(

@@ -18,7 +18,7 @@ from typing import Any, Callable, List, Optional
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
-sys.path.insert(0, str(project_root / "src" / "forex-bot"))
+sys.path.insert(0, str(project_root / "src" / "forex_bot"))
 
 from backtest.builtin_strategies import register_builtin_strategies  # noqa: E402, I001
 from backtest.data_loader import CsvDataLoader  # noqa: E402

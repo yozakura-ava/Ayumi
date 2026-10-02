@@ -11,7 +11,7 @@
 
 - **cTrader Algo (formerly cAlgo) gained first-class Python support in 2026.** AYUAA-8's "C# native only" recommendation is obsolete. cBots, indicators, and plugins can now be written in either C# or Python against the same `Algo API` (verified on `help.ctrader.com/ctrader-algo/`, fetched 2026-07-08).
 - **Tick-level backtesting is available from server data.** Visual and non-real-time modes; genetic-algo optimizer; Renko/range-bar replay; HTML report export — confirmed in `help.ctrader.com/ctrader-algo/how-tos/cbots/backtest-a-cbot/`.
-- **The existing C# detectors (`src/forex-bot/cbot/`) are well-structured and already production-shaped**, but currently **only run inside the legacy `ICTSMC.Program.cs` CLI test runner** — they are not wired to a live cBot `Robot` class. They use `List<Bar>` from CSV, not live cAlgo `Bars`/`MarketData`.
+- **The existing C# detectors (`src/forex_bot/cbot/`) are well-structured and already production-shaped**, but currently **only run inside the legacy `ICTSMC.Program.cs` CLI test runner** — they are not wired to a live cBot `Robot` class. They use `List<Bar>` from CSV, not live cAlgo `Bars`/`MarketData`.
 - **Viability verdict: cTrader = primary execution platform for ICT/SMC.** Python layer (Ayumi) becomes a signal validator, risk overlay, and analytics layer that consumes cBot signals over WebSocket/Plugin channel. cTrader owns the order path; Python owns the decisions that need ML, multi-strategy ranking, or external data.
 
 ---
@@ -29,7 +29,7 @@ The AYUAA-8 spec also under-allocated to **risk model enforcement at the platfor
 
 ## 3. cBot code inventory — what we actually have
 
-Path: `src/forex-bot/cbot/`. Total: **3,378 lines** across 14 files.
+Path: `src/forex_bot/cbot/`. Total: **3,378 lines** across 14 files.
 
 | File | Lines | Role | Live-cAlgo ready? |
 |---|---|---|---|
@@ -229,7 +229,7 @@ The cAlgo `Bars` object is bar-based, not tick-based. `OnTick` is the only true 
 ### 6.3 Reject the "primary Python, signal cBot" path
 
 If we tried to make Python primary and cTrader dumb-execution, we'd need:
-- A OpenAPI TCP/Protobuf daemon (have it: `src/forex-bot/adapters/ctrader/`)
+- A OpenAPI TCP/Protobuf daemon (have it: `src/forex_bot/adapters/ctrader/`)
 - Full position management in Python (we have it)
 - Risk enforcement in Python (we have it)
 
@@ -307,9 +307,9 @@ Python bridge adds latency but is **off the critical path** if cBot executes loc
 ## 9. Recommendations
 
 1. **Promote cBot code to live**: ~150 LOC adapter (`Robot.OnTick` → bar aggregator → detectors → ConfluenceEngine → `ExecuteMarketOrder`). 1-2 days.
-2. **Write Python port of detectors** in parallel: `src/forex-bot/ict/` with the same algorithm. Both codebases validate each other.
+2. **Write Python port of detectors** in parallel: `src/forex_bot/ict/` with the same algorithm. Both codebases validate each other.
 3. **Use cTrader backtester as truth source** for tick-accurate validation, our `BacktestEngine.cs` for risk-correctness and Monte Carlo.
-4. **Build the Plugin SDK bridge** (`src/forex-bot/plugins/ctrader_signal_bridge`) for cBot → Python signal reporting.
+4. **Build the Plugin SDK bridge** (`src/forex_bot/plugins/ctrader_signal_bridge`) for cBot → Python signal reporting.
 5. **Stand up cTrader Mobile cloud instance** as hot failover.
 6. **Document FTMO rule changes** — they update rule wording ~2x/year. Review quarterly.
 
@@ -318,12 +318,12 @@ Python bridge adds latency but is **off the critical path** if cBot executes loc
 ## 10. References
 
 **Internal:**
-- `src/forex-bot/cbot/` — 14 files, 3,378 lines (read in full for this assessment)
+- `src/forex_bot/cbot/` — 14 files, 3,378 lines (read in full for this assessment)
 - `docs/research/assess-ctrader-calgo-api-and-design-automated-ict-smc-architecture.md` — AYUAA-8 (prior)
 - `docs/forex/strategy-development-ict-smc-automated-logic.md` — AYUAA-27 spec
 - `docs/forex/backtesting-framework-ctrader-calgo.md` — AYUAA-31 spec
 - `docs/research/ict/` — 10 sub-docs on ICT primitives
-- `src/forex-bot/adapters/ctrader/` — 43-file cTrader OpenAPI adapter (already used by Python side)
+- `src/forex_bot/adapters/ctrader/` — 43-file cTrader OpenAPI adapter (already used by Python side)
 
 **External (fetched 2026-07-08):**
 - `help.ctrader.com/ctrader-algo/` — Algorithmic trading using cTrader Algo

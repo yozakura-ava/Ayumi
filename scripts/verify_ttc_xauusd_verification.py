@@ -24,7 +24,7 @@ import numpy as np
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 ROOT = Path("$AYUMI_ROOT")
-sys.path.insert(0, str(ROOT / "src" / "forex-bot"))
+sys.path.insert(0, str(ROOT / "src" / "forex_bot"))
 
 import backtest.strategies.tts_strategy as tts_mod  # noqa: E402
 from backtest.db_data_loader import DbDataLoader  # noqa: E402, I001

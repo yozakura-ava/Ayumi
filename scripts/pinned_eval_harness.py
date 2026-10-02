@@ -658,9 +658,9 @@ def _demo_tasks() -> list[PinnedTask]:
     return [
         PinnedTask(
             task_id="demo-T0-rename",
-            prompt=("Rename the function ``_old_name`` to ``_new_name`` in ``src/forex-bot/util.py``."),
+            prompt=("Rename the function ``_old_name`` to ``_new_name`` in ``src/forex_bot/util.py``."),
             acceptance_criteria=(
-                "All call sites updated; ``grep -rn _old_name src/forex-bot`` returns zero hits; tests still pass."
+                "All call sites updated; ``grep -rn _old_name src/forex_bot`` returns zero hits; tests still pass."
             ),
             expected_outputs=["diff", "test_log"],
             tier="T0",

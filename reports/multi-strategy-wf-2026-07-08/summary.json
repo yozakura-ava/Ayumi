@@ -2336,7 +2336,7 @@
       "timestamp": "2026-07-08T16:02:06.925635+00:00",
       "status": "error",
       "error": "strategies.grid is not available",
-      "traceback": "    strategy = strategy_factory()\n               ^^^^^^^^^^^^^^^^^^\n  File \"$AYUMI_ROOT/src/forex-bot/backtest/builtin_strategies.py\", line 111, in <lambda>\n    register_strategy(\"grid\", lambda: _make_grid(pair))\n                                      ^^^^^^^^^^^^^^^^\n  File \"$AYUMI_ROOT/src/forex-bot/backtest/builtin_strategies.py\", line 73, in _make_grid\n    raise ImportError(\"strategies.grid is not available\")\nImportError: strategies.grid is not available\n"
+      "traceback": "    strategy = strategy_factory()\n               ^^^^^^^^^^^^^^^^^^\n  File \"$AYUMI_ROOT/src/forex_bot/backtest/builtin_strategies.py\", line 111, in <lambda>\n    register_strategy(\"grid\", lambda: _make_grid(pair))\n                                      ^^^^^^^^^^^^^^^^\n  File \"$AYUMI_ROOT/src/forex_bot/backtest/builtin_strategies.py\", line 73, in _make_grid\n    raise ImportError(\"strategies.grid is not available\")\nImportError: strategies.grid is not available\n"
     },
     {
       "strategy": "grid",
@@ -2345,7 +2345,7 @@
       "timestamp": "2026-07-08T16:02:07.213048+00:00",
       "status": "error",
       "error": "strategies.grid is not available",
-      "traceback": "    strategy = strategy_factory()\n               ^^^^^^^^^^^^^^^^^^\n  File \"$AYUMI_ROOT/src/forex-bot/backtest/builtin_strategies.py\", line 111, in <lambda>\n    register_strategy(\"grid\", lambda: _make_grid(pair))\n                                      ^^^^^^^^^^^^^^^^\n  File \"$AYUMI_ROOT/src/forex-bot/backtest/builtin_strategies.py\", line 73, in _make_grid\n    raise ImportError(\"strategies.grid is not available\")\nImportError: strategies.grid is not available\n"
+      "traceback": "    strategy = strategy_factory()\n               ^^^^^^^^^^^^^^^^^^\n  File \"$AYUMI_ROOT/src/forex_bot/backtest/builtin_strategies.py\", line 111, in <lambda>\n    register_strategy(\"grid\", lambda: _make_grid(pair))\n                                      ^^^^^^^^^^^^^^^^\n  File \"$AYUMI_ROOT/src/forex_bot/backtest/builtin_strategies.py\", line 73, in _make_grid\n    raise ImportError(\"strategies.grid is not available\")\nImportError: strategies.grid is not available\n"
     },
     {
       "strategy": "grid",
@@ -2354,7 +2354,7 @@
       "timestamp": "2026-07-08T16:02:07.437987+00:00",
       "status": "error",
       "error": "strategies.grid is not available",
-      "traceback": "    strategy = strategy_factory()\n               ^^^^^^^^^^^^^^^^^^\n  File \"$AYUMI_ROOT/src/forex-bot/backtest/builtin_strategies.py\", line 111, in <lambda>\n    register_strategy(\"grid\", lambda: _make_grid(pair))\n                                      ^^^^^^^^^^^^^^^^\n  File \"$AYUMI_ROOT/src/forex-bot/backtest/builtin_strategies.py\", line 73, in _make_grid\n    raise ImportError(\"strategies.grid is not available\")\nImportError: strategies.grid is not available\n"
+      "traceback": "    strategy = strategy_factory()\n               ^^^^^^^^^^^^^^^^^^\n  File \"$AYUMI_ROOT/src/forex_bot/backtest/builtin_strategies.py\", line 111, in <lambda>\n    register_strategy(\"grid\", lambda: _make_grid(pair))\n                                      ^^^^^^^^^^^^^^^^\n  File \"$AYUMI_ROOT/src/forex_bot/backtest/builtin_strategies.py\", line 73, in _make_grid\n    raise ImportError(\"strategies.grid is not available\")\nImportError: strategies.grid is not available\n"
     }
   ],
   "viable_strategies": []

@@ -27,7 +27,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src" / "forex-bot"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src" / "forex_bot"))
 
 from adapters.ctrader.api_client import cTraderAPIClient
 from adapters.ctrader.market_data_feed import LiveMarketDataFeed, SymbolInfo, Tick

@@ -48,7 +48,7 @@
   "api_verification": [
     {
       "api": "engine.start() failure contract",
-      "verified_by": "read src/forex-bot/adapters/ctrader/forward_test_engine.py + connection.py:31 _DEFAULT_CONNECT_TIMEOUT=15 — startup connect has no retry; 20-attempt breaker covers mid-flight only"
+      "verified_by": "read src/forex_bot/adapters/ctrader/forward_test_engine.py + connection.py:31 _DEFAULT_CONNECT_TIMEOUT=15 — startup connect has no retry; 20-attempt breaker covers mid-flight only"
     },
     {
       "api": "launcher exit path",
@@ -69,13 +69,13 @@
       ]
     },
     {
-      "file": "src/forex-bot/adapters/ctrader/connection.py",
+      "file": "src/forex_bot/adapters/ctrader/connection.py",
       "symbols": [
         "_DEFAULT_CONNECT_TIMEOUT = 15"
       ]
     },
     {
-      "file": "src/forex-bot/adapters/ctrader/forward_test_engine.py",
+      "file": "src/forex_bot/adapters/ctrader/forward_test_engine.py",
       "symbols": [
         "async def start(self)"
       ]

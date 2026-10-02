@@ -117,4 +117,4 @@ All tests pass. `py_compile` and `ruff` clean.
 - Almgren, R., Thum, C., Hauptmann, E., Li, H. (2005). "Direct Estimation of Equity Market Impact." *Risk*.
 - `docs/forex/tick-quality-comparison-2026-07.md` — Ayumi tick data analysis
 - `docs/_archive/forex/architecture-v2.md` — slippage_pips precedent
-- `src/forex-bot/backtest/types.py` — `ExecutionSimulator._get_pip_value()`, `BacktestConfig.slippage_pips`
+- `src/forex_bot/backtest/types.py` — `ExecutionSimulator._get_pip_value()`, `BacktestConfig.slippage_pips`

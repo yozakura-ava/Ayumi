@@ -6,10 +6,10 @@ Compare SRMR+ strategy parameters across three config sources for three pairs (G
 
 ## Sources
 
-1. **Forward test config (`strategies.yaml`)** — `src/forex-bot/config/strategies.yaml`, H1 entries
+1. **Forward test config (`strategies.yaml`)** — `src/forex_bot/config/strategies.yaml`, H1 entries
 2. **Paper MVP config (`paper_mvp.yaml`)** — `config/paper_mvp.yaml`, Optuna-optimized
 3. **Walk-forward validated results** — `reports/srmr_plus/srmr_plus_multi_pair_M15_20260414_1856.json` (M15 only; no H1 WF report found)
-4. **Strategy class defaults** — `src/forex-bot/strategies/srmr_plus.py`, `SRMRPlusConfig` dataclass
+4. **Strategy class defaults** — `src/forex_bot/strategies/srmr_plus.py`, `SRMRPlusConfig` dataclass
 
 ## Comparison Table
 

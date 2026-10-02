@@ -11,7 +11,7 @@
 
 ### Where the 100× inflation enters
 
-The inflation is introduced in **`src/forex-bot/adapters/ctrader/open_api_spot_feed.py:fetch_trendbars()` line 824**:
+The inflation is introduced in **`src/forex_bot/adapters/ctrader/open_api_spot_feed.py:fetch_trendbars()` line 824**:
 
 ```python
 # open_api_spot_feed.py:824 (inside fetch_trendbars, inside the for tb loop)
