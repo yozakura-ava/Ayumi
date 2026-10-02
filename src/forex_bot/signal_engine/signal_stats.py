@@ -17,8 +17,10 @@ serialised with a single ``threading.Lock`` so the JSONL invariant
 from __future__ import annotations
 
 import json
+import logging
 import os
 import threading
+import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -427,9 +429,250 @@ class SignalStatsRecorder:
         return out
 
 
+# ---------------------------------------------------------------------------
+# Phase 0 forward-test diagnostics: low-frequency heartbeat (card 9f427c3b).
+# ---------------------------------------------------------------------------
+# When the regime filter blocks every signal the signal_stats.jsonl writer
+# is never invoked → a multi-day file freeze is indistinguishable from writer
+# death. To distinguish "alive but filtered" from "writer dead" we emit a
+# separate, low-frequency heartbeat row to a sidecar file. The sidecar mtime
+# advances on every heartbeat, providing the forensic signal that the runner
+# is alive even when no {signal, outcome} rows are recorded. Main file mtime
+# is intentionally untouched so DH-003 (signal_stats.jsonl writer health,
+# daily_audit.py) continues to reflect signal-flow correctness.
+_DEFAULT_HEARTBEAT_LOG_PATH = "data/signal_stats.heartbeat.jsonl"
+
+
+class HeartbeatRecorder:
+    """Low-frequency heartbeat recorder with rolling-window counters.
+
+    Distinct from :class:`SignalStatsRecorder`:
+    - emits one JSON object per heartbeat (not per signal);
+    - throttled (default: once per hour); no-op until throttle elapses;
+    - writes to a sidecar file (``data/signal_stats.heartbeat.jsonl`` by
+      default) so the main ``data/signal_stats.jsonl`` mtime remains a
+      faithful signal-flow signal;
+    - failures are non-fatal (logged at WARNING, never raised) so a
+      broken heartbeat path cannot block the live trading pipeline.
+
+    Counters are rolling-window: each emit captures the deltas since the
+    previous emit (or since construction) and resets them after a
+    successful write.
+    """
+
+    def __init__(
+        self,
+        log_path: str = _DEFAULT_HEARTBEAT_LOG_PATH,
+        throttle_seconds: float = 3600.0,
+        clock=None,
+    ) -> None:
+        self.log_path = log_path
+        self.throttle_seconds = float(throttle_seconds)
+        # Allow tests to inject a fake clock (callable returning float
+        # epoch seconds). Production passes ``None`` and we use
+        # ``time.time()`` directly.
+        self._clock = clock if clock is not None else time.time
+        self._lock = threading.RLock()
+        self._last_emit_at: float | None = None
+        self._window_start: str | None = None
+        self._signals_generated = 0
+        self._regime_filtered = 0
+        self._traded = 0
+        # Ensure parent dir exists so the first emit does not race the
+        # first signal on a fresh checkout.
+        parent = Path(log_path).expanduser().resolve().parent
+        if str(parent) and str(parent) != ".":
+            parent.mkdir(parents=True, exist_ok=True)
+
+    # ------------------------------------------------------------------
+    # Counter API
+    # ------------------------------------------------------------------
+
+    def record_signal_generated(self) -> None:
+        """Increment the signals-generated counter for the current window."""
+        with self._lock:
+            self._signals_generated += 1
+
+    def record_regime_filtered(self) -> None:
+        """Increment the regime-filtered counter for the current window."""
+        with self._lock:
+            self._regime_filtered += 1
+
+    def record_traded(self) -> None:
+        """Increment the traded counter for the current window."""
+        with self._lock:
+            self._traded += 1
+
+    def counters_snapshot(self) -> dict[str, int]:
+        """Return a copy of the current counters (read-only snapshot)."""
+        with self._lock:
+            return {
+                "signals_generated": self._signals_generated,
+                "regime_filtered": self._regime_filtered,
+                "traded": self._traded,
+            }
+
+    # ------------------------------------------------------------------
+    # Emit API
+    # ------------------------------------------------------------------
+
+    def maybe_emit(self) -> bool:
+        """Emit one heartbeat row if the throttle window has elapsed.
+
+        Returns ``True`` if a heartbeat was emitted, ``False`` if the
+        throttle suppressed emission or the emit raised (failure is
+        non-fatal — caller can ignore the return value and continue
+        processing).
+        """
+        now_epoch = float(self._clock())
+        with self._lock:
+            if self._last_emit_at is not None:
+                elapsed = now_epoch - self._last_emit_at
+                if elapsed < self.throttle_seconds:
+                    return False
+            # First-ever emit (or first after a long quiet period):
+            # capture the window-start the caller wants persisted.
+            now_iso = (
+                datetime.fromtimestamp(now_epoch, tz=timezone.utc)
+                .isoformat()
+                .replace("+00:00", "Z")
+            )
+            if self._window_start is None:
+                self._window_start = now_iso
+
+            payload = {
+                "utc_ts": now_iso,
+                "signals_generated": self._signals_generated,
+                "regime_filtered": self._regime_filtered,
+                "traded": self._traded,
+                "window_start": self._window_start,
+            }
+            try:
+                self._append_line(payload)
+            except Exception as exc:  # noqa: BLE001
+                # Non-fatal by design (card 9f427c3b AC4): heartbeat must
+                # never block the signal path. Log via module logger so
+                # the operator can see why the heartbeat is silent.
+                _logger = logging.getLogger("ayumi.signal_stats.heartbeat")
+                _logger.warning("Heartbeat emit failed (non-fatal): %s", exc)
+                return False
+
+            # Reset rolling-window state AFTER a successful write so a
+            # failed write leaves the data available for the next attempt.
+            self._last_emit_at = now_epoch
+            self._signals_generated = 0
+            self._regime_filtered = 0
+            self._traded = 0
+            self._window_start = now_iso
+            return True
+
+    def force_emit(self) -> bool:
+        """Emit one heartbeat row unconditionally (bypassing throttle).
+
+        Intended for self-test and for operator diagnostics. Returns
+        ``True`` if the write succeeded, ``False`` otherwise. Does NOT
+        reset ``_last_emit_at`` so the throttle window remains anchored
+        to the previous natural emit — this avoids suppressing an emit
+        that the throttle would otherwise fire.
+        """
+        now_epoch = float(self._clock())
+        now_iso = (
+            datetime.fromtimestamp(now_epoch, tz=timezone.utc)
+            .isoformat()
+            .replace("+00:00", "Z")
+        )
+        if self._window_start is None:
+            window_start = now_iso
+        else:
+            window_start = self._window_start
+        payload = {
+            "utc_ts": now_iso,
+            "signals_generated": self._signals_generated,
+            "regime_filtered": self._regime_filtered,
+            "traded": self._traded,
+            "window_start": window_start,
+        }
+        with self._lock:
+            try:
+                self._append_line(payload)
+            except Exception as exc:  # noqa: BLE001
+                _logger = logging.getLogger("ayumi.signal_stats.heartbeat")
+                _logger.warning("Heartbeat force_emit failed (non-fatal): %s", exc)
+                return False
+        # Reset rolling-window counters outside the write lock; tolerate
+        # an in-flight counter increment from a concurrent caller (it
+        # will simply be lost from the next window — heartbeat is best-
+        # effort observability, not a guarantee).
+        with self._lock:
+            self._signals_generated = 0
+            self._regime_filtered = 0
+            self._traded = 0
+            self._window_start = now_iso
+        return True
+
+    # ------------------------------------------------------------------
+    # Internals
+    # ------------------------------------------------------------------
+
+    def _append_line(self, payload: dict) -> None:
+        """Atomic append: temp file + ``os.replace`` (AC4).
+
+        Mirrors :meth:`SignalStatsRecorder._append_line` so a reader that
+        trusts the JSONL invariant (one object per line, atomic replace)
+        can also trust the heartbeat sidecar.
+        """
+        import tempfile
+
+        line = json.dumps(payload, default=str) + "\n"
+        target = Path(self.log_path)
+        target_parent = target.parent
+        target_parent.mkdir(parents=True, exist_ok=True)
+
+        with self._lock:
+            if target.exists():
+                with open(target, "rb") as f:
+                    existing = f.read()
+            else:
+                existing = b""
+
+            new_bytes = existing + line.encode("utf-8")
+
+            fd, tmp_path = tempfile.mkstemp(
+                dir=str(target_parent),
+                prefix=".signal_stats_heartbeat.",
+                suffix=".tmp",
+            )
+            try:
+                with os.fdopen(fd, "wb") as f:
+                    f.write(new_bytes)
+                    f.flush()
+                    try:
+                        os.fsync(f.fileno())
+                    except OSError:
+                        pass
+                    try:
+                        os.fchmod(fd, 0o644)
+                    except (OSError, AttributeError):
+                        pass
+                os.replace(tmp_path, str(target))
+                try:
+                    target_st = os.stat(str(target))
+                    if (target_st.st_mode & 0o777) != 0o644:
+                        os.chmod(str(target), 0o644)
+                except OSError:
+                    pass
+            except Exception:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+                raise
+
+
 __all__ = [
     "SignalRecord",
     "SignalStatsRecorder",
+    "HeartbeatRecorder",
     "VALID_OUTCOMES",
 ]
 
