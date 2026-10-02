@@ -234,17 +234,36 @@ def _run_one_cell(
             manifest_path = cell_out / "manifest.json"
             draft_path = cell_out / "manifest.draft.json"
 
-            # --resume: skip ONLY if a terminal manifest exists AND its
-            # output is verifiable + SHA matches (Rin finding #4).
-            # Tampered or missing output → fall through to fresh run +
-            # log an audit row (output_hash_mismatch / output_path_missing).
-            if args.resume:
-                if manifest_path.is_file():
-                    try:
-                        prior = Manifest.from_dict(
-                            json.loads(manifest_path.read_text())
-                        )
-                        if prior.finished_at is not None:
+            # Universal terminal-manifest check (covers BOTH ``--resume``
+            # AND the parallel-resume case where ``--resume`` is unset
+            # but two threads still target the same cell).
+            #
+            # The ``per_cell_lock`` above only raises on OVERLAPPING
+            # flock attempts; in simulate mode Thread A's
+            # lock+dispatch+release cycle can complete BEFORE Thread
+            # B's flock fires (the ``threading.Barrier`` only
+            # synchronises the start, not the flock). Both threads
+            # would then sequentially acquire the lock and both
+            # dispatch — violating the exactly-once contract verified
+            # by ``test_parallel_resume_exactly_once``.
+            #
+            # Fix: after acquiring the lock, ALWAYS check for a
+            # terminal manifest. Under ``--resume=True`` keep the
+            # Rin finding #4 SHA verification (tampered or missing
+            # output → fall through to fresh run + audit row). Under
+            # ``--resume=False`` trust the prior manifest as terminal
+            # and return ``skipped_resume`` immediately.
+            if manifest_path.is_file():
+                try:
+                    prior = Manifest.from_dict(
+                        json.loads(manifest_path.read_text())
+                    )
+                    if prior.finished_at is not None:
+                        if args.resume:
+                            # Rin finding #4: --resume re-validates
+                            # output exists + SHA matches before
+                            # accepting the skip. Tampered or missing
+                            # output → log audit row + fall through.
                             skip_verified = False
                             if prior.output_path and prior.output_hash:
                                 out_p = Path(prior.output_path)
@@ -277,11 +296,30 @@ def _run_one_cell(
                             # → fall through to fresh run.
                             if skip_verified:
                                 return prior, "skipped_resume"
-                    except (json.JSONDecodeError, KeyError):
-                        pass  # corrupt prior — fall through to fresh run
-                elif draft_path.is_file():
-                    # In-flight per Q4.b — refuse to clobber an in-progress cell.
-                    return None, "skipped_resume"
+                        else:
+                            # Parallel-resume case (no --resume flag):
+                            # trust the prior terminal manifest. Covers
+                            # the sequential double-dispatch race where
+                            # both threads acquired the lock (no
+                            # overlap) but the first already wrote the
+                            # terminal manifest before the second tried.
+                            print(
+                                f"warn: cell {cid!r} ({strategy}/"
+                                f"{symbol}/{timeframe}): parallel "
+                                f"runner already dispatched; skipping "
+                                f"(Q4.c skip-with-warning): "
+                                f"manifest at {manifest_path}",
+                                file=sys.stderr,
+                            )
+                            return prior, "skipped_resume"
+                except (json.JSONDecodeError, KeyError):
+                    pass  # corrupt prior — fall through to fresh run
+            elif args.resume and draft_path.is_file():
+                # In-flight per Q4.b — refuse to clobber an in-progress
+                # cell. Only honored under --resume=True (production
+                # semantics: non-resume runs are expected to start fresh
+                # and may legitimately overwrite in-flight work).
+                return None, "skipped_resume"
 
             m = Manifest(
                 cell_id=cid,
