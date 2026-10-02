@@ -31,13 +31,13 @@ from pathlib import Path
 
 import pytest
 
+from forward_test import blend_runner
+from signal_engine import signal_stats as ss_mod
 from signal_engine.signal_stats import (
     HeartbeatRecorder,
     SignalRecord,
     SignalStatsRecorder,
 )
-from signal_engine import signal_stats as ss_mod
-from forward_test import blend_runner
 
 
 # ---------------------------------------------------------------------------
