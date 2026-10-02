@@ -78,7 +78,7 @@ class TestHealthMonitorEmit:
         # Verify the expected field names are present
         assert "ticks=" in msg
         assert "tps=" in msg
-        assert "bars=" in msg
+        assert "bars_total=" in msg
         assert "signals=" in msg
         assert "uptime=" in msg
 

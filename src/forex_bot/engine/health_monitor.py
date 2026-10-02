@@ -117,7 +117,8 @@ class HealthMonitor:
 
         # -- Core [B5 Health] line (Amendment A6 format) -------------------
         logger.info(
-            "[B5 Health] ticks=%d tps=%.2f bars=%d signals=%d paper_trades=%d live_fills=%d balance=%.2f uptime=%.0fs",
+            "[B5 Health] ticks=%d tps=%.2f bars_total=%d signals=%d "
+            "paper_trades=%d live_fills=%d balance=%.2f uptime=%.0fs",
             ticks,
             tps,
             bars,
