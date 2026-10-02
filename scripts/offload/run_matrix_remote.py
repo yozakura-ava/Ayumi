@@ -49,7 +49,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 from offload.dispatch_skipped import append_skipped
-from offload.jobdir_transport import JobDirBundleTransport
+from offload.jobdir_transport import (
+    JobDirBundleTransport,
+    LocalJobDirBundleTransport,
+    detect_local_node,
+)
 from offload.manifest import (
     Manifest,
     atomic_write_manifest,
@@ -115,6 +119,35 @@ def _resolve_output_root(cli_root: str | None, repo_root: Path) -> Path:
     if explicit:
         return Path(explicit)
     return repo_root / DEFAULT_OUTPUT_ROOT
+
+
+def _coerce_local_flag(value: object) -> bool | None:
+    """Coerce argparse's --local-node value into the tri-state expected by detect_local_node.
+
+    argparse's ``const=True, nargs="?"`` yields three outcomes:
+      * ``--local-node`` (no value)         → ``True``  (force local path).
+      * ``--local-node=true``  /  ``=True``  → ``True``.
+      * ``--local-node=false`` /  ``=False`` → ``False`` (force remote wire).
+      * flag omitted                         → ``None``  (auto-detect via hostname).
+
+    argparse normalizes ``=true``/``=false`` to Python bools (the
+    ``choices=[True, False, "true", "false"]`` allows both); we map
+    any truthy value to True, falsy to False, and treat the omitted
+    case (caller passed ``None``) as the auto-detect signal.
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in ("true", "1", "yes", "on"):
+            return True
+        if normalized in ("false", "0", "no", "off"):
+            return False
+    # Unknown string → fall back to None so detect_local_node's
+    # hostname path can still decide.
+    return None
 
 
 def _current_git_sha(repo_root: Path) -> str:
@@ -342,12 +375,24 @@ def _run_one_cell(
                 # we sent. Trust boundary; mismatch routes through
                 # CodeSHARejectedError semantics (audit row + ABORT, no
                 # fallback manifest).
-                if worker_cell.sha256 != bundle_sha:
+                #
+                # IMPORTANT: we compare against ``push_sha`` (the SHA the
+                # transport verified inside push_bundle), NOT ``bundle_sha``
+                # (the SHA of the bundle *directory*). For the jobdir path
+                # the runner pushes a per-cell descriptor whose SHA equals
+                # ``push_sha``, not the bundle directory SHA — the
+                # original ``!= bundle_sha`` comparison was a pre-existing
+                # bug that was hidden because the gateway wire raised
+                # ``WorktreeUnreachableError`` before this check fired
+                # (see card 79793579). With the local-node path the wire no
+                # longer fails, so the post-push SHA check must consult the
+                # same value the transport's own pre-flight checked.
+                if worker_cell.sha256 != push_sha:
                     append_skipped(
                         output_root,
                         cell_id=cid,
                         reason="code_skew",
-                        expected=bundle_sha,
+                        expected=push_sha,
                         actual=worker_cell.sha256,
                         extra={
                             "validation": "post-push_bundle",
@@ -357,7 +402,7 @@ def _run_one_cell(
                     )
                     raise CodeSHARejectedError(
                         f"WorkerCell.sha256={worker_cell.sha256!r} != "
-                        f"expected {bundle_sha!r}"
+                        f"expected {push_sha!r}"
                     )
 
                 # Fix #3 (Rin): retrieve + persist + hash the worker's output.
@@ -554,6 +599,30 @@ def main(argv: list[str] | None = None) -> int:
         help="Node name for OpenClawNodeBundleTransport (default: ava-worker-local).",
     )
     parser.add_argument(
+        "--local-node",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "(jobdir) Bypass the gateway round-trip and stage bundles "
+            "directly on the local filesystem. "
+            "``--local-node``     → force the local path (no gateway call). "
+            "``--no-local-node``  → force the gateway wire (default). "
+            "Omitted              → auto-detect via OS hostname == "
+            "--local-node-name (default: 'ava-worker-local'). "
+            "Card 79793579: required when the runner executes ON the "
+            "worker node itself; the node's CLI has no gateway "
+            "credentials so ``openclaw nodes invoke`` fails."
+        ),
+    )
+    parser.add_argument(
+        "--local-node-name", default="ava-worker-local",
+        help=(
+            "(jobdir) Expected local node name for hostname-based "
+            "auto-detection. Only consulted when --local-node is "
+            "omitted. Default: 'ava-worker-local'."
+        ),
+    )
+    parser.add_argument(
         "--simulate-transport", action="store_true",
         help=(
             "(legacy) Force Port8877StubTransport.simulate_success=True "
@@ -576,7 +645,35 @@ def main(argv: list[str] | None = None) -> int:
     elif args.transport == "node":
         transport = OpenClawNodeBundleTransport(node=args.worker_node)
     elif args.transport == "jobdir":
-        transport = JobDirBundleTransport(node=args.worker_node)
+        # Card 79793579: jobdir dispatches MAY be served by either
+        # JobDirBundleTransport (gateway wire) or
+        # LocalJobDirBundleTransport (direct FS, no gateway call).
+        # Selection is deterministic: explicit --local-node wins over
+        # hostname detection. We emit a one-line transport log so
+        # operators can grep the chosen path from the run log without
+        # reading the code.
+        local_node_tri = _coerce_local_flag(args.local_node)
+        use_local = detect_local_node(
+            local_node_flag=local_node_tri,
+            expected_node_name=args.local_node_name,
+        )
+        if use_local:
+            transport = LocalJobDirBundleTransport(
+                node=args.worker_node,
+            )
+            print(
+                f"[run_matrix_remote] transport: local-node-direct "
+                f"(bypassing gateway; node={args.worker_node!r}, "
+                f"job_dir={LocalJobDirBundleTransport.__module__})",
+                file=sys.stderr,
+            )
+        else:
+            transport = JobDirBundleTransport(node=args.worker_node)
+            print(
+                f"[run_matrix_remote] transport: gateway-wire "
+                f"(--transport=jobdir via nodes invoke; node={args.worker_node!r})",
+                file=sys.stderr,
+            )
     else:
         # 'stub' legacy path: raises on real invoke → drives local fallback.
         transport = Port8877StubTransport(simulate_success=False)
