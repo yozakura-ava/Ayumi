@@ -9,7 +9,7 @@ Strategies:
   - TTC XAUUSD, TTC EURUSD (TTC signal engine)
 
 Usage:
-  PYTHONPATH=src/forex-bot:src python -m run_live_paper
+  PYTHONPATH=src/forex_bot:src python -m run_live_paper
 """
 
 import logging

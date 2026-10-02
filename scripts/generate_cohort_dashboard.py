@@ -29,7 +29,7 @@ Usage
 ::
 
     source .venv/bin/activate
-    export PYTHONPATH=src/forex-bot
+    export PYTHONPATH=src/forex_bot
     python scripts/generate_cohort_dashboard.py \\
         --reports-dir reports/srmr-plus-pipeline-2026-07-08 \\
         --output reports/cohort_dashboard_2026-07-08.json
@@ -50,7 +50,7 @@ from typing import Any
 
 # Add repo src to path so ``quant.*`` imports work without install.
 _REPO_ROOT = Path(__file__).resolve().parents[1]
-_SRC = _REPO_ROOT / "src" / "forex-bot"
+_SRC = _REPO_ROOT / "src" / "forex_bot"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 

@@ -13,11 +13,11 @@ from unittest.mock import patch
 import pytest
 
 # ── Path setup ──────────────────────────────────────────────────────────
-# The SRF module lives under src/forex-bot/ which is not a standard
+# The SRF module lives under src/forex_bot/ which is not a standard
 # installable package. We add it to sys.path so imports work in the
 # test environment.
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-_SRC_ROOT = _REPO_ROOT / "src" / "forex-bot"
+_SRC_ROOT = _REPO_ROOT / "src" / "forex_bot"
 if str(_SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(_SRC_ROOT))
 

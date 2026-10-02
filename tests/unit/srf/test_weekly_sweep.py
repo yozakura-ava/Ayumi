@@ -22,10 +22,10 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 
-# Ensure src/forex-bot is importable when this file is run directly
+# Ensure src/forex_bot is importable when this file is run directly
 # (pytest.ini already adds it, but be defensive for direct invocation)
 _repo_root = Path(__file__).resolve().parents[3]
-_src = _repo_root / "src" / "forex-bot"
+_src = _repo_root / "src" / "forex_bot"
 if str(_src) not in sys.path:
     sys.path.insert(0, str(_src))
 

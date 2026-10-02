@@ -1,7 +1,7 @@
 """Tests for existing cTrader trade execution methods in OpenApiSpotFeed.
 
 This module tests the real order execution surface that already lives in
-``src/forex-bot/adapters/ctrader/open_api_spot_feed.py``:
+``src/forex_bot/adapters/ctrader/open_api_spot_feed.py``:
 
 - ``new_order()`` constructs and sends ``ProtoOANewOrderReq``.
 - ``send_order()`` converts friendly arguments and delegates to ``new_order()``.

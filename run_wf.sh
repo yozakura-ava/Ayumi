@@ -43,7 +43,7 @@ export MAX_MEM
 # Resource limits are applied inside Python via common.resource_limits
 python -c "
 import os, sys
-sys.path.insert(0, 'src/forex-bot')
+sys.path.insert(0, 'src/forex_bot')
 from common.resource_limits import cpu_limited, memory_capped
 print(f'Resource limits: CPU={os.environ.get(\"MAX_CPU\", \"20\")}%, Memory={os.environ.get(\"MAX_MEM\", \"2048\")}MB')
 " 2>&1

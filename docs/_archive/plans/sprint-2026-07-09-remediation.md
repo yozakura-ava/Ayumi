@@ -179,9 +179,9 @@ Skipping the quality gate = skipping Hard Rule 8. Do not mark done until both la
 - Drive folder: `10zjW70L16PMxb0w6szGvrzLSLGdTJ0vl` (Personality Backups)
 - Kill switch state: `$AYUMI_ROOT/data/kill_switches/global.state` (current: `{}`)
 - Risk state file: `$AYUMI_ROOT/data/risk_state_blend.json` (Jun 30 — stale, Card 6 will nuke+rebuild)
-- Broker metadata (authoritative for pip values): `$AYUMI_ROOT/src/forex-bot/adapters/ctrader/models.py:198-204`
-- INSTRUMENTS dict target: `$AYUMI_ROOT/src/forex-bot/risk/sl_position_sizer.py:42-50`
-- SLPositionSizer state: `$AYUMI_ROOT/src/forex-bot/risk/sl_position_sizer.py:157, 367, 174-185, 284`
+- Broker metadata (authoritative for pip values): `$AYUMI_ROOT/src/forex_bot/adapters/ctrader/models.py:198-204`
+- INSTRUMENTS dict target: `$AYUMI_ROOT/src/forex_bot/risk/sl_position_sizer.py:42-50`
+- SLPositionSizer state: `$AYUMI_ROOT/src/forex_bot/risk/sl_position_sizer.py:157, 367, 174-185, 284`
 - Test file: `$AYUMI_ROOT/tests/unit/risk/test_sl_position_sizer.py` (existing, 306 lines)
 - Council reviews:
   - Domain lead: `/root/.openclaw/council-workspace/data/reviews/2026-07-09-sprint-domain-lead-review.md`

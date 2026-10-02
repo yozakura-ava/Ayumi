@@ -29,7 +29,7 @@ The current hour filter covers the right 8 hours for XAUUSD SRMR+ M15. Evidence:
 
 ### Source
 
-The filter is hardcoded in the strategy's `_is_trading_session()` helper at `src/forex-bot/strategies/srmr_plus.py:202-208`:
+The filter is hardcoded in the strategy's `_is_trading_session()` helper at `src/forex_bot/strategies/srmr_plus.py:202-208`:
 
 ```python
 def _is_trading_session(bar_time: datetime) -> bool:
@@ -41,7 +41,7 @@ def _is_trading_session(bar_time: datetime) -> bool:
     )
 ```
 
-The hour constants come from `SessionRangeHours` in `src/forex-bot/config/sessions.py:79-86`:
+The hour constants come from `SessionRangeHours` in `src/forex_bot/config/sessions.py:79-86`:
 
 | Constant | Value | Source |
 |----------|-------|--------|
@@ -70,7 +70,7 @@ Note: Hour 11 (the "lunch hour" between London close and NY open) and hour 16 (p
 
 ### Validated Config in Production
 
-After Sprint 042, the forward test launcher loads `srmr_xauusd_m15` from `src/forex-bot/config/strategies.yaml` (Optuna-tuned):
+After Sprint 042, the forward test launcher loads `srmr_xauusd_m15` from `src/forex_bot/config/strategies.yaml` (Optuna-tuned):
 
 ```yaml
 - id: srmr_xauusd_m15
@@ -352,9 +352,9 @@ These risks are **theoretical only** under the "keep as-is" recommendation.
 
 | Source | Path | Use |
 |--------|------|-----|
-| Strategy source | `$AYUMI_ROOT/src/forex-bot/strategies/srmr_plus.py` | Filter logic, line 202-208 |
-| Session constants | `$AYUMI_ROOT/src/forex-bot/config/sessions.py:79-86` | Hour ranges |
-| Validated config | `$AYUMI_ROOT/src/forex-bot/config/strategies.yaml` (entry `srmr_xauusd_m15`) | Optuna params |
+| Strategy source | `$AYUMI_ROOT/src/forex_bot/strategies/srmr_plus.py` | Filter logic, line 202-208 |
+| Session constants | `$AYUMI_ROOT/src/forex_bot/config/sessions.py:79-86` | Hour ranges |
+| Validated config | `$AYUMI_ROOT/src/forex_bot/config/strategies.yaml` (entry `srmr_xauusd_m15`) | Optuna params |
 | Backtest report | `$AYUMI_ROOT/reports/srmr_plus/srmr_plus_multi_pair_M15_20260708_1238.json` | Walk-forward aggregated metrics |
 | Backtest report (alt) | `$AYUMI_ROOT/reports/blend-walkforward-2026-08-01/srmr_plus_focused_results.jsonl` | Per-window summary |
 | Forward-test signals | `$AYUMI_ROOT/data/signal_stats.jsonl` | Hour-of-day for live signals |
@@ -415,7 +415,7 @@ These risks are **theoretical only** under the "keep as-is" recommendation.
 ```python
 import sys
 sys.path.insert(0, '$AYUMI_ROOT/src')
-sys.path.insert(0, '$AYUMI_ROOT/src/forex-bot')
+sys.path.insert(0, '$AYUMI_ROOT/src/forex_bot')
 
 import pandas as pd
 from collections import Counter

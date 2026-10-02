@@ -24,18 +24,18 @@ The original 2026-07-03 WF report is **valid and reproducible**. The strategy qu
 
 ## 2. Commits in the Jul 3 → Jul 8 window that touch strategy/signal/backtest code
 
-`git log --since="2026-07-03" --until="2026-07-08" -- src/forex-bot/{strategies,backtest,confidence,signal_engine,risk,engine,orchestrator}/ src/forex-bot/config/strategies.yaml`:
+`git log --since="2026-07-03" --until="2026-07-08" -- src/forex_bot/{strategies,backtest,confidence,signal_engine,risk,engine,orchestrator}/ src/forex_bot/config/strategies.yaml`:
 
 | Commit | Date (UTC) | Author | Files | Impact on WF? |
 |--------|-----------|--------|-------|----------------|
-| `0c8e9ae` | 2026-07-05 00:47 | Tsukasa | `src/forex-bot/strategies/srmr_plus.py`, `src/forex-bot/overlays/dxy_regime_overlay.py` (+tests) | **None** — adds optional `dxy_overlay: bool = False` flag and `apply_dxy_overlay()` helper. Default is off; helper must be explicitly called. WF runner never instantiates with `dxy_overlay=True`. |
-| `72afe1c` | 2026-07-02 | Tsukasa | `src/forex-bot/orchestrator/strategy_adapter.py` | None on WF — affects forward-test pipeline, not `backtest.walk_forward_runner` |
-| `59544c5` | 2026-07-01 | Tsukasa | `src/forex-bot/risk/ftmo_guard.py` | None on M15 WF — affects FTMO guard rails, not signal generation |
-| `16c74f6` | 2026-07-03 12:59 | Tsukasa | `src/forex-bot/orchestrator/strategy_adapter.py` (FilterChain wiring) | None on WF — forward-test pipeline only |
-| `2b1f970`/`509be00` | 2026-07-01 | Tsukasa | `src/forex-bot/backtest/walk_forward_runner.py`, `src/forex-bot/quant/walk_forward.py` | **None on trade count.** Adds `_sanitize_profit_factor()` (caps inf→99.0) and `_check_trade_count_warning()` (warns on <15 trades). Both operate on aggregated metrics AFTER signals are generated. **Already in codebase at Jul 3 report time.** |
-| `5b0b268` | 2026-07-01 21:32 | Tsukasa | `src/forex-bot/config/strategies.yaml` | Sets YAML `tp1_rr: 1.5` and `max_positions: 3`. **Already in codebase at Jul 3 report time.** Does NOT affect `SRMRPlusConfig()` defaults in code. |
-| `c0f2855` | 2026-07-03 | Ava | `src/forex-bot/signal_engine/filters/volatility_gate.py` | None on M15 SRMR+ WF — volatility gate is on the forward-test pipeline, not `MultiStrategyBacktestEngine`. |
-| `1c0790a` | 2026-07-08 11:44 | Ava | `src/forex-bot/config/strategies.yaml` (FTMO values, 3 strategies disabled) | **None on XAUUSD WF** — XAUUSD strategy stays `enabled: true`; parquet loader fix is a no-op for CSV M15 data. |
+| `0c8e9ae` | 2026-07-05 00:47 | Tsukasa | `src/forex_bot/strategies/srmr_plus.py`, `src/forex_bot/overlays/dxy_regime_overlay.py` (+tests) | **None** — adds optional `dxy_overlay: bool = False` flag and `apply_dxy_overlay()` helper. Default is off; helper must be explicitly called. WF runner never instantiates with `dxy_overlay=True`. |
+| `72afe1c` | 2026-07-02 | Tsukasa | `src/forex_bot/orchestrator/strategy_adapter.py` | None on WF — affects forward-test pipeline, not `backtest.walk_forward_runner` |
+| `59544c5` | 2026-07-01 | Tsukasa | `src/forex_bot/risk/ftmo_guard.py` | None on M15 WF — affects FTMO guard rails, not signal generation |
+| `16c74f6` | 2026-07-03 12:59 | Tsukasa | `src/forex_bot/orchestrator/strategy_adapter.py` (FilterChain wiring) | None on WF — forward-test pipeline only |
+| `2b1f970`/`509be00` | 2026-07-01 | Tsukasa | `src/forex_bot/backtest/walk_forward_runner.py`, `src/forex_bot/quant/walk_forward.py` | **None on trade count.** Adds `_sanitize_profit_factor()` (caps inf→99.0) and `_check_trade_count_warning()` (warns on <15 trades). Both operate on aggregated metrics AFTER signals are generated. **Already in codebase at Jul 3 report time.** |
+| `5b0b268` | 2026-07-01 21:32 | Tsukasa | `src/forex_bot/config/strategies.yaml` | Sets YAML `tp1_rr: 1.5` and `max_positions: 3`. **Already in codebase at Jul 3 report time.** Does NOT affect `SRMRPlusConfig()` defaults in code. |
+| `c0f2855` | 2026-07-03 | Ava | `src/forex_bot/signal_engine/filters/volatility_gate.py` | None on M15 SRMR+ WF — volatility gate is on the forward-test pipeline, not `MultiStrategyBacktestEngine`. |
+| `1c0790a` | 2026-07-08 11:44 | Ava | `src/forex_bot/config/strategies.yaml` (FTMO values, 3 strategies disabled) | **None on XAUUSD WF** — XAUUSD strategy stays `enabled: true`; parquet loader fix is a no-op for CSV M15 data. |
 | `b784695` | 2026-07-07 | Tsukasa | imports only (TradeSignal rename) | None on WF |
 
 **Net change to the M15 WF signal path between Jul 3 and Jul 8:** zero code changes that affect the SRMR+ signal generation, TP/SL calculation, or trade counting. The DXY overlay is the only behavioral addition, and it is opt-in (`dxy_overlay=False` by default).
@@ -126,7 +126,7 @@ The audit's secondary "original params" test also does not match what the same p
 
 > Task context: "The `tp1_rr` parameter changed from 1.0 to 1.5 between Jul 3 and now — this partially explains it but not the trade count drop"
 
-**Refined.** `tp1_rr` changed from 1.0 → 1.5 in `src/forex-bot/config/strategies.yaml` (commit `5b0b268`, **2026-07-01 21:32 UTC**) and in `src/forex-bot/strategies/srmr_plus.py` (commit `c845983`, **earlier**). Both changes predate the Jul 3 WF report (2026-07-03 15:10 UTC) by **41+ hours**. The Jul 3 report was generated with `tp1_rr=1.5` already in effect. So `tp1_rr` did NOT change between Jul 3 and Jul 8.
+**Refined.** `tp1_rr` changed from 1.0 → 1.5 in `src/forex_bot/config/strategies.yaml` (commit `5b0b268`, **2026-07-01 21:32 UTC**) and in `src/forex_bot/strategies/srmr_plus.py` (commit `c845983`, **earlier**). Both changes predate the Jul 3 WF report (2026-07-03 15:10 UTC) by **41+ hours**. The Jul 3 report was generated with `tp1_rr=1.5` already in effect. So `tp1_rr` did NOT change between Jul 3 and Jul 8.
 
 The `SRMRPlusConfig` defaults at HEAD (`891e4f3` / `0304037`):
 ```
@@ -185,7 +185,7 @@ python3 scripts/walk_forward_srmr_plus_multi_pair.py
 
 # Or directly:
 python3 -c "
-import sys; sys.path.insert(0, 'src/forex-bot')
+import sys; sys.path.insert(0, 'src/forex_bot')
 from backtest.data_loader import CsvDataLoader
 from backtest.walk_forward_runner import run_strategy_walk_forward
 from strategies.srmr_plus import SRMRPlusStrategy, SRMRPlusConfig
@@ -216,9 +216,9 @@ git stash pop
 
 - **This audit:** `docs/audits/phase1a-xauusd-regression-bisect-2026-07-08.md`
 - **Source data:** `data/forex/historical/XAUUSD_M15.csv` (74,325 lines, MD5 `ec8aaa8ecc5f14744bab739def29ade2`)
-- **WF runner:** `src/forex-bot/backtest/walk_forward_runner.py`
-- **Strategy:** `src/forex-bot/strategies/srmr_plus.py`
-- **YAML config:** `src/forex-bot/config/strategies.yaml` (srmr_xauusd_h1 entry)
+- **WF runner:** `src/forex_bot/backtest/walk_forward_runner.py`
+- **Strategy:** `src/forex_bot/strategies/srmr_plus.py`
+- **YAML config:** `src/forex_bot/config/strategies.yaml` (srmr_xauusd_h1 entry)
 - **Original report:** `docs/forex/wf-revalidation-2026-07/REPORT.md` + `srmrplus_wf_XAUUSD.json`
 - **Audit under review:** `docs/audits/phase1a-strategy-qualification-2026-07-08.md`
 - **Git operations performed:** `git stash -u`, `git checkout 2e625ec`, `git checkout 0c8e9ae`, `git checkout main`, `git stash pop` (clean — workspace restored to original state)

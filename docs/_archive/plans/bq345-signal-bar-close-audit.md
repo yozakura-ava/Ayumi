@@ -84,7 +84,7 @@ Since no functional bug exists, the scope is **defensive hardening only**:
 
 ### Change 1: Document the bar-close invariant (0 SP)
 
-**File:** `src/forex-bot/adapters/ctrader/forward_test_engine.py`  
+**File:** `src/forex_bot/adapters/ctrader/forward_test_engine.py`  
 **What:** Add a module-level or class docstring block documenting the bar-close invariant:
 ```
 # INVARIANT: Strategy evaluation only occurs on CLOSED bars.
@@ -96,7 +96,7 @@ Since no functional bug exists, the scope is **defensive hardening only**:
 
 ### Change 2: Defensive assertion in `_evaluate_strategies` (0.25 SP)
 
-**File:** `src/forex-bot/adapters/ctrader/forward_test_engine.py`  
+**File:** `src/forex_bot/adapters/ctrader/forward_test_engine.py`  
 **Function:** `_evaluate_strategies()`  
 **What:** Add an assertion that `self._current_bar` for any evaluated timeframe is not included in the bar list passed to strategies. This catches future regressions:
 
@@ -113,7 +113,7 @@ for tf in self._required_timeframes:
 
 ### Change 3: Rename/annotate `get_bars_for_timeframe` (0.25 SP)
 
-**File:** `src/forex-bot/adapters/ctrader/forward_test_engine.py`  
+**File:** `src/forex_bot/adapters/ctrader/forward_test_engine.py`  
 **What:** Add docstring warning and/or rename to `get_bars_including_forming()`:
 
 ```python
@@ -184,16 +184,16 @@ If the team wants the assertion test to be more thorough (mock tick pipeline, ve
 
 | File | Purpose |
 |------|---------|
-| `src/forex-bot/adapters/ctrader/forward_test_engine.py` | Bar building, evaluation trigger, strategy dispatch |
-| `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` | Tick streaming, spot event handling |
-| `src/forex-bot/adapters/ctrader/signal_adapter.py` | Strategy evaluation and signal adaptation |
-| `src/forex-bot/signal_engine/__init__.py` | Signal engine exports |
-| `src/forex-bot/signal_engine/data_types.py` | Signal, Level, Swing dataclasses |
-| `src/forex-bot/signal_engine/gate_validator.py` | Gate validation logic |
-| `src/forex-bot/signal_engine/confluence_scorer.py` | Confluence scoring |
-| `src/forex-bot/signal_engine/backtest_bridge.py` | Batch signal processing bridge |
-| `src/forex-bot/strategies/srmr_plus.py` | Sample strategy (evaluate method) |
-| `src/forex-bot/backtest/types.py` | MarketState, Bar, StrategySignal definitions |
+| `src/forex_bot/adapters/ctrader/forward_test_engine.py` | Bar building, evaluation trigger, strategy dispatch |
+| `src/forex_bot/adapters/ctrader/open_api_spot_feed.py` | Tick streaming, spot event handling |
+| `src/forex_bot/adapters/ctrader/signal_adapter.py` | Strategy evaluation and signal adaptation |
+| `src/forex_bot/signal_engine/__init__.py` | Signal engine exports |
+| `src/forex_bot/signal_engine/data_types.py` | Signal, Level, Swing dataclasses |
+| `src/forex_bot/signal_engine/gate_validator.py` | Gate validation logic |
+| `src/forex_bot/signal_engine/confluence_scorer.py` | Confluence scoring |
+| `src/forex_bot/signal_engine/backtest_bridge.py` | Batch signal processing bridge |
+| `src/forex_bot/strategies/srmr_plus.py` | Sample strategy (evaluate method) |
+| `src/forex_bot/backtest/types.py` | MarketState, Bar, StrategySignal definitions |
 
 ---
 

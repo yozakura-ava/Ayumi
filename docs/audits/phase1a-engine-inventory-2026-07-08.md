@@ -13,7 +13,7 @@
 
 | Field | Value |
 |-------|-------|
-| **File** | `src/forex-bot/adapters/ctrader/forward_test_engine.py` |
+| **File** | `src/forex_bot/adapters/ctrader/forward_test_engine.py` |
 | **Lines** | 2,734 |
 | **Classes** | `ForwardTestConfig`, `ForwardTestHealth`, `LiveExecutionStatus`, `LiveExecutionOutcome`, `ForwardTestEngine` |
 | **Functions** | 53 methods |
@@ -35,7 +35,7 @@
 
 | Field | Value |
 |-------|-------|
-| **File** | `src/forex-bot/engine/orchestrator.py` |
+| **File** | `src/forex_bot/engine/orchestrator.py` |
 | **Lines** | 464 |
 | **Classes** | `OrchestratorStatus`, `MultiStrategyOrchestrator` |
 | **Functions** | 21 methods |
@@ -44,7 +44,7 @@
 **Purpose:** Multi-strategy orchestrator that manages strategy slots, routes ticks to strategies, monitors health. Config-driven via `config/strategies.yaml`. Was an earlier attempt at unified multi-strategy orchestration.
 
 **Launchers using it:**
-- `src/forex-bot/run_srmr_plus_forward.py` — standalone forward test runner module
+- `src/forex_bot/run_srmr_plus_forward.py` — standalone forward test runner module
 
 **Note:** The api_client.py docstring explicitly mentions "the dead-code `MultiStrategyOrchestrator.__init__`", confirming this engine is recognized as dead code internally.
 
@@ -56,7 +56,7 @@
 
 | Field | Value |
 |-------|-------|
-| **File** | `src/forex-bot/engine/trading_orchestrator.py` |
+| **File** | `src/forex_bot/engine/trading_orchestrator.py` |
 | **Lines** | 1,220 |
 | **Classes** | `StrategySlotConfig`, `RiskConfig`, `OrchestratorConfig`, `_RegisteredStrategy`, `TradingOrchestrator` |
 | **Functions** | 44 methods |
@@ -78,7 +78,7 @@
 
 | Field | Value |
 |-------|-------|
-| **File** | `src/forex-bot/orchestrator/signal_orchestrator.py` |
+| **File** | `src/forex_bot/orchestrator/signal_orchestrator.py` |
 | **Lines** | 150 |
 | **Classes** | `OrchestratorTradeSignal`, `OrchestratedOrder`, `SignalOrchestrator` |
 | **Functions** | 3 methods |
@@ -87,10 +87,10 @@
 **Purpose:** Wires together the signal pipeline: confidence engine → profile router → position sizer → execution. Not a full engine — it's a component that processes signals and produces sized orders. Used by `BlendForwardTestRunner` which wraps it.
 
 **Consumers:**
-- `src/forex-bot/forward_test/blend_runner.py` — instantiates `SignalOrchestrator` internally
-- `src/forex-bot/orchestrator/strategy_adapter.py` — uses `OrchestratorTradeSignal`
-- `src/forex-bot/backtest/blend_backtest.py` — uses `OrchestratorTradeSignal` for backtest blend
-- `src/forex-bot/analysis/missed_bid_detector.py` — uses `OrchestratorTradeSignal`
+- `src/forex_bot/forward_test/blend_runner.py` — instantiates `SignalOrchestrator` internally
+- `src/forex_bot/orchestrator/strategy_adapter.py` — uses `OrchestratorTradeSignal`
+- `src/forex_bot/backtest/blend_backtest.py` — uses `OrchestratorTradeSignal` for backtest blend
+- `src/forex_bot/analysis/missed_bid_detector.py` — uses `OrchestratorTradeSignal`
 
 **Consolidation recommendation:** **KEEP AS-IS.** This is not a competing engine — it's a component within the canonical architecture. `BlendForwardTestRunner` (which is used by the production `ForwardTestEngine` subclass) depends on it. Well-scoped at 150 lines.
 
@@ -100,7 +100,7 @@
 
 | Field | Value |
 |-------|-------|
-| **File** | `src/forex-bot/forward_test/blend_runner.py` |
+| **File** | `src/forex_bot/forward_test/blend_runner.py` |
 | **Lines** | 350 |
 | **Classes** | `BlendForwardTestRunner` |
 | **Functions** | 14 methods |
@@ -141,7 +141,7 @@
 | `scripts/launch_forward_test_preloaded.py` | `ForwardTestEngine` | No | Same as above but with 100 H1 bars preloaded via OpenAPI |
 | `scripts/launch_forward_test_v2.py` | `BlendForwardTestRunner` (standalone, no `ForwardTestEngine`) | No | Experimental v2 refactor using new infrastructure modules |
 | `scripts/run_live_session_range_gbpusd.py` | `ForwardTestEngine` | No | Thin wrapper, Session Range MR on GBPUSD |
-| `src/forex-bot/run_srmr_plus_forward.py` | `MultiStrategyOrchestrator` | No | **Uses deprecated engine** |
+| `src/forex_bot/run_srmr_plus_forward.py` | `MultiStrategyOrchestrator` | No | **Uses deprecated engine** |
 
 **Note on `launch_blend_forward_test.py` size:** At 55,207 lines this is unusually large — likely contains embedded data or generated code. Worth investigating in a separate audit.
 
@@ -149,7 +149,7 @@
 
 ## 4. Backtest Engines (11 classes across 2 codebases)
 
-### 4.1 `src/forex-bot/backtest/` — Primary Backtest Codebase
+### 4.1 `src/forex_bot/backtest/` — Primary Backtest Codebase
 
 | # | Class | File | Lines | Status | Used By |
 |---|-------|------|-------|--------|---------|
@@ -164,7 +164,7 @@
 | 9 | `SignalConfluenceEngine` | `backtest/ict_smc/confluence_engine.py` | 470 | **EXPERIMENTAL** | ICT/SMC confluence signals. No external consumers found. |
 | 10 | `SweepRunner` | `backtest/parameter_sweep/sweep_runner.py` | 134 | **ACTIVE** | Parameter sweep runner. Used by 4+ sweep scripts |
 
-### 4.2 `src/forex-bot/engine/` — New Engine Architecture (forward-test infrastructure)
+### 4.2 `src/forex_bot/engine/` — New Engine Architecture (forward-test infrastructure)
 
 | # | Class | File | Lines | Status | Notes |
 |---|-------|------|-------|--------|-------|

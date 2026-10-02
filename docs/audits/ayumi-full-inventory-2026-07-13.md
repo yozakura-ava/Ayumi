@@ -6,17 +6,17 @@
 
 | Tree | Files | Status | Action |
 |------|-------|--------|--------|
-| `src/forex-bot/` | 300 .py | **ACTIVE** — main codebase | Keep, clean |
+| `src/forex_bot/` | 300 .py | **ACTIVE** — main codebase | Keep, clean |
 | `src/forex_trading/` | 31 .py | **ORPHANED** — self-referencing only, not imported by main tree or tests | Remove or merge if any value |
 | `src/crypto/` | 12 .py | **SEPARATE** — Cabal crypto bot, different workstream | Move to own repo or `src/cabal/` |
 | `_archive/` | 65 .py | **DEAD** — stale backup from Apr 22 | Delete (git history preserves it) |
-| `src/forex-bot/_deprecated/` | ? | **DEAD** | Delete |
-| `src/forex-bot/backtest/strategy_legacy.py` | 1 | **DEAD** — legacy | Delete |
+| `src/forex_bot/_deprecated/` | ? | **DEAD** | Delete |
+| `src/forex_bot/backtest/strategy_legacy.py` | 1 | **DEAD** — legacy | Delete |
 
-### Key Source Modules (`src/forex-bot/`)
+### Key Source Modules (`src/forex_bot/`)
 
 ```
-src/forex-bot/
+src/forex_bot/
 ├── adapters/          — cTrader adapter, open API
 ├── analysis/          — analytics modules
 ├── analytics/         — regime detection, correlation, session logic, pattern detection
@@ -185,7 +185,7 @@ src/forex-bot/
   - `tests/e2e/` — end-to-end tests (backtest, forward test, live)
   - `tests/strategies/` — strategy tests
   - `tests/regression/` — regression tests
-  - `tests/forex-bot/` — forex-bot specific
+  - `tests/forex_bot/` — forex_bot specific
 - `scripts/run_test_scope.sh` exists but no documented runbook
 
 ## 5. cTrader Integration

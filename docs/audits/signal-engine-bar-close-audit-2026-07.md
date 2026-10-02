@@ -2,8 +2,8 @@
 
 **Auditor:** Tsukasa (builder lane)
 **Card:** BQ-345 — Signal Engine Bar-Close Audit (sprint 2026-07-01)
-**Scope:** Identify mid-bar vs bar-close evaluation logic in `src/forex-bot/signal_engine/`
-and `src/forex-bot/engine/`, and verify strategies do not leak forming-bar data into signals.
+**Scope:** Identify mid-bar vs bar-close evaluation logic in `src/forex_bot/signal_engine/`
+and `src/forex_bot/engine/`, and verify strategies do not leak forming-bar data into signals.
 **Method:** Static review of bar-close plumbing + runtime audit via `scripts/audit_bar_close.py`.
 
 ---
@@ -48,16 +48,16 @@ Searched for the bar-close contract surface:
 Grep hits:
 
 ```
-src/forex-bot/signal_engine/session_logic.py:168:        bar_closed: bool = True,
-src/forex-bot/signal_engine/session_logic.py:171:        if not bar_closed:
-src/forex-bot/engine/strategy_executor.py:40:        self._bar_closed = False
-src/forex-bot/engine/strategy_executor.py:76:            self._bar_closed = False
-src/forex-bot/engine/strategy_executor.py:82:            if not self._bar_closed:
-src/forex-bot/engine/strategy_executor.py:162:        self._bar_closed = True
-src/forex-bot/engine/trading_orchestrator.py:19:    orch.on_bar_close("XAUUSD", "H1", bars)
-src/forex-bot/engine/trading_orchestrator.py:83:    bar_close_evaluation_only: bool = True
-src/forex-bot/engine/trading_orchestrator.py:463:        if not self._config.bar_close_evaluation_only:
-src/forex-bot/engine/trading_orchestrator.py:478:    def on_bar_close(self, symbol: str, timeframe: str, bars: list[Bar]):
+src/forex_bot/signal_engine/session_logic.py:168:        bar_closed: bool = True,
+src/forex_bot/signal_engine/session_logic.py:171:        if not bar_closed:
+src/forex_bot/engine/strategy_executor.py:40:        self._bar_closed = False
+src/forex_bot/engine/strategy_executor.py:76:            self._bar_closed = False
+src/forex_bot/engine/strategy_executor.py:82:            if not self._bar_closed:
+src/forex_bot/engine/strategy_executor.py:162:        self._bar_closed = True
+src/forex_bot/engine/trading_orchestrator.py:19:    orch.on_bar_close("XAUUSD", "H1", bars)
+src/forex_bot/engine/trading_orchestrator.py:83:    bar_close_evaluation_only: bool = True
+src/forex_bot/engine/trading_orchestrator.py:463:        if not self._config.bar_close_evaluation_only:
+src/forex_bot/engine/trading_orchestrator.py:478:    def on_bar_close(self, symbol: str, timeframe: str, bars: list[Bar]):
 ```
 
 Every public bar-completion surface is gated. The two ways into the engine are:

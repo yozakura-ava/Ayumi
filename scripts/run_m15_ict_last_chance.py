@@ -22,7 +22,7 @@ M15 tuning rationale (vs H1 defaults):
   min_bars_before:      100 (was 30)  — sufficient warm-up
 
 Run:
-  cd $AYUMI_ROOT/worktrees/kai/src/forex-bot
+  cd $AYUMI_ROOT/worktrees/kai/src/forex_bot
   python ../../scripts/run_m15_ict_last_chance.py
 """
 
@@ -34,7 +34,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "forex-bot"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "forex_bot"))
 
 from backtest.data_loader import CsvDataLoader
 from backtest.engine import Bar, determine_session

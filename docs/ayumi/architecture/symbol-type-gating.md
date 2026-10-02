@@ -11,7 +11,7 @@ The confidence layer is asset-class agnostic by construction. It needs only a `s
 
 ## SymbolType Enum
 
-The `SymbolType` enum in `src/forex-bot/models/instrument.py` defines seven asset-class tags:
+The `SymbolType` enum in `src/forex_bot/models/instrument.py` defines seven asset-class tags:
 
 | Member | Description | Examples |
 |--------|-------------|----------|
@@ -47,7 +47,7 @@ Crypto-native detectors have forex substitutes with different cadence and signal
 
 ## Gating Module
 
-`src/forex-bot/confidence/symbol_type_gating.py` provides:
+`src/forex_bot/confidence/symbol_type_gating.py` provides:
 
 ### `SymbolTypeGate`
 

@@ -32,7 +32,7 @@ The plan below defines six concrete remediation tasks. **No code changes are mad
 | Risk cancellation loop | `logs/forward_test.log` lines 641, 673, 688-699, etc. | `Risk cancelled: $X freed, daily remaining=$500.00` at the same timestamp as fills |
 | Risk state | `data/risk_state_blend.json` | `open_risk: 0.0`, `daily_risk_used: 0.0` while broker held 71 positions |
 | Rejections at margin cap | `logs/forward_test.log` lines 10343, 10351 | `NOT_ENOUGH_MONEY` only server-side defense against over-trading |
-| No reconcile usage | `src/forex-bot/adapters/ctrader/forward_test_engine.py` | `reconcile()` exists in `OpenApiSpotFeed` but is never called by `blend_runner.py` or the engine for risk checks |
+| No reconcile usage | `src/forex_bot/adapters/ctrader/forward_test_engine.py` | `reconcile()` exists in `OpenApiSpotFeed` but is never called by `blend_runner.py` or the engine for risk checks |
 
 ---
 
@@ -53,7 +53,7 @@ Because `0.005 > 0`, `enabled` evaluates to `True`, so the strategy continues to
 **Files to change**
 
 1. `scripts/launch_blend_forward_test.py` — remove the canary from the production strategies list **or** instantiate it with `tp_sl_pct=0.0`.
-2. (Optional hardening) `src/forex-bot/strategies/test_canary.py` — add a loud warning log when `enabled` is `True` so future accidental re-enable is visible.
+2. (Optional hardening) `src/forex_bot/strategies/test_canary.py` — add a loud warning log when `enabled` is `True` so future accidental re-enable is visible.
 
 **Acceptance criteria**
 
@@ -103,14 +103,14 @@ Commit `2acdc46` added rounding but did not detect that the input itself was in 
 
 **Files to change**
 
-1. `src/forex-bot/adapters/ctrader/open_api_spot_feed.py`
+1. `src/forex_bot/adapters/ctrader/open_api_spot_feed.py`
    - `fetch_trendbars()` — verify the `d = 10 ** self._symbol_digits.get(...)` divisor is being applied to all four OHLC deltas consistently and that the returned `Bar` close for USDJPY matches the live tick scale.
    - `amend_sl_tp()` and `_round_price()` — add a normalization step that converts strategy-layer prices to broker scale using the symbol's `pip_size` / `digits`. The fix should be **symbol-aware**, not USDJPY-specific, so future JPY-crosses work automatically.
-2. `src/forex-bot/adapters/ctrader/forward_test_engine.py`
+2. `src/forex_bot/adapters/ctrader/forward_test_engine.py`
    - The synchronous SL/TP attach path at line 1134 (`_execute_live_order`) and the late-fill callback path at lines 1385-1425 must both pass prices through a single broker-scale normalization helper before calling `amend_sl_tp()`.
-3. `src/forex-bot/strategies/session_breakout.py`
+3. `src/forex_bot/strategies/session_breakout.py`
    - Audit `_pip_size()` usage at lines 37, 131, 206 to confirm it is only used for pip-distance math, not price scaling. If it is accidentally used to re-scale prices, fix it.
-4. `src/forex-bot/strategies/session_range_mean_reversion.py`
+4. `src/forex_bot/strategies/session_range_mean_reversion.py`
    - Same audit for `_pip_value_for_price()`.
 
 **Acceptance criteria**
@@ -156,13 +156,13 @@ The semantic problem: `cancel_risk()` should only run on **permanent** rejection
 
 **Files to change**
 
-1. `src/forex-bot/adapters/ctrader/forward_test_engine.py`
+1. `src/forex_bot/adapters/ctrader/forward_test_engine.py`
    - In `_register_late_fill_callbacks()`, change the risk-release branch so it only calls `cancel_risk()` for `REJECTED`, `CANCELLED`, or `NOT_CONNECTED` — **not** for `TIMEOUT` or `SENT`.
    - Pass the actual `risk_amount` to `cancel_risk()` instead of the hard-coded `starting_balance * 0.01` (which is also wrong for mixed lot sizes).
-2. `src/forex-bot/forward_test/blend_runner.py`
+2. `src/forex_bot/forward_test/blend_runner.py`
    - Change `cancel_risk()` to require a `signal_id`/`order_id` so it can verify the position is still in `_open_positions` before freeing budget (defense against double-cancel).
    - Add an overshoot log if `cancel_position()` clamps (it already logs, but make it an explicit warning).
-3. `src/forex-bot/risk/sl_position_sizer.py`
+3. `src/forex_bot/risk/sl_position_sizer.py`
    - Add a guard so `cancel_position()` and `close_position()` do not drive `_open_risk` below zero silently; log the condition.
    - Add `record_open_position()` (or rename `register_open_position` for symmetry) if needed for clearer accounting.
 
@@ -196,11 +196,11 @@ We need two controls:
 
 **Files to change**
 
-1. `src/forex-bot/adapters/ctrader/open_api_spot_feed.py`
+1. `src/forex_bot/adapters/ctrader/open_api_spot_feed.py`
    - Ensure `reconcile()` returns enough data (positionId, symbol, volume, open SL/TP) for the runner to map each position to a risk amount.
-2. `src/forex-bot/forward_test/blend_runner.py`
+2. `src/forex_bot/forward_test/blend_runner.py`
    - Add `reconcile_open_positions(positions: list[Position])` that computes risk per position from entry/SL and registers it in the sizer.
-3. `src/forex-bot/adapters/ctrader/forward_test_engine.py`
+3. `src/forex_bot/adapters/ctrader/forward_test_engine.py`
    - Call `reconcile()` once after the feed becomes operational, before the first strategy evaluation.
    - Schedule a periodic reconcile (e.g. every 60s or after every N fills) to refresh the local cap.
    - Wire execution events (fill/close) to update the blend runner's `_open_positions` directly so the refresh is incremental.
@@ -228,9 +228,9 @@ The constraint says: *"`amend_sl_tp()` on OpenApiSpotFeed is NOT kill-switch-gat
 
 **Files to change**
 
-1. `src/forex-bot/adapters/ctrader/execution_permission.py`
+1. `src/forex_bot/adapters/ctrader/execution_permission.py`
    - Add an optional `can_amend_position()` check that mirrors `can_send_order()` logic (default allow for backward compatibility). Document that it is Phase-6 scope.
-2. `src/forex-bot/adapters/ctrader/open_api_spot_feed.py`
+2. `src/forex_bot/adapters/ctrader/open_api_spot_feed.py`
    - In `amend_sl_tp()`, log a clear warning if no permission policy is present.
    - If a policy is present and exposes `can_amend_position()`, consult it before sending.
 
@@ -272,7 +272,7 @@ This is a follow-up to commit `4e43dd6` which attempted to use real cTrader `pos
 
 **Files to change**
 
-1. `src/forex-bot/adapters/ctrader/forward_test_engine.py`
+1. `src/forex_bot/adapters/ctrader/forward_test_engine.py`
    - In `_register_late_fill_callbacks()`, validate that `ctrader_position_id` is an `int` (and not zero) before calling `amend_sl_tp()`.
    - If the event has no integer positionId, log: `Late fill for order %s but no cTrader positionId available — SL/TP not attached` (the warning already exists but may not be reached due to the string fallback).
 

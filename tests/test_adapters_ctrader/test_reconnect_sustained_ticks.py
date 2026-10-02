@@ -37,10 +37,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
-# Ensure src/forex-bot is on path for imports (mirrors existing tests
+# Ensure src/forex_bot is on path for imports (mirrors existing tests
 # in this directory that run from the repo root).
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(_REPO_ROOT / "src" / "forex-bot"))
+sys.path.insert(0, str(_REPO_ROOT / "src" / "forex_bot"))
 
 from adapters.ctrader.forward_test_engine import (  # noqa: E402
     ForwardTestConfig,

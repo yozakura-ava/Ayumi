@@ -38,7 +38,7 @@ The strategy factory sprint produced **one validated new strategy (LBO)**, surfa
 
 ## LBO validation (high confidence)
 
-`src/forex-bot/strategies/london_breakout_retest.py` already existed but had no tests. Wrote `tests/strategies/test_london_breakout_retest.py` (3 tests, all pass).
+`src/forex_bot/strategies/london_breakout_retest.py` already existed but had no tests. Wrote `tests/strategies/test_london_breakout_retest.py` (3 tests, all pass).
 
 **Gated backtest on 71,747 XAUUSD M15 bars (4.5 years):**
 

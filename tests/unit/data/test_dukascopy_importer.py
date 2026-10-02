@@ -23,7 +23,7 @@ from unittest import mock
 
 # Ensure the package root is importable when running this file in isolation.
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(_REPO_ROOT / "src" / "forex-bot"))
+sys.path.insert(0, str(_REPO_ROOT / "src" / "forex_bot"))
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
 from data.dukascopy_importer import (  # type: ignore  # noqa: E402, I001

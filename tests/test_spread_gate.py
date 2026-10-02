@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # Ensure src is on the path
-SRC = Path(__file__).resolve().parent.parent / "src" / "forex-bot"
+SRC = Path(__file__).resolve().parent.parent / "src" / "forex_bot"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 

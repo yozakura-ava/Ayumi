@@ -14,11 +14,11 @@
 2. **Python (Ayumi) as decision-support overlay** — signal validation, multi-strategy ranking, regime classification, FTMO risk double-check, analytics.
 3. **FTMO compliant by construction** — daily DD, max DD, weekend rule, news filter all enforced before orders leave the cBot.
 4. **Failover aware** — cTrader desktop dies → cTrader Mobile cloud picks up. Python dies → cBot continues with last-known config.
-5. **Reuse, don't rewrite** — port the 5 existing C# detectors (`src/forex-bot/cbot/`) into a live `Robot` class with minimal adapter code, and mirror them in Python for parity testing.
+5. **Reuse, don't rewrite** — port the 5 existing C# detectors (`src/forex_bot/cbot/`) into a live `Robot` class with minimal adapter code, and mirror them in Python for parity testing.
 
 ### Non-goals (this design)
 - Building a new ML model from scratch (separate card)
-- Replacing the existing cTrader OpenAPI adapter (`src/forex-bot/adapters/ctrader/`) — keep using it
+- Replacing the existing cTrader OpenAPI adapter (`src/forex_bot/adapters/ctrader/`) — keep using it
 - Crypto, multi-broker routing, copy trading — out of scope; FTMO only
 - HFT (sub-100 ms) — ICT signals are M15/H1/H4 cadence; latency budget is hundreds of ms, not single-digit
 
@@ -225,7 +225,7 @@ Python stays as overlay, never as primary executor.
 - Pre-trade check: would this trade's max loss (SL distance × size) breach daily DD if hit?
 - Position sizing: `quantity = (account.equity * risk_pct) / (sl_distance * pip_value)`
 - Hard stop: when daily DD >= 4% (safety margin below FTMO 5%), **close all + block new entries for the day**
-- Implementation: ~150 LOC, lives in `src/forex-bot/cbot/ICTSMC.RiskGate.cs` (new file, P1)
+- Implementation: ~150 LOC, lives in `src/forex_bot/cbot/ICTSMC.RiskGate.cs` (new file, P1)
 - Same logic as existing `ICTSMC.BacktestEngine.cs` `IsMaxDrawdownBreached` / `IsMaxDailyLossBreached` — port to live, parameterize
 
 **Layer 2: Python risk overlay (independent watchdog)**
@@ -274,7 +274,7 @@ cBot re-reads this on every `OnStart` AND on file mtime change (use `FileSystemW
 
 ### Phase 1 — Port existing cBot detectors to live (foundation)
 
-**Goal**: Existing 5 detectors in `src/forex-bot/cbot/` running inside a live cBot instance on FTMO demo.
+**Goal**: Existing 5 detectors in `src/forex_bot/cbot/` running inside a live cBot instance on FTMO demo.
 
 **Tasks**:
 1. Write `ICTSMC.Robot.cs` — cBot entry point (~80 LOC)
@@ -300,9 +300,9 @@ cBot re-reads this on every `OnStart` AND on file mtime change (use `FileSystemW
 **Goal**: cBot signals visible to Ayumi Python daemon; optional override path working.
 
 **Tasks**:
-1. Write Plugin SDK panel in Python: `src/forex-bot/plugins/signal_bridge/` (~250 LOC HTML/JS + Python HTTP server)
+1. Write Plugin SDK panel in Python: `src/forex_bot/plugins/signal_bridge/` (~250 LOC HTML/JS + Python HTTP server)
 2. Add signal-send to cBot: `Robot.OnSignal()` calls panel via plugin
-3. Add Python side: `src/forex-bot/integrations/cbot_signal_consumer.py` — listens, validates, replies
+3. Add Python side: `src/forex_bot/integrations/cbot_signal_consumer.py` — listens, validates, replies
 4. Define message contract (see §3.2) — version 1, lock it down
 5. Add timeout handling — cBot uses local score if no Python reply in 200 ms
 6. Logging: every signal + override in `data/logs/cbot_python_bridge.jsonl`
@@ -374,7 +374,7 @@ P2 and P3 can start in parallel after P1 is solid. P4 cannot start until P3 vali
 
 ### 6.1 What we already have
 
-In `src/forex-bot/`:
+In `src/forex_bot/`:
 
 | Module | Role | Reuse for ICT/SMC |
 |---|---|---|
@@ -478,14 +478,14 @@ The cTrader Mobile cloud instance is a **separate subscription**, but the same c
 **New files (planned, not yet created — separate cards)**:
 
 ```
-src/forex-bot/cbot/ICTSMC.Robot.cs          ~80 LOC  (P1)
-src/forex-bot/cbot/ICTSMC.BarAggregator.cs ~70 LOC  (P1)
-src/forex-bot/cbot/ICTSMC.RiskGate.cs      ~150 LOC (P1)
-src/forex-bot/cbot/ICTSMC.OrderManager.cs  ~200 LOC (P1)
-src/forex-bot/cbot/ICTSMC.TradeLogger.cs   ~80 LOC  (P1)
-src/forex-bot/cbot/ICTSMC.Indicator.cs     ~150 LOC (P1, visualization)
+src/forex_bot/cbot/ICTSMC.Robot.cs          ~80 LOC  (P1)
+src/forex_bot/cbot/ICTSMC.BarAggregator.cs ~70 LOC  (P1)
+src/forex_bot/cbot/ICTSMC.RiskGate.cs      ~150 LOC (P1)
+src/forex_bot/cbot/ICTSMC.OrderManager.cs  ~200 LOC (P1)
+src/forex_bot/cbot/ICTSMC.TradeLogger.cs   ~80 LOC  (P1)
+src/forex_bot/cbot/ICTSMC.Indicator.cs     ~150 LOC (P1, visualization)
 
-src/forex-bot/ict/                         (P1, Python port for parity)
+src/forex_bot/ict/                         (P1, Python port for parity)
 ├── __init__.py
 ├── market_structure.py
 ├── order_block.py
@@ -494,13 +494,13 @@ src/forex-bot/ict/                         (P1, Python port for parity)
 ├── premium_discount.py
 └── confluence.py
 
-src/forex-bot/plugins/signal_bridge/       (P2, Plugin SDK bridge)
+src/forex_bot/plugins/signal_bridge/       (P2, Plugin SDK bridge)
 ├── panel.html
 ├── panel.js
 └── server.py
 
-src/forex-bot/integrations/cbot_signal_consumer.py  ~200 LOC (P2)
-src/forex-bot/risk/ftmo_overlay.py        ~150 LOC  (P2, watchdog)
+src/forex_bot/integrations/cbot_signal_consumer.py  ~200 LOC (P2)
+src/forex_bot/risk/ftmo_overlay.py        ~150 LOC  (P2, watchdog)
 ```
 
 **No existing files modified.** This is research + design only.
@@ -526,11 +526,11 @@ src/forex-bot/risk/ftmo_overlay.py        ~150 LOC  (P2, watchdog)
 - [`docs/forex/strategy-development-ict-smc-automated-logic.md`](../forex/strategy-development-ict-smc-automated-logic.md) — AYUAA-27 strategy spec
 - [`docs/forex/backtesting-framework-ctrader-calgo.md`](../forex/backtesting-framework-ctrader-calgo.md) — AYUAA-31 backtest spec
 - [`docs/research/ict/`](../research/ict/) — 10 ICT primitive docs
-- `src/forex-bot/cbot/` — 14 detector/backtest files (3,378 LOC, read in full)
-- `src/forex-bot/adapters/ctrader/` — 43-file OpenAPI Python adapter
-- `src/forex-bot/risk/` — Python FTMO config + sizing
-- `src/forex-bot/signal_engine/` — Python signal generation pipeline
-- `src/forex-bot/engine/health_monitor.py` — watchdog pattern to reuse
+- `src/forex_bot/cbot/` — 14 detector/backtest files (3,378 LOC, read in full)
+- `src/forex_bot/adapters/ctrader/` — 43-file OpenAPI Python adapter
+- `src/forex_bot/risk/` — Python FTMO config + sizing
+- `src/forex_bot/signal_engine/` — Python signal generation pipeline
+- `src/forex_bot/engine/health_monitor.py` — watchdog pattern to reuse
 
 ---
 

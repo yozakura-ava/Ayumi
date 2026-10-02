@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 
 project_root = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(project_root / "src" / "forex-bot"))
+sys.path.insert(0, str(project_root / "src" / "forex_bot"))
 sys.path.insert(0, str(project_root / "src"))
 
 os.environ["FOREX_DB_PATH"] = str(project_root / "data" / "forex" / "forex.db")

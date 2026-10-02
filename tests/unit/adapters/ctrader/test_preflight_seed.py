@@ -15,8 +15,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-# Ensure src/forex-bot is on path for imports
-sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "src" / "forex-bot"))
+# Ensure src/forex_bot is on path for imports
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "src" / "forex_bot"))
 
 from adapters.ctrader.forward_test_engine import ForwardTestConfig, ForwardTestEngine
 from adapters.ctrader.models import Position, PositionStatus, TradeDirection

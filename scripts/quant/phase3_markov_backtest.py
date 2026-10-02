@@ -20,7 +20,7 @@ Outputs JSON results to docs/research/AYUAA-401-phase3-results.json
 and prints a summary table.
 
 Run:
-  PYTHONPATH=src/forex-bot .venv/bin/python scripts/quant/phase3_markov_backtest.py
+  PYTHONPATH=src/forex_bot .venv/bin/python scripts/quant/phase3_markov_backtest.py
 """
 
 from __future__ import annotations
@@ -35,9 +35,9 @@ from pathlib import Path
 
 import numpy as np
 
-# Make src/forex-bot importable as top-level packages (backtest, quant, etc.)
+# Make src/forex_bot importable as top-level packages (backtest, quant, etc.)
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "src" / "forex-bot"))
+sys.path.insert(0, str(ROOT / "src" / "forex_bot"))
 
 from backtest.data_loader import CsvDataLoader  # noqa: E402, I001
 from backtest.engine import Bar  # noqa: E402

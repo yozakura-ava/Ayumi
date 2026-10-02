@@ -72,7 +72,7 @@ Source: Audacity Capital, "Risk to Reward Ratio in Prop Trading" (Jun 16 2026), 
 
 ## 3. Audit of current strategy blend
 
-The current registry (`src/forex-bot/strategies/registry.py`) defines 13 strategies. Audited against the SRB-AYUMI-005 archetype criteria:
+The current registry (`src/forex_bot/strategies/registry.py`) defines 13 strategies. Audited against the SRB-AYUMI-005 archetype criteria:
 
 ### 3.1 Mean reversion strategies — match 1:1–1:1.5 archetype ✓
 
@@ -191,7 +191,7 @@ After passing the challenge, re-enable strategies that the regime analysis says 
 - FTMO Trading Objectives, https://ftmo.com/en/trading-objectives/
 - FTMO Academy, "Mean Reversion + Divergence Setup Strategy," https://ftmo.com/en/blog/mean-reversion-divergence-setup-strategy/
 - `docs/research/ayumi-signal-audit.md` — context for the "all no_signal" symptom and the strategy_timeframes fix
-- `src/forex-bot/strategies/registry.py` — current 13-strategy registry
+- `src/forex_bot/strategies/registry.py` — current 13-strategy registry
 - Companion doc: `docs/ayumi/regime/2026-07-classification.md` (card f9c0e025)
 
 ---

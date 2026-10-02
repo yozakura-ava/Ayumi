@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 
 # Setup path
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src" / "forex-bot"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src" / "forex_bot"))
 
 from backtest.types import determine_session
 from core.types import Bar, BarPeriod, MarketState

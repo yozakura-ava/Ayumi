@@ -107,12 +107,12 @@ All 40 files use module-level imports (none are lazy/inline).
 - Files with `sys.path.insert` or `sys.path.append`: **65 files** (81 total call sites)
 - Files with `Path(__file__)`: **44 references** across files
 
-**Root cause:** Tests manually inject `src/forex-bot` and `src` into `sys.path` to import project modules. After files move into subdirectories, these relative path calculations break because `Path(__file__).parent.parent` resolves to a different directory.
+**Root cause:** Tests manually inject `src/forex_bot` and `src` into `sys.path` to import project modules. After files move into subdirectories, these relative path calculations break because `Path(__file__).parent.parent` resolves to a different directory.
 
 **Fix strategy (Task 7):**
-1. Add `tests` to `pythonpath` in `pytest.ini` (currently `src/forex-bot src`, becomes `src/forex-bot src tests`)
+1. Add `tests` to `pythonpath` in `pytest.ini` (currently `src/forex_bot src`, becomes `src/forex_bot src tests`)
 2. Create `tests/_project_root.py` helper for data-path construction
-3. Remove all `sys.path.insert`/`sys.path.append` calls — they become redundant once `pythonpath` includes `src/forex-bot` and `src`
+3. Remove all `sys.path.insert`/`sys.path.append` calls — they become redundant once `pythonpath` includes `src/forex_bot` and `src`
 4. Replace `Path(__file__)`-based path construction with `from _project_root import PROJECT_ROOT`
 
 ---
@@ -234,7 +234,7 @@ All tasks use `git mv` for moves. No test logic is modified — only file locati
 - **Scope:**
   1. Update `pytest.ini`:
      ```ini
-     pythonpath = src/forex-bot src tests
+     pythonpath = src/forex_bot src tests
      ```
      (add `tests` to existing `pythonpath`)
   2. Create `tests/_project_root.py`:

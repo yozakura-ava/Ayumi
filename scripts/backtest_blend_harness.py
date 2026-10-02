@@ -52,7 +52,7 @@ if TYPE_CHECKING:
 import duckdb
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "src" / "forex-bot"))
+sys.path.insert(0, str(PROJECT_ROOT / "src" / "forex_bot"))
 
 logger = logging.getLogger("ayumi.backtest_harness")
 

@@ -3,7 +3,7 @@
 **Date:** 2026-09-14
 **Requested by:** Craig (2026-09-14 08:49 EDT directive)
 **Action:** Fold four stale Mission Control projects into Ayumi / Portfolio Intelligence and archive them.
-**Verdict:** All four were stale tracking shells (last updated 2026-07-28, zero tasks, zero milestones). Their code already lives inside Ayumi's tree at `src/forex-bot/{signal_engine, ml, forward_test, backtest}`. **No code migration required.** Consolidation = documentation + Mission Control metadata only.
+**Verdict:** All four were stale tracking shells (last updated 2026-07-28, zero tasks, zero milestones). Their code already lives inside Ayumi's tree at `src/forex_bot/{signal_engine, ml, forward_test, backtest}`. **No code migration required.** Consolidation = documentation + Mission Control metadata only.
 
 ---
 
@@ -16,11 +16,11 @@
 - **MC disposition:** archived; 1C.6 + coverage debt recorded on the Ayumi project record.
 
 ### 2. ml/ → SUPERSEDED_PARTIAL (split: Ayumi idle / Portfolio Intelligence owns live prediction loops)
-- **Evidence:** `scripts/launch_blend_forward_test.py` and `src/forex-bot/forward_test/blend_runner.py` import **nothing** from `ml/` (grep 2026-09-14). The live forward test runs strategies + regime detector + risk stack without the ML confidence layer.
+- **Evidence:** `scripts/launch_blend_forward_test.py` and `src/forex_bot/forward_test/blend_runner.py` import **nothing** from `ml/` (grep 2026-09-14). The live forward test runs strategies + regime detector + risk stack without the ML confidence layer.
 - **NOT superseded by PI:** correction — `ml/` (forex historical-feature ML) and Portfolio Intelligence (multi-asset crypto/equity prediction loops) are different domains. `per_symbol_configs.py` is the lone load-bearing ml module (TTC chain); the rest is idle for the post-FTMO blend-confidence phase.
-- **Portfolio Intelligence** (workspace `src/portfolio-intelligence/`) now owns the production prediction/outcome loop — its own `models/` (gradient_boosting, logistic, calibration, challenger lab, risk engine) and `features/` stacks, verified live 2026-09-10 (3,973 predictions, 3,766 outcomes, freshness canary armed — `docs/audits/portfolio-intelligence-audit-2026-09-10.md`).
+- **Portfolio Intelligence** (workspace `src/portfolio_intelligence/`) now owns the production prediction/outcome loop — its own `models/` (gradient_boosting, logistic, calibration, challenger lab, risk engine) and `features/` stacks, verified live 2026-09-10 (3,973 predictions, 3,766 outcomes, freshness canary armed — `docs/audits/portfolio_intelligence-audit-2026-09-10.md`).
 - **Residual in Ayumi:** `ml/blend_optimizer.py` (Optuna) + `ml/confidence_learner.py` remain roadmap infrastructure for the post-FTMO blend-confidence phase (roadmap rev 4 §3 ML Pipeline).
-- **MC disposition:** archived; prediction/outcome ownership noted on the portfolio-intelligence project record; blend-confidence remainder noted on the Ayumi record.
+- **MC disposition:** archived; prediction/outcome ownership noted on the portfolio_intelligence project record; blend-confidence remainder noted on the Ayumi record.
 
 ### 3. forward_test/ → ABSORBED_LIVE (Ayumi)
 - **Evidence:** `launch_blend_forward_test.py:66` imports `forward_test.blend_runner.BlendForwardTestRunner` — this IS the current live forward test (XAUUSD SRMR+ since Sep 10).
@@ -44,7 +44,7 @@
 | fwd-test | status → archived (2026-09-14) |
 | backtest | status → archived (2026-09-14) |
 | ayumi | description updated to absorb: signal_engine 1C.6 audit + 8/13 coverage debt; ml blend-confidence remainder; backtest blend reconciliation check |
-| portfolio-intelligence | description updated to note prediction/outcome loop ownership superseding legacy ml/ signal-generation notes |
+| portfolio_intelligence | description updated to note prediction/outcome loop ownership superseding legacy ml/ signal-generation notes |
 
 ## Documentation archive
 This document is the canonical record of the consolidation. Legacy per-project docs (workspace `docs/forex/`, `docs/research/`, Ayumi `docs/_archive/`, `docs/archive/`) remain in place as history; their tracking authority transfers to the Ayumi master roadmap (rev 4) and this record.

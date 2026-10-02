@@ -67,7 +67,7 @@ def _isolate_risk_guard_and_dependencies(monkeypatch, tmp_path):
 class TestFTMOProfile:
     @pytest.mark.xfail(reason="DEBT 6ea40384-35ba-4c41-99a6-87d843ca7f75: RiskGuard balance/peak not updated on trade record (pre-existing)", strict=False)
     def test_default_challenge_profile(self):
-        # Contract source: src/forex-bot/risk/ftmo_params.py:23 (LOCKED
+        # Contract source: src/forex_bot/risk/ftmo_params.py:23 (LOCKED
         # FTMO 1-Step Standard — DO NOT OVERRIDE), introduced in c09823b2
         # (P0 divergence fix, card 26eac23a). The previous 0.05 default
         # was 67% more permissive than the FTMO 3% daily DD limit and
@@ -97,7 +97,7 @@ class TestFTMOProfile:
     @pytest.mark.xfail(reason="DEBT 6ea40384-35ba-4c41-99a6-87d843ca7f75: RiskGuard balance/peak not updated on trade record (pre-existing)", strict=False)
 
     def test_exceeds_daily_limit_raises(self):
-        # Contract source: src/forex-bot/adapters/ctrader/risk_guard.py
+        # Contract source: src/forex_bot/adapters/ctrader/risk_guard.py
         # FTMOProfile.__post_init__ (c09823b2 intentionally converted this
         # cross-check from ValueError to UserWarning). Rationale: the FTMO
         # profile itself has risk_per_trade × max_trades > daily_loss_limit
@@ -243,7 +243,7 @@ class TestRiskGuard:
     @pytest.mark.xfail(reason="DEBT 6ea40384-35ba-4c41-99a6-87d843ca7f75: RiskGuard balance/peak not updated on trade record (pre-existing)", strict=False)
 
     def test_record_trade_updates_balance(self):
-        # Contract source: src/forex-bot/adapters/ctrader/risk_guard.py
+        # Contract source: src/forex_bot/adapters/ctrader/risk_guard.py
         # record_trade() lines 588-595 (explicit NOTE in code). The
         # authored contract is:
         #   - _current_balance is the external authoritative source
@@ -266,7 +266,7 @@ class TestRiskGuard:
     @pytest.mark.xfail(reason="DEBT 6ea40384-35ba-4c41-99a6-87d843ca7f75: RiskGuard balance/peak not updated on trade record (pre-existing)", strict=False)
 
     def test_record_trade_updates_peak_balance(self):
-        # Contract source: src/forex-bot/adapters/ctrader/risk_guard.py
+        # Contract source: src/forex_bot/adapters/ctrader/risk_guard.py
         # update_balance() / sync_live_balance() are the authoritative
         # peak-balance updaters (lines 632-668). record_trade() does NOT
         # move peak because _current_balance is unchanged by record_trade
@@ -359,7 +359,7 @@ class TestDailyLossNoTradesGuard:
     def test_daily_loss_still_triggers_after_trades(self):
         """When trades HAVE occurred, daily loss limit must still work.
 
-        Contract source: src/forex-bot/adapters/ctrader/risk_guard.py
+        Contract source: src/forex_bot/adapters/ctrader/risk_guard.py
         record_trade() (lines 588-595) deliberately does NOT add pnl to
         _current_balance. The production flow is:
           PaperTrader: update_balance(self._current_balance) → then

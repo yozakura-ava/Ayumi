@@ -8,7 +8,7 @@ Verifies that:
 5. NEUTRAL signals bypass the filter chain
 
 Run:
-    PYTHONPATH=src/forex-bot python3 -m pytest tests/test_signal_pipeline_with_filter_chain.py -v
+    PYTHONPATH=src/forex_bot python3 -m pytest tests/test_signal_pipeline_with_filter_chain.py -v
 """
 
 from __future__ import annotations
@@ -17,8 +17,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-# Ensure src/forex-bot is importable
-_forex_bot = Path(__file__).resolve().parents[1] / "src" / "forex-bot"
+# Ensure src/forex_bot is importable
+_forex_bot = Path(__file__).resolve().parents[1] / "src" / "forex_bot"
 if str(_forex_bot) not in sys.path:
     sys.path.insert(0, str(_forex_bot))
 

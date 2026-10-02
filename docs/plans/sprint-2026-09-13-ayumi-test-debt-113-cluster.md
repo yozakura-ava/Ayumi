@@ -77,14 +77,14 @@ Per dispatch, fixes decompose into child cards. This sprint is triage + xfail on
 | # | Card Title | Files Affected | Cluster | Est SP | Agent |
 |---|------------|----------------|---------|--------|-------|
 | 1 | `[FIX] Teardown isolation: tests/* → tmp_path fixtures (32 tests, ERROR cluster A)` | tests/{strategies/ict/test_confluence.py, unit/core/test_blend_runner.py, integration/test_launch_blend_forward_test_startup_retry.py, integration/test_forward_test_execution_chain.py, integration/test_ctrader_paper_trader.py, unit/forward_test/test_blend_position_close.py, ...} | A | 3.0 | tsubaki |
-| 2 | `[FIX] adapters.ctrader.models: re-export TradeSignal (9 tests, cluster B)` | src/forex-bot/adapters/ctrader/models.py, scripts/live_trading_execution.py, tests/integration/test_ctrader_risk_guard.py, tests/e2e/test_live_trading_execution.py, tests/integration/test_ctrader_execution_v2.py | B | 1.0 | riko |
+| 2 | `[FIX] adapters.ctrader.models: re-export TradeSignal (9 tests, cluster B)` | src/forex_bot/adapters/ctrader/models.py, scripts/live_trading_execution.py, tests/integration/test_ctrader_risk_guard.py, tests/e2e/test_live_trading_execution.py, tests/integration/test_ctrader_execution_v2.py | B | 1.0 | riko |
 | 3 | `[FIX] MagicMock JSON serialization in fixtures (8 tests, cluster C)` | tests/{unit/srf, integration, e2e}/... | C | 1.5 | tsubaki |
-| 4 | `[FIX] _worker_entry pickle: wrap as class method or module-instantiable (6 tests, cluster D)` | src/forex-bot/backtest/parameter_sweep/sweep_runner.py, tests/unit/core/test_sweep_runner.py | D | 1.5 | tsubaki |
-| 5 | `[FIX] ICTMarketState.calculate_atr method (6 tests, cluster E)` | src/forex-bot/backtest/ict_smc/market_state.py | E | 1.0 | tsubaki |
+| 4 | `[FIX] _worker_entry pickle: wrap as class method or module-instantiable (6 tests, cluster D)` | src/forex_bot/backtest/parameter_sweep/sweep_runner.py, tests/unit/core/test_sweep_runner.py | D | 1.5 | tsubaki |
+| 5 | `[FIX] ICTMarketState.calculate_atr method (6 tests, cluster E)` | src/forex_bot/backtest/ict_smc/market_state.py | E | 1.0 | tsubaki |
 | 6 | `[FIX] Setup fixture NoneType.__dict__ AttributeError (5 tests, cluster F)` | tests/{integration/test_launch_blend_forward_test_startup_retry.py, unit/adapters/ctrader/test_preflight_seed.py, ...} | F | 1.5 | tsubaki |
 | 7 | `[FIX] BacktestEngine.__init__ 'strategies' arg (3 tests, cluster G)` | tests/{e2e/test_portfolio_backtest.py, e2e/test_portfolio_blend.py} | G | 0.5 | tsubaki |
-| 8 | `[FIX] EngineCore._calculate_metrics signature (3 tests, cluster H)` | src/forex-bot/backtest/engine_core.py, tests/unit/core/test_engine_core.py | H | 0.5 | tsubaki |
-| 9 | `[FIX] Timeframe 30 whitelist policy (2 tests, cluster I)` | src/forex-bot/strategies/... | I | 0.5 | tsubaki |
+| 8 | `[FIX] EngineCore._calculate_metrics signature (3 tests, cluster H)` | src/forex_bot/backtest/engine_core.py, tests/unit/core/test_engine_core.py | H | 0.5 | tsubaki |
+| 9 | `[FIX] Timeframe 30 whitelist policy (2 tests, cluster I)` | src/forex_bot/strategies/... | I | 0.5 | tsubaki |
 | 10 | `[FIX-AYUMI-TEST-DEBT] Cluster L: ~15 fix-needed assertions + ~35 xfail-able` | various tests/ | L | 2.5 | tsubaki |
 
 **Total est SP for child cards**: 13.5 SP across 10 cards.

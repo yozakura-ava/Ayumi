@@ -9,7 +9,7 @@ The codebase is in **reasonable shape** but has a critical split between two for
 ## 1. Codebase Structure
 
 ```
-src/forex-bot/
+src/forex_bot/
 ├── adapters/ctrader/     # cTrader API client, paper trader, risk guard, forward test engine
 ├── backtest/             # Walk-forward engine, multi-strategy, parameter sweep, trade management
 ├── cbot/                 # cBot (C#) scripts — legacy
@@ -46,7 +46,7 @@ src/forex-bot/
 
 ## 3. TTC Signal Engine Status
 
-**Location:** `src/forex-bot/signal_engine/`
+**Location:** `src/forex_bot/signal_engine/`
 
 **Implemented (Phase 1):**
 - SwingDetector — N-bar swing detection with equal swing merging
@@ -121,7 +121,7 @@ Kai's fix addressed:
 
 ## 6. ML Pipeline Status
 
-`src/forex-bot/ml/` has 16 files:
+`src/forex_bot/ml/` has 16 files:
 - Feature engineering (`features.py`, `confluence_features.py`)
 - Optuna optimizer with per-symbol configs
 - Confidence learner
@@ -162,7 +162,7 @@ Optuna study results exist in `reports/optuna_ttc/` (23 files) and `reports/optu
 
 ## 9. Hybrid Engine v2 (New Architecture)
 
-`src/forex-bot/hybrid/` is a **new forward-test framework** being built alongside the old one:
+`src/forex_bot/hybrid/` is a **new forward-test framework** being built alongside the old one:
 - Signal types, RiskManager, HybridEngine, PaperTrader, TradeRules
 - Session filtering with London risk restrictions (AYU-129)
 - CLI signal command (AYU-120)
@@ -207,8 +207,8 @@ This is **not yet the default** — `run_live_paper.py` still uses the old `adap
 ---
 
 ## Key Files to Read Next
-- `src/forex-bot/run_live_paper.py` — full config and strategy wiring
-- `src/forex-bot/adapters/ctrader/forward_test_engine.py` — the SRMR+ forward test path
+- `src/forex_bot/run_live_paper.py` — full config and strategy wiring
+- `src/forex_bot/adapters/ctrader/forward_test_engine.py` — the SRMR+ forward test path
 - `reports/AYU-135_90day_results.json` — full 90-day trade log
-- `src/forex-bot/hybrid/engine.py` — new architecture target
+- `src/forex_bot/hybrid/engine.py` — new architecture target
 - `logs/` — any recent forward test logs

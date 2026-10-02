@@ -17,7 +17,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src" / "forex-bot"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src" / "forex_bot"))
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src"))
 
 from data.carry_signals import (  # noqa: I001

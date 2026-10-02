@@ -23,7 +23,7 @@ The `BlendForwardTestEngine` (subclass of `ForwardTestEngine`) overrides `_evalu
 
 ### 2.2 Live order execution chain
 
-**File:** `src/forex-bot/adapters/ctrader/paper_trader.py:218`
+**File:** `src/forex_bot/adapters/ctrader/paper_trader.py:218`
 
 ```python
 def _execute_order(self, signal, volume, spread, bid, ask):
@@ -36,7 +36,7 @@ Chain: `PaperTrader.process_signal()` → `_execute_order()` → `OrderManager.e
 
 ### 2.3 The `new_order()` method (where orders are sent and awaited)
 
-**File:** `src/forex-bot/adapters/ctrader/open_api_spot_feed.py:676`
+**File:** `src/forex_bot/adapters/ctrader/open_api_spot_feed.py:676`
 
 ```python
 def new_order(self, symbol_id, side, volume, ..., timeout=_ORDER_TIMEOUT_SEC) -> Order:
@@ -69,7 +69,7 @@ def new_order(self, symbol_id, side, volume, ..., timeout=_ORDER_TIMEOUT_SEC) ->
 
 ### 2.4 Execution event handling
 
-**File:** `src/forex-bot/adapters/ctrader/open_api_spot_feed.py:799`
+**File:** `src/forex_bot/adapters/ctrader/open_api_spot_feed.py:799`
 
 The `_on_message()` callback routes incoming messages by payload type:
 
@@ -81,7 +81,7 @@ The `_on_message()` callback routes incoming messages by payload type:
 
 ### 2.5 The `_handle_pending_order_error()` method (where matching happens)
 
-**File:** `src/forex-bot/adapters/ctrader/open_api_spot_feed.py:849`
+**File:** `src/forex_bot/adapters/ctrader/open_api_spot_feed.py:849`
 
 ```python
 def _handle_pending_order_error(self, message, envelope) -> bool:
@@ -120,7 +120,7 @@ ProtoOAOrderErrorEvent (2132) fields:
 
 The code reads `getattr(message, "clientOrderId", "")` which always returns `""` because the field does not exist on this protobuf message type. The correct field is `orderId`.
 
-**File:** `src/forex-bot/adapters/ctrader/open_api_spot_feed.py:852`
+**File:** `src/forex_bot/adapters/ctrader/open_api_spot_feed.py:852`
 ```python
 client_order_id = getattr(message, "clientOrderId", "")  # Always "" for ProtoOAOrderErrorEvent
 ```
@@ -148,7 +148,7 @@ The perfectly consistent 10-second gap = `_ORDER_TIMEOUT_SEC`. The `event.wait(t
 
 ### 3.4 The errback doesn't set the event
 
-**File:** `src/forex-bot/adapters/ctrader/open_api_spot_feed.py:728`
+**File:** `src/forex_bot/adapters/ctrader/open_api_spot_feed.py:728`
 
 ```python
 def do_send():
@@ -160,7 +160,7 @@ Only an errback is registered — no success callback. Even if the library's def
 
 ### 3.5 The `execute_live_order` return path masks the failure
 
-**File:** `src/forex-bot/adapters/ctrader/order_manager.py:155-180`
+**File:** `src/forex_bot/adapters/ctrader/order_manager.py:155-180`
 
 When `new_order()` returns with `status=OrderStatus.PENDING` (timeout):
 
@@ -186,7 +186,7 @@ elif order.status == OrderStatus.REJECTED:
 
 ### 4.1 PaperTrader balance is local-only
 
-**File:** `src/forex-bot/adapters/ctrader/paper_trader.py:115`
+**File:** `src/forex_bot/adapters/ctrader/paper_trader.py:115`
 
 ```python
 self._current_balance = starting_balance   # = $10,000.00

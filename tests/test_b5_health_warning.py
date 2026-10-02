@@ -31,10 +31,10 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
-# Ensure src/forex-bot is on path for direct script import (mirrors layout
+# Ensure src/forex_bot is on path for direct script import (mirrors layout
 # used by tests/unit/adapters/ctrader/test_preflight_seed.py).
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(_PROJECT_ROOT / "src" / "forex-bot"))
+sys.path.insert(0, str(_PROJECT_ROOT / "src" / "forex_bot"))
 sys.path.insert(0, str(_PROJECT_ROOT / "scripts"))
 
 import launch_blend_forward_test as _launcher  # noqa: E402

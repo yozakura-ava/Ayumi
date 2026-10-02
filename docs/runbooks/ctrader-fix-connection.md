@@ -31,7 +31,7 @@ Both share: host, SenderCompID, TargetCompID, account, password.
 
 ## Issue 2: Market Data Feed Using Trade Credentials
 
-**File:** `src/forex-bot/adapters/ctrader/forward_test_engine.py` (~line 319)  
+**File:** `src/forex_bot/adapters/ctrader/forward_test_engine.py` (~line 319)  
 **Symptom:** Market data feed fails to connect or receives no ticks  
 **Root cause:** `_start_market_feed()` used `self._credentials` (TRADE, port 5212) when passed externally from the launcher. Quote feed needs QUOTE credentials (port 5211).  
 **Fix:** Changed to always call `self._build_quote_credentials()` regardless of passed credentials.
@@ -53,7 +53,7 @@ Both share: host, SenderCompID, TargetCompID, account, password.
 
 ## Issue 4: Symbol Discovery Failures
 
-**File:** `src/forex-bot/adapters/ctrader/symbol_discovery.py`  
+**File:** `src/forex_bot/adapters/ctrader/symbol_discovery.py`  
 **Symptom:** SecurityListRequest rejected — missing tag 559, Invalid MsgType  
 **Workaround:** Hardcoded `DEFAULT_SYMBOLS` in `market_data_feed.py` (GBP/USD=2)  
 **TODO:** Fix SecurityListRequest to include required tag 559 (SecurityReqID) and correct MsgType.

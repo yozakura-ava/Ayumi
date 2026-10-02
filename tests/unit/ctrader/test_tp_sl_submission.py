@@ -31,10 +31,10 @@ import sys
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-# Ensure src/forex-bot is importable
+# Ensure src/forex_bot is importable
 sys.path.insert(
     0,
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "src", "forex-bot"),
+    os.path.join(os.path.dirname(__file__), "..", "..", "..", "src", "forex_bot"),
 )
 
 

@@ -40,7 +40,7 @@ This is correct cTrader behavior — the proto `ProtoOANewOrderReq` accepts SL/T
 
 ### Step 1 — `StrategySignal` dataclass (TP/SL fields exist)
 
-**File:** `src/forex-bot/core/types.py:89-99`
+**File:** `src/forex_bot/core/types.py:89-99`
 ```python
 @dataclass
 class StrategySignal:
@@ -58,7 +58,7 @@ class StrategySignal:
 
 ### Step 2 — Strategy actually computes TP1/TP2/TP3
 
-**File:** `src/forex-bot/strategies/session_breakout.py:240-255` (representative — same pattern in `srmr_plus.py`, `momentum.py`, `rsi_threshold.py`, `bb_rsi_reversion.py`, `volatility_squeeze.py`)
+**File:** `src/forex_bot/strategies/session_breakout.py:240-255` (representative — same pattern in `srmr_plus.py`, `momentum.py`, `rsi_threshold.py`, `bb_rsi_reversion.py`, `volatility_squeeze.py`)
 ```python
 if direction == TradeDirection.LONG:
     stop_loss = entry - sl_distance
@@ -75,7 +75,7 @@ else:
 
 ### Step 3 — `cTraderSignalAdapter` preserves all three TPs
 
-**File:** `src/forex-bot/adapters/ctrader/signal_adapter.py:64-74`
+**File:** `src/forex_bot/adapters/ctrader/signal_adapter.py:64-74`
 ```python
 trade_signal = TradeSignal(
     symbol=self._symbol,
@@ -95,7 +95,7 @@ trade_signal = TradeSignal(
 
 ### Step 4 — `engine/trading_orchestrator.py` also preserves them
 
-**File:** `src/forex-bot/engine/trading_orchestrator.py:684-694`
+**File:** `src/forex_bot/engine/trading_orchestrator.py:684-694`
 ```python
 trade_signal = TradeSignal(
     symbol=symbol,
@@ -115,7 +115,7 @@ trade_signal = TradeSignal(
 
 ### Step 5 — cTrader `TradeSignal` dataclass has all three fields
 
-**File:** `src/forex-bot/adapters/ctrader/models.py:89-101`
+**File:** `src/forex_bot/adapters/ctrader/models.py:89-101`
 ```python
 @dataclass
 class TradeSignal:
@@ -136,7 +136,7 @@ class TradeSignal:
 
 ### Step 6 — Market order is sent naked (intentional)
 
-**File:** `src/forex-bot/adapters/ctrader/forward_test_engine.py:1271-1276`
+**File:** `src/forex_bot/adapters/ctrader/forward_test_engine.py:1271-1276`
 ```python
 # cTrader rejects absolute SL/TP on MARKET orders with INVALID_REQUEST.
 # Send the market order naked, then attach SL/TP via position amend after fill.
@@ -154,7 +154,7 @@ order = self._market_feed.new_order(
 
 ### Step 7 — Post-fill amend drops TP2 and TP3 (THE BUG)
 
-**File:** `src/forex-bot/adapters/ctrader/forward_test_engine.py:1274-1285`
+**File:** `src/forex_bot/adapters/ctrader/forward_test_engine.py:1274-1285`
 ```python
 # If the order filled, attach SL/TP to the resulting position.
 if outcome.status == LiveExecutionStatus.FILLED and signal.stop_loss and signal.take_profit_1:
@@ -172,7 +172,7 @@ Also note: `signal.take_profit_1` is used in the conditional guard (`signal.stop
 
 ### Step 8 — Late-fill callback also drops TP2/TP3 (SAME BUG)
 
-**File:** `src/forex-bot/adapters/ctrader/forward_test_engine.py:1567-1582`
+**File:** `src/forex_bot/adapters/ctrader/forward_test_engine.py:1567-1582`
 ```python
 if (signal.stop_loss is not None
         and signal.take_profit_1 is not None
@@ -191,7 +191,7 @@ if (signal.stop_loss is not None
 
 ### Step 9 — `paper_trader` is single-TP only (parallel bug)
 
-**File:** `src/forex-bot/adapters/ctrader/paper_trader.py:236-249`
+**File:** `src/forex_bot/adapters/ctrader/paper_trader.py:236-249`
 ```python
 def _execute_order(
     self,
@@ -219,7 +219,7 @@ def _execute_order(
 ```
 ❌ **GAP #3 (paper path):** Even the paper/paper-live path forwards only TP1 to the order manager. Paper sim would only have TP1 as a target.
 
-Confirmed by `grep -n "take_profit" src/forex-bot/adapters/ctrader/paper_trader.py`:
+Confirmed by `grep -n "take_profit" src/forex_bot/adapters/ctrader/paper_trader.py`:
 ```
 125:                take_profit=signal.take_profit_1,
 200:                                tp_price=float(signal.take_profit_1),
@@ -230,13 +230,13 @@ Four references — all to TP1, zero to TP2/TP3.
 
 ### Step 10 — `position_monitor` does no TP2/TP3 ratcheting
 
-**File:** `src/forex-bot/adapters/ctrader/position_monitor.py:60-127`
+**File:** `src/forex_bot/adapters/ctrader/position_monitor.py:60-127`
 
 The monitor only tracks MAE/MFE, water marks, and time-in-trade. There is no TP-ratcheting logic — once TP1 hits, the position continues to run (against TP2/TP3 if they were on the position) but the bot has no software-side TP2/TP3 management.
 
 ### Step 11 — `amend_sl_tp` proto limitation (root architectural constraint)
 
-**File:** `src/forex-bot/adapters/ctrader/open_api_spot_feed.py:1018-1068`
+**File:** `src/forex_bot/adapters/ctrader/open_api_spot_feed.py:1018-1068`
 ```python
 def amend_sl_tp(self, position_id, sl, tp, *, symbol_id=None, timeout=_AMEND_TIMEOUT_SEC) -> bool:
     ...
@@ -259,8 +259,8 @@ Three fix locations are available, in increasing order of complexity:
 
 ### Option A — Accept single-TP and document it (smallest fix)
 
-1. **`src/forex-bot/strategies/session_breakout.py` (and siblings)** — keep computing TP2/TP3 for stats/logging, but only forward TP1 to the broker.
-2. **`src/forex-bot/adapters/ctrader/signal_adapter.py:64-74`** — already correct, no change.
+1. **`src/forex_bot/strategies/session_breakout.py` (and siblings)** — keep computing TP2/TP3 for stats/logging, but only forward TP1 to the broker.
+2. **`src/forex_bot/adapters/ctrader/signal_adapter.py:64-74`** — already correct, no change.
 3. **`docs/forex/forex-position-size-risk-calculator-research.md`** — document that the live engine uses TP1 as the broker-side TP, and TP2/TP3 are software-side exit levels requiring in-process management (see Option C).
 
 This is the minimum-change path: the live execution layer already does TP1 correctly. The behavior gap is in strategy docs that imply multi-level TP exits happen at the broker — they don't.
@@ -278,8 +278,8 @@ When TP2 hits:
 3. Set TP3 on remaining via `amend_sl_tp(position_id, sl=tp1, tp=signal.take_profit_3)`.
 
 **Where to wire this:** Add a new method `PositionMonitor.on_price_cross(position, level) -> Optional[Action]` that fires on TP1/TP2/TP3 crossing. New code lives in:
-- `src/forex-bot/adapters/ctrader/position_monitor.py` — add `check_tp_levels()` called from the existing `update_positions()` loop.
-- `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` — already has `close_position(position_id, volume, ...)` that accepts partial volume.
+- `src/forex_bot/adapters/ctrader/position_monitor.py` — add `check_tp_levels()` called from the existing `update_positions()` loop.
+- `src/forex_bot/adapters/ctrader/open_api_spot_feed.py` — already has `close_position(position_id, volume, ...)` that accepts partial volume.
 
 **Risk:** requires price-crossing detection + position-state tracking to know whether TP1 has already fired (no idempotency in current monitor).
 
@@ -290,7 +290,7 @@ Replace broker-side SL/TP entirely with a software TP manager:
 - Removes the `amend_sl_tp` post-fill step entirely (or uses it only for SL breakeven moves).
 - Requires: tracking per-position "remaining volume" and "which TP levels already fired", plus a kill switch if the bot dies while a TP is uncrossed.
 
-**Where:** New module `src/forex-bot/adapters/ctrader/tp_ladder.py` with a `TpLadderManager` class. Wired into `forward_test_engine._wire_live_fill_callbacks` and `position_monitor.update_positions`.
+**Where:** New module `src/forex_bot/adapters/ctrader/tp_ladder.py` with a `TpLadderManager` class. Wired into `forward_test_engine._wire_live_fill_callbacks` and `position_monitor.update_positions`.
 
 **Risk:** requires careful reconciliation if bot restarts mid-position — must replay broker state on startup.
 
@@ -323,9 +323,9 @@ This gives multi-level TP exits within the cTrader proto constraint without the 
 
 ## Evidence
 
-- `grep -n "take_profit_2\|take_profit_3" src/forex-bot/adapters/ctrader/forward_test_engine.py` → no matches.
-- `grep -n "take_profit_2\|take_profit_3" src/forex-bot/adapters/ctrader/paper_trader.py` → no matches.
-- `grep -rn "take_profit_2\|take_profit_3" src/forex-bot/adapters/ctrader/` (excluding backtest/) → only `models.py`, `signal_adapter.py`, `portfolio_risk_guard.py`, `protocols.py`, and `forward_test_engine.py:1274/1278` references — the latter two are guards/checks for `tp1 is not None`, never `tp2`/`tp3` usage.
+- `grep -n "take_profit_2\|take_profit_3" src/forex_bot/adapters/ctrader/forward_test_engine.py` → no matches.
+- `grep -n "take_profit_2\|take_profit_3" src/forex_bot/adapters/ctrader/paper_trader.py` → no matches.
+- `grep -rn "take_profit_2\|take_profit_3" src/forex_bot/adapters/ctrader/` (excluding backtest/) → only `models.py`, `signal_adapter.py`, `portfolio_risk_guard.py`, `protocols.py`, and `forward_test_engine.py:1274/1278` references — the latter two are guards/checks for `tp1 is not None`, never `tp2`/`tp3` usage.
 
 The TP2/TP3 fields exist on every dataclass and are computed by every strategy, but no broker-bound call site references them.
 ---

@@ -44,7 +44,7 @@ from typing import Any, Callable, Optional
 
 # Repo layout: scripts/audit_bar_close.py -> repo root is parent.parent
 _REPO = Path(__file__).resolve().parents[1]
-for p in (str(_REPO / "src" / "forex-bot"), str(_REPO / "src")):
+for p in (str(_REPO / "src" / "forex_bot"), str(_REPO / "src")):
     if p not in sys.path:
         sys.path.insert(0, p)
 

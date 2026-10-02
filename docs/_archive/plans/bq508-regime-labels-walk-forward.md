@@ -25,8 +25,8 @@ The regime detection code (`quant/regime.py`) is fully built and production-read
 
 | File | Change |
 |------|--------|
-| `src/forex-bot/quant/walk_forward.py` | Add regime fields to `WindowMetrics`; compute regime in `_compute_metrics`; add helper to extract OHLC series from bars |
-| `src/forex-bot/backtest/walk_forward_runner.py` | Pass bar data to `_compute_metrics` calls in `run_strategy_walk_forward` and `run_multi_strategy_walk_forward` so regime can be computed |
+| `src/forex_bot/quant/walk_forward.py` | Add regime fields to `WindowMetrics`; compute regime in `_compute_metrics`; add helper to extract OHLC series from bars |
+| `src/forex_bot/backtest/walk_forward_runner.py` | Pass bar data to `_compute_metrics` calls in `run_strategy_walk_forward` and `run_multi_strategy_walk_forward` so regime can be computed |
 | `tests/` | New test file for regime label integration |
 
 ### Files NOT Changed

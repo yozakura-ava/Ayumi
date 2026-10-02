@@ -7,11 +7,11 @@
 
 ## Current State
 
-- `kelly_criterion(win_rate, avg_win, avg_loss)` exists in `src/forex-bot/quant/position_sizing.py`
+- `kelly_criterion(win_rate, avg_win, avg_loss)` exists in `src/forex_bot/quant/position_sizing.py`
   - Returns Half-Kelly, capped at 50% of bankroll
   - Returns 0.0 if inputs are invalid or Kelly is negative
 - `MultiStrategyBacktestEngine` uses `ConfidencePositionSizer` exclusively (confidence-tier → fixed risk %)
-- `ConfidencePositionSizer` is defined in `src/forex-bot/signal_engine/risk_sizer.py`
+- `ConfidencePositionSizer` is defined in `src/forex_bot/signal_engine/risk_sizer.py`
 - The engine tracks closed trades per run and computes `win_rate`, `avg_win`, `avg_loss` in `_calculate_metrics()` — **but only after the run completes**
 - During a run, `_open_trade()` calls `self.risk_sizer.get_risk_amount(signal.confidence)` for position sizing
 
@@ -49,9 +49,9 @@ During the first 10 trades of a strategy run, there's insufficient data for Kell
 
 | File | Change |
 |------|--------|
-| `src/forex-bot/backtest/multi_strategy_engine.py` | Add `KellyConfig` dataclass, rolling trade tracker, integrate Kelly into `_open_trade()` |
-| `src/forex-bot/backtest/engine.py` | No changes (types re-exported, no modifications needed) |
-| `src/forex-bot/quant/position_sizing.py` | No changes (function already correct) |
+| `src/forex_bot/backtest/multi_strategy_engine.py` | Add `KellyConfig` dataclass, rolling trade tracker, integrate Kelly into `_open_trade()` |
+| `src/forex_bot/backtest/engine.py` | No changes (types re-exported, no modifications needed) |
+| `src/forex_bot/quant/position_sizing.py` | No changes (function already correct) |
 | `tests/` | New test file `tests/test_kelly_backtest_integration.py` |
 
 ### Exact Changes in `multi_strategy_engine.py`

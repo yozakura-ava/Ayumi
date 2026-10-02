@@ -6,7 +6,7 @@ import os
 import sys
 import time
 
-sys.path.insert(0, "src/forex-bot")
+sys.path.insert(0, "src/forex_bot")
 os.chdir("$AYUMI_ROOT")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s")

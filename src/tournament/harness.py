@@ -53,7 +53,7 @@ logger = logging.getLogger("ayumi.tournament.harness")
 # need (card risk 2: side-effect imports).
 #
 # To add a new strategy to the tournament: add ONE entry here.  Strategy
-# source code under src/forex-bot/strategies/ remains unmodified.
+# source code under src/forex_bot/strategies/ remains unmodified.
 STRATEGY_CLASS_MAP: dict[str, str] = {
     # id : "module:class_name"
     # ── Pre-existing (card db04d5b5) ──
@@ -104,7 +104,7 @@ def _build_strategy_instance(strategy_id: str, symbol: str | None = None):
     For strategies whose config can be symbol-aware (e.g. ``SRMRPlusConfig``
     needs ``symbol`` to resolve pip size for USDJPY), the harness passes
     the active symbol so the strategy runs unmodified — no code change
-    is ever needed inside src/forex-bot/strategies/.
+    is ever needed inside src/forex_bot/strategies/.
 
     Side-effect imports (e.g. yaml loaders) are isolated to first-call;
     subsequent imports hit the module cache.
@@ -596,7 +596,7 @@ def _extract_signals_from_strategy(
     list-copy of ``bars_window`` when constructing ``MarketState``;
     each bar's ``MarketState(bars=list(bars_window))`` was O(N), so
     across N bars the harness did N²/2 list copies.  Verified by
-    grep across ``src/forex-bot/strategies/*.py``: zero strategies
+    grep across ``src/forex_bot/strategies/*.py``: zero strategies
     mutate ``state.bars`` (no append/extend/insert/remove/pop/clear/
     __setitem__); passing the live ``bars_window`` reference is
     therefore safe and turns the harness from O(N²) to O(N) without
@@ -652,7 +652,7 @@ def _extract_signals_from_strategy(
             # Card b1bb93e8: skip the O(N) list-copy of `bars_window`
             # when constructing ``MarketState``.  The strategies
             # read but never mutate ``state.bars`` (verified by
-            # grep across ``src/forex-bot/strategies/*.py``: zero
+            # grep across ``src/forex_bot/strategies/*.py``: zero
             # append/extend/insert/remove/pop/clear/__setitem__
             # operations on ``state.bars``); passing the live list
             # is therefore safe and turns the harness from O(N²)

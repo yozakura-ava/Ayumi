@@ -11,7 +11,7 @@ FIX 4.4 protocol code superseded by cTrader Open API migration.
 - `run_live_paper.py` — FIX-only live paper trading script
 
 ## order_manager.py (NOT archived)
-Kept in `src/forex-bot/adapters/ctrader/order_manager.py`. While it contains dead FIX live-execution paths (now unreachable since `api_client.py` is archived), it also provides active position-sizing and paper-order logic used by `forward_test_engine.py` and `paper_trader.py`. Sprint 2 cleaned the dead `TYPE_CHECKING` import and type hints referencing the archived `cTraderAPIClient`.
+Kept in `src/forex_bot/adapters/ctrader/order_manager.py`. While it contains dead FIX live-execution paths (now unreachable since `api_client.py` is archived), it also provides active position-sizing and paper-order logic used by `forward_test_engine.py` and `paper_trader.py`. Sprint 2 cleaned the dead `TYPE_CHECKING` import and type hints referencing the archived `cTraderAPIClient`.
 
 ## obsolete-scripts/
 Test and utility scripts for the FIX protocol, Dukascopy data, and onboarding artifacts.

@@ -34,7 +34,7 @@ from pathlib import Path
 
 WORKSPACE = Path("$AYUMI_ROOT")
 LAUNCHER = WORKSPACE / "scripts" / "launch_blend_forward_test.py"
-ENGINE = WORKSPACE / "src" / "forex-bot" / "adapters" / "ctrader" / "forward_test_engine.py"
+ENGINE = WORKSPACE / "src" / "forex_bot" / "adapters" / "ctrader" / "forward_test_engine.py"
 
 
 # ---------------------------------------------------------------------------
@@ -44,7 +44,7 @@ ENGINE = WORKSPACE / "src" / "forex-bot" / "adapters" / "ctrader" / "forward_tes
 
 def test_blend_runner_has_make_signal_id_method():
     """The canonical helper must exist on BlendForwardTestRunner."""
-    sys.path.insert(0, str(WORKSPACE / "src" / "forex-bot"))
+    sys.path.insert(0, str(WORKSPACE / "src" / "forex_bot"))
     from forward_test.blend_runner import BlendForwardTestRunner
 
     assert hasattr(BlendForwardTestRunner, "make_signal_id"), (
@@ -55,7 +55,7 @@ def test_blend_runner_has_make_signal_id_method():
 
 def test_blend_runner_make_signal_id_uses_strategy_id_and_timestamp():
     """make_signal_id must produce 'strategy_id' + '_' + str(timestamp)."""
-    sys.path.insert(0, str(WORKSPACE / "src" / "forex-bot"))
+    sys.path.insert(0, str(WORKSPACE / "src" / "forex_bot"))
     from datetime import datetime, timezone
 
     from adapters.ctrader.signal_adapter import CTraderTradeSignal
@@ -90,7 +90,7 @@ def test_blend_runner_on_signal_uses_make_signal_id():
     """The on_signal() registration MUST use make_signal_id() — otherwise
     the helper and the actual registration can drift.
     """
-    src = (WORKSPACE / "src" / "forex-bot" / "forward_test" / "blend_runner.py").read_text()
+    src = (WORKSPACE / "src" / "forex_bot" / "forward_test" / "blend_runner.py").read_text()
     # Find the on_signal function body
     tree = ast.parse(src)
     on_signal_node = None

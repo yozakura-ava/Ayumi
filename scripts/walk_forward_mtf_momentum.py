@@ -3,7 +3,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src", "forex-bot"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src", "forex_bot"))
 
 from backtest.data_loader import CsvDataLoader
 from backtest.walk_forward_runner import run_strategy_walk_forward

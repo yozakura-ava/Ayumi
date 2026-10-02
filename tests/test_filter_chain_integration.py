@@ -34,7 +34,7 @@ def sample_opening_range():
 @pytest.fixture
 def strategies_yaml_path():
     """Path to the live strategies.yaml."""
-    return Path(__file__).parent.parent / "src" / "forex-bot" / "config" / "strategies.yaml"
+    return Path(__file__).parent.parent / "src" / "forex_bot" / "config" / "strategies.yaml"
 
 
 # ── Test 1: Default chain (trend → atr → fvg) ─────────────────────────────

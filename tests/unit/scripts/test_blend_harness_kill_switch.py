@@ -28,9 +28,9 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
-# Ensure src/forex-bot is importable for risk.ftmo_guard + adapters.ctrader
+# Ensure src/forex_bot is importable for risk.ftmo_guard + adapters.ctrader
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-_SRC = _REPO_ROOT / "src" / "forex-bot"
+_SRC = _REPO_ROOT / "src" / "forex_bot"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 

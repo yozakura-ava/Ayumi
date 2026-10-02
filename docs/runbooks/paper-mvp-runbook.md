@@ -147,11 +147,11 @@ sqlite3 data/trading.db "SELECT COUNT(*) as total, SUM(CASE WHEN realized_pnl > 
 ## Strategies
 
 ### Active Strategies
-Strategies are defined in `src/forex-bot/strategies/`. The MVP loads a blend from `run_paper_mvp`.
+Strategies are defined in `src/forex_bot/strategies/`. The MVP loads a blend from `run_paper_mvp`.
 
 ### Adding/Modifying a Strategy
 
-1. Create or edit the strategy in `src/forex-bot/strategies/`
+1. Create or edit the strategy in `src/forex_bot/strategies/`
 2. Register it in the strategy factory (see `backtest/parameter_sweep/`)
 3. Run a backtest to validate (see below)
 4. Update `run_paper_mvp` to include the strategy
@@ -161,7 +161,7 @@ Strategies are defined in `src/forex-bot/strategies/`. The MVP loads a blend fro
 
 ```bash
 source .venv/bin/activate
-PYTHONPATH=src/forex-bot:src python scripts/run_walk_forward.py
+PYTHONPATH=src/forex_bot:src python scripts/run_walk_forward.py
 ```
 
 Strategy-specific backtest scripts live in `scripts/` (e.g., `run_tts_walkforward.py`, `run_scalper_m5_walkforward.py`).
@@ -176,12 +176,12 @@ Strategy-specific backtest scripts live in `scripts/` (e.g., `run_tts_walkforwar
 | `deploy/setup.sh` | Installation script |
 | `deploy/logrotate-ayumi` | Log rotation config |
 | `scripts/paper_status.sh` | Quick health check |
-| `src/forex-bot/run_paper_mvp` | Main entry point |
-| `src/forex-bot/alerting.py` | AlertManager + channels |
-| `src/forex-bot/storage/trade_store.py` | SQLite trade store |
-| `src/forex-bot/storage/migrations.py` | DB schema migrations |
-| `src/forex-bot/strategies/` | Strategy implementations |
-| `src/forex-bot/adapters/ctrader/` | cTrader connection adapters |
+| `src/forex_bot/run_paper_mvp` | Main entry point |
+| `src/forex_bot/alerting.py` | AlertManager + channels |
+| `src/forex_bot/storage/trade_store.py` | SQLite trade store |
+| `src/forex_bot/storage/migrations.py` | DB schema migrations |
+| `src/forex_bot/strategies/` | Strategy implementations |
+| `src/forex_bot/adapters/ctrader/` | cTrader connection adapters |
 | `data/trading.db` | Live trading database |
 | `logs/alerts.log` | Alert log |
 | `logs/*.log` | Application logs (rotated daily, 30-day retention) |

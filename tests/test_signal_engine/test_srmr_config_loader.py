@@ -2,7 +2,7 @@
 
 The forward test launcher previously instantiated SRMRPlusConfig() with
 defaults, producing 0 signals for XAUUSD. The Optuna-validated params
-(PF=7.16, WR=73.4%) live in src/forex-bot/config/strategies.yaml. These
+(PF=7.16, WR=73.4%) live in src/forex_bot/config/strategies.yaml. These
 tests pin down the loader behavior so production wiring stays correct.
 """
 
@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-_FOREX_SRC = str(Path(__file__).resolve().parent.parent.parent / "src" / "forex-bot")
+_FOREX_SRC = str(Path(__file__).resolve().parent.parent.parent / "src" / "forex_bot")
 if _FOREX_SRC not in sys.path:
     sys.path.insert(0, _FOREX_SRC)
 
@@ -25,7 +25,7 @@ from strategies.srmr_plus import (  # noqa: E402  (sys.path tweak above)
 )
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-_STRATEGIES_YAML = _REPO_ROOT / "src" / "forex-bot" / "config" / "strategies.yaml"
+_STRATEGIES_YAML = _REPO_ROOT / "src" / "forex_bot" / "config" / "strategies.yaml"
 
 # Validated values (mirror strategies.yaml:164-183)
 _XAUUSD_M15_PARAMS = {

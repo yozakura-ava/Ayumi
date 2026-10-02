@@ -15,13 +15,13 @@
 
 ## Snapshot Package (`_pkg/`)
 
-A frozen copy of these files plus all modules they reference via relative imports. Used by the compatibility shims in `src/forex-bot/adapters/ctrader/` so the legacy launcher and its tests continue to work.
+A frozen copy of these files plus all modules they reference via relative imports. Used by the compatibility shims in `src/forex_bot/adapters/ctrader/` so the legacy launcher and its tests continue to work.
 
-Do not import from `_pkg` directly in new code. The modern equivalents are in `src/forex-bot/adapters/ctrader/`.
+Do not import from `_pkg` directly in new code. The modern equivalents are in `src/forex_bot/adapters/ctrader/`.
 
 ## Compatibility Shims
 
-Five shim files in `src/forex-bot/adapters/ctrader/` re-export from `archive.legacy_ctrader._pkg`:
+Five shim files in `src/forex_bot/adapters/ctrader/` re-export from `archive.legacy_ctrader._pkg`:
 - `auth.py` → `archive.legacy_ctrader._pkg.auth`
 - `credentials.py` → `archive.legacy_ctrader._pkg.credentials`
 - `oauth_refresh.py` → `archive.legacy_ctrader._pkg.oauth_refresh`

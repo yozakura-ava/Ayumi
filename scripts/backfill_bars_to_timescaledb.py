@@ -23,7 +23,7 @@ from psycopg2.extras import execute_values
 
 # Ensure project root is on path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "src" / "forex-bot"))
+sys.path.insert(0, str(PROJECT_ROOT / "src" / "forex_bot"))
 
 from adapters.ctrader.open_api_client import CTraderOpenApiClient
 

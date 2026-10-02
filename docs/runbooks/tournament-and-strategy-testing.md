@@ -21,7 +21,7 @@
 
 ## Strategy Lifecycle
 
-1. **Write** the strategy under `src/forex-bot/strategies/` — constructor may take `config=` or not; `initialize()` is optional.
+1. **Write** the strategy under `src/forex_bot/strategies/` — constructor may take `config=` or not; `initialize()` is optional.
 2. **Register** in `STRATEGY_CLASS_MAP` (`src/tournament/harness.py`). The adapter (`_build_strategy_instance`) introspects constructors via `inspect.signature` and guards `initialize`/`shutdown` with `hasattr` — so interface mismatches can no longer silently skip strategies (see Findings #1).
 3. **Smoke** on a short EURUSD window; then full-window tournament run. Zero signals on a *full* window = harness/window bug, not "no edge" — investigate before believing rankings.
 4. **Sweep** (planned, card `48243dbc`): parameter grids ranked by robustness (median/worst-quartile return, % FTMO-passing cells) with sweep/holdout window split — never crown a single default-config winner.

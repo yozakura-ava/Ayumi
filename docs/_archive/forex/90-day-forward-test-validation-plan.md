@@ -356,9 +356,9 @@ Based on `forward-test-protocol.md`:
 | Forward Test Protocol | `docs/forex/forward-test-protocol.md` | Active |
 | Walk-Forward Evaluation | `docs/forex/hybrid-strategy-walk-forward-evaluation.md` | NO-GO (AYUAA-221) |
 | FTMO Risk Parameters | `docs/forex/ftmo-challenge-risk-parameters-and-trade-plan.md` | Done (AYUAA-54) |
-| Go/No-Go Criteria | `src/forex-bot/quant/go_nogo_criteria.py` | Implemented |
-| Statistical Validation | `src/forex-bot/quant/statistical_validation.py` | Implemented |
-| Walk Forward Engine | `src/forex-bot/quant/walk_forward.py` | Implemented |
+| Go/No-Go Criteria | `src/forex_bot/quant/go_nogo_criteria.py` | Implemented |
+| Statistical Validation | `src/forex_bot/quant/statistical_validation.py` | Implemented |
+| Walk Forward Engine | `src/forex_bot/quant/walk_forward.py` | Implemented |
 | QA Gate Analysis | `docs/forex/qa-gate-evaluation-analysis-april2026.md` | Completed |
 
 ---

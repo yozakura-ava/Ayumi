@@ -2,7 +2,7 @@ import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src", "forex-bot"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src", "forex_bot"))
 
 from backtest.engine import Bar, MarketState, TradeDirection
 from strategies.usdjpy_d1_trend import USDJPYD1TrendStrategy

@@ -29,7 +29,7 @@ SRMRPlusStrategy(config=SRMRPlusConfig(symbol="XAUUSD"))
 
 This passes only `symbol="XAUUSD"` — every other parameter takes the **default** value from `SRMRPlusConfig`.
 
-Meanwhile, the validated XAUUSD M15 config exists in `src/forex-bot/config/strategies.yaml` under `srmr_xauusd_m15`, with Optuna+WF-optimized params (PF=7.16, WR=73.4%, 227 trades, $11,994 PnL/window — the strongest stream in the portfolio). **The forward test does not use these params.**
+Meanwhile, the validated XAUUSD M15 config exists in `src/forex_bot/config/strategies.yaml` under `srmr_xauusd_m15`, with Optuna+WF-optimized params (PF=7.16, WR=73.4%, 227 trades, $11,994 PnL/window — the strongest stream in the portfolio). **The forward test does not use these params.**
 
 | Parameter | Default (in use) | Optimized `srmr_xauusd_m15` |
 |---|---|---|

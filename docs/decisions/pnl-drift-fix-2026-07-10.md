@@ -21,7 +21,7 @@ without re-deriving the analysis.
 
 ## Root A — `RiskGuard.record_trade()` double-counted realised P&L
 
-**File:** `src/forex-bot/adapters/ctrader/risk_guard.py`
+**File:** `src/forex_bot/adapters/ctrader/risk_guard.py`
 
 **Symptom:** Every close of a position added `pnl` a second time to `_current_balance`.
 
@@ -46,7 +46,7 @@ def record_trade(self, pnl: float) -> None:
 
 ## Root B — `PaperTrader.close_position()` double-counted on close
 
-**File:** `src/forex-bot/adapters/ctrader/paper_trader.py`
+**File:** `src/forex_bot/adapters/ctrader/paper_trader.py`
 
 **Symptom:** On every position close, `closed_pnl` was added to `_current_balance`, stacking on
 top of the value that `update_market_prices()` had just written.
@@ -74,7 +74,7 @@ def close_position(self, closed_pnl: float) -> None:
 
 ## Root C — `_sync_live_balance()` rollover detection only fired once ever
 
-**File:** `src/forex-bot/adapters/ctrader/forward_test_engine.py`
+**File:** `src/forex_bot/adapters/ctrader/forward_test_engine.py`
 
 **Symptom:** Mid-day engine restarts loaded a stale `daily_start_balance` from persisted state.
 The FTMO daily-loss trigger used that stale value as the baseline, suppressing alerts until the

@@ -20,8 +20,8 @@ def minimal_engine():
     import sys
     from pathlib import Path
 
-    # Ensure src/forex-bot is importable
-    src = str(Path(__file__).resolve().parents[3] / "src" / "forex-bot")
+    # Ensure src/forex_bot is importable
+    src = str(Path(__file__).resolve().parents[3] / "src" / "forex_bot")
     if src not in sys.path:
         sys.path.insert(0, src)
 
@@ -43,7 +43,7 @@ class TestStatsFailReset:
         import sys
         from pathlib import Path
 
-        src = str(Path(__file__).resolve().parents[3] / "src" / "forex-bot")
+        src = str(Path(__file__).resolve().parents[3] / "src" / "forex_bot")
         if src not in sys.path:
             sys.path.insert(0, src)
 
@@ -63,7 +63,7 @@ class TestStatsFailReset:
         import sys
         from pathlib import Path
 
-        src = str(Path(__file__).resolve().parents[3] / "src" / "forex-bot")
+        src = str(Path(__file__).resolve().parents[3] / "src" / "forex_bot")
         if src not in sys.path:
             sys.path.insert(0, src)
 
@@ -132,7 +132,7 @@ class TestStatsRecorderIntegration:
         import sys
         from pathlib import Path
 
-        src = str(Path(__file__).resolve().parents[3] / "src" / "forex-bot")
+        src = str(Path(__file__).resolve().parents[3] / "src" / "forex_bot")
         if src not in sys.path:
             sys.path.insert(0, src)
 
@@ -165,7 +165,7 @@ class TestStatsRecorderIntegration:
         from pathlib import Path
         from unittest.mock import MagicMock
 
-        src = str(Path(__file__).resolve().parents[3] / "src" / "forex-bot")
+        src = str(Path(__file__).resolve().parents[3] / "src" / "forex_bot")
         if src not in sys.path:
             sys.path.insert(0, src)
 

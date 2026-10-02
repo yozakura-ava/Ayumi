@@ -1,15 +1,15 @@
-# Codebase Assessment: src/forex-bot/
+# Codebase Assessment: src/forex_bot/
 
 **Author:** Kai (Lead Engineer)
 **Date:** 2026-04-17
 **Issue:** [AYU-39](/AYU/issues/AYU-39)
-**Scope:** Full read-only audit of `src/forex-bot/`
+**Scope:** Full read-only audit of `src/forex_bot/`
 
 ---
 
 ## 1. Executive Summary
 
-The forex-bot codebase is a **large, functional but heavily duplicated** Python trading system (~14,000 lines across 100+ source files). It contains:
+The forex_bot codebase is a **large, functional but heavily duplicated** Python trading system (~14,000 lines across 100+ source files). It contains:
 
 - A working backtest engine with walk-forward validation
 - ICT/SMC strategy analysis (confluence engine, order blocks, FVGs, liquidity sweeps)
@@ -28,7 +28,7 @@ The forex-bot codebase is a **large, functional but heavily duplicated** Python 
 ### 2.1 Top-Level Structure
 
 ```
-src/forex-bot/
+src/forex_bot/
   __init__.py                  # Package marker
   run_live_paper.py            # Live paper trading entry point (941 lines)
   signal_validator.py          # Standalone validator (DEAD — duplicates gate_validator)

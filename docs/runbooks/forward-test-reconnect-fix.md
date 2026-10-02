@@ -91,7 +91,7 @@ def __init__(
     self._refresh_token = refresh_token  # NEW
 ```
 
-**Files changed:** `src/forex-bot/adapters/ctrader/open_api_spot_feed.py`
+**Files changed:** `src/forex_bot/adapters/ctrader/open_api_spot_feed.py`
 
 ### Fix 2: Handle `ALREADY_LOGGED_IN` as a trigger for token refresh
 
@@ -116,7 +116,7 @@ if error_code in auth_errors:
     self._refresh_token_and_reauth()
 ```
 
-**Files changed:** `src/forex-bot/adapters/ctrader/open_api_spot_feed.py`
+**Files changed:** `src/forex_bot/adapters/ctrader/open_api_spot_feed.py`
 
 ### Fix 3: Pass refresh token through ForwardTestEngine → OpenApiSpotFeed
 
@@ -146,7 +146,7 @@ self._market_feed = OpenApiSpotFeed(
 )
 ```
 
-**Files changed:** `src/forex-bot/adapters/ctrader/forward_test_engine.py`
+**Files changed:** `src/forex_bot/adapters/ctrader/forward_test_engine.py`
 
 ### Fix 4: Add guard against None refresh_token in _refresh_token_and_reauth
 
@@ -180,7 +180,7 @@ resp = requests.post(
 )
 ```
 
-**Files changed:** `src/forex-bot/adapters/ctrader/open_api_spot_feed.py`
+**Files changed:** `src/forex_bot/adapters/ctrader/open_api_spot_feed.py`
 
 ---
 
@@ -253,8 +253,8 @@ The ForwardTestEngine health monitor runs every 10 seconds. If no ticks are rece
 
 | File | Change |
 |------|--------|
-| `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` | Accept `refresh_token` in `__init__`, handle `ALREADY_LOGGED_IN` error, guard against `None` refresh token |
-| `src/forex-bot/adapters/ctrader/forward_test_engine.py` | Pass `refresh_token` env var to `OpenApiSpotFeed` |
+| `src/forex_bot/adapters/ctrader/open_api_spot_feed.py` | Accept `refresh_token` in `__init__`, handle `ALREADY_LOGGED_IN` error, guard against `None` refresh token |
+| `src/forex_bot/adapters/ctrader/forward_test_engine.py` | Pass `refresh_token` env var to `OpenApiSpotFeed` |
 
 ---
 

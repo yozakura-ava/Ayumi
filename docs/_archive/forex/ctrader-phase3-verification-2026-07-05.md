@@ -53,21 +53,21 @@ All 5 acceptance criteria are met with 103 passing tests and 0 failures. The 4-t
 
 ## References
 
-- `src/forex-bot/adapters/ctrader/token_lifecycle.py:34` — `REFRESH_BUFFER = timedelta(days=5)`
-- `src/forex-bot/adapters/ctrader/token_lifecycle.py:42` — `_DEFAULT_LOCK_FILE = "data/.token_refresh.lock"`
-- `src/forex-bot/adapters/ctrader/token_lifecycle.py:78` — `_refresh_disabled: bool = True` (class-level kill switch)
-- `src/forex-bot/adapters/ctrader/token_lifecycle.py:80-87` — thread/process locks
-- `src/forex-bot/adapters/ctrader/token_lifecycle.py:231-233` — `_is_valid()` with 5-day buffer check
-- `src/forex-bot/adapters/ctrader/token_lifecycle.py:252-258` — `fcntl.flock` for inter-process lock
-- `src/forex-bot/adapters/ctrader/token_lifecycle.py:301-400` — `_do_refresh_inner()` with HTTP error handling
-- `src/forex-bot/adapters/ctrader/error_classifier.py:6-11` — `ErrorTier` enum (4 tiers)
-- `src/forex-bot/adapters/ctrader/error_classifier.py:21-43` — `_TIER_RULES` classification table
-- `src/forex-bot/adapters/ctrader/auth_error_types.py:6-14` — `AuthFaultType` enum (7 buckets)
-- `src/forex-bot/adapters/ctrader/auth_error_types.py:30-46` — `ERROR_CLASSIFICATIONS` table
-- `src/forex-bot/adapters/ctrader/auth_error_types.py:48-69` — `POLICIES` per fault type
-- `src/forex-bot/adapters/ctrader/connection_manager.py:34-35` — `AUTH_RETRY_MAX_ATTEMPTS=3`, `AUTH_RETRY_BACKOFF_SECONDS=(1.0, 2.0, 4.0)`
-- `src/forex-bot/adapters/ctrader/connection_manager.py:619-628` — `handle_token_refresh()`
-- `src/forex-bot/adapters/ctrader/connection_manager.py:626` — `refresh_oauth_if_needed()`
-- `src/forex-bot/adapters/ctrader/connection_manager.py:784-862` — `authenticate_with_retry()`
-- `src/forex-bot/adapters/ctrader/credential_store.py:75-148` — `update_tokens()` with chmod 0o600 + atomic write
+- `src/forex_bot/adapters/ctrader/token_lifecycle.py:34` — `REFRESH_BUFFER = timedelta(days=5)`
+- `src/forex_bot/adapters/ctrader/token_lifecycle.py:42` — `_DEFAULT_LOCK_FILE = "data/.token_refresh.lock"`
+- `src/forex_bot/adapters/ctrader/token_lifecycle.py:78` — `_refresh_disabled: bool = True` (class-level kill switch)
+- `src/forex_bot/adapters/ctrader/token_lifecycle.py:80-87` — thread/process locks
+- `src/forex_bot/adapters/ctrader/token_lifecycle.py:231-233` — `_is_valid()` with 5-day buffer check
+- `src/forex_bot/adapters/ctrader/token_lifecycle.py:252-258` — `fcntl.flock` for inter-process lock
+- `src/forex_bot/adapters/ctrader/token_lifecycle.py:301-400` — `_do_refresh_inner()` with HTTP error handling
+- `src/forex_bot/adapters/ctrader/error_classifier.py:6-11` — `ErrorTier` enum (4 tiers)
+- `src/forex_bot/adapters/ctrader/error_classifier.py:21-43` — `_TIER_RULES` classification table
+- `src/forex_bot/adapters/ctrader/auth_error_types.py:6-14` — `AuthFaultType` enum (7 buckets)
+- `src/forex_bot/adapters/ctrader/auth_error_types.py:30-46` — `ERROR_CLASSIFICATIONS` table
+- `src/forex_bot/adapters/ctrader/auth_error_types.py:48-69` — `POLICIES` per fault type
+- `src/forex_bot/adapters/ctrader/connection_manager.py:34-35` — `AUTH_RETRY_MAX_ATTEMPTS=3`, `AUTH_RETRY_BACKOFF_SECONDS=(1.0, 2.0, 4.0)`
+- `src/forex_bot/adapters/ctrader/connection_manager.py:619-628` — `handle_token_refresh()`
+- `src/forex_bot/adapters/ctrader/connection_manager.py:626` — `refresh_oauth_if_needed()`
+- `src/forex_bot/adapters/ctrader/connection_manager.py:784-862` — `authenticate_with_retry()`
+- `src/forex_bot/adapters/ctrader/credential_store.py:75-148` — `update_tokens()` with chmod 0o600 + atomic write
 - `docs/forex/architecture-dual-connection.md` §9 — Token lifecycle management

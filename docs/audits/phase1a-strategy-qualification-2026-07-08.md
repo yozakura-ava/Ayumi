@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-08  
 **Auditor:** Builder agent (subagent depth 1/1)  
-**Scope:** Walk-forward evaluation of all strategies in `src/forex-bot/config/strategies.yaml` against FTMO 1-Step numeric criteria.  
+**Scope:** Walk-forward evaluation of all strategies in `src/forex_bot/config/strategies.yaml` against FTMO 1-Step numeric criteria.  
 **Mode:** Read-only audit — no source files modified.
 
 ---
@@ -23,7 +23,7 @@ A strategy **PASS**es only if ALL four criteria are met. Otherwise **FAIL**.
 
 ## 2. Strategies Inventory
 
-**Source:** `src/forex-bot/config/strategies.yaml` (commit 1c0790a, 2026-07-08)
+**Source:** `src/forex_bot/config/strategies.yaml` (commit 1c0790a, 2026-07-08)
 
 | # | Strategy ID         | Type      | Symbol  | TF  | Enabled | Config Params (key)                                      |
 |---|---------------------|-----------|---------|-----|---------|----------------------------------------------------------|
@@ -271,9 +271,9 @@ AUDUSD, USDCHF, USDCAD remain disabled with no M15 data (only M5 for USDCHF/USDC
 | Fresh M15 USDJPY WF | `/tmp/wf_usdjpy_m15.json` |
 | Fresh M15 XAUUSD WF | `/tmp/wf_xauusd_m15_s2.5.json` |
 | Fresh M15 GBPUSD + EURUSD WF | `/tmp/wf_fx_m15.json` |
-| Strategies config | `src/forex-bot/config/strategies.yaml` |
-| WF runner | `src/forex-bot/backtest/walk_forward_runner.py` |
-| Data loader (fixed) | `src/forex-bot/backtest/data_loader.py` (commit 1c0790a) |
+| Strategies config | `src/forex_bot/config/strategies.yaml` |
+| WF runner | `src/forex_bot/backtest/walk_forward_runner.py` |
+| Data loader (fixed) | `src/forex_bot/backtest/data_loader.py` (commit 1c0790a) |
 
 ---
 

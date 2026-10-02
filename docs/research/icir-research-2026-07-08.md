@@ -290,7 +290,7 @@ A row per **strategy × bar** (or per evaluation window) — `forecast = strateg
 ## 7. Relevance to Ayumi (the honest section)
 
 ### 7.1 What Ayumi is
-Per the registry (`src/forex-bot/strategies/registry.py`) and the run_walk_forward codebase (`src/forex-bot/backtest/walk_forward_runner.py`):
+Per the registry (`src/forex_bot/strategies/registry.py`) and the run_walk_forward codebase (`src/forex_bot/backtest/walk_forward_runner.py`):
 
 - **10+ blend strategies** generating directional entry signals with TP/SL levels across FX pairs (EURUSD, GBPUSD, USDJPY, AUDUSD, USDCAD, XAUUSD) at M15, H1, H4, D1.
 - **Walk-forward validation** with 5 windows after Optuna parameter optimization on training slices.
@@ -392,4 +392,4 @@ Then run `cross_sectional_ic(panel)` with `groupby="window_id"`. One IC per wind
 
 ---
 
-*End of research note. Citation tags: Wikipedia-style; please ping Ava if you want any claim expanded or want the full Python implementation grafted into `src/forex-bot/backtest/`.*
+*End of research note. Citation tags: Wikipedia-style; please ping Ava if you want any claim expanded or want the full Python implementation grafted into `src/forex_bot/backtest/`.*

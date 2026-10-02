@@ -23,9 +23,9 @@ from pathlib import Path
 
 import pytest
 
-# Ensure src/forex-bot is on sys.path so the strategy can import utils.
+# Ensure src/forex_bot is on sys.path so the strategy can import utils.
 _REPO_ROOT = Path(__file__).resolve().parents[4]
-_SRC_FOREX_BOT = _REPO_ROOT / "src" / "forex-bot"
+_SRC_FOREX_BOT = _REPO_ROOT / "src" / "forex_bot"
 if str(_SRC_FOREX_BOT) not in sys.path:
     sys.path.insert(0, str(_SRC_FOREX_BOT))
 

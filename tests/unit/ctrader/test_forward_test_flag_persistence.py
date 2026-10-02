@@ -118,7 +118,7 @@ _install_backtest_stub()
 
 
 # Now safe to import the module under test
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "src", "forex-bot"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "src", "forex_bot"))
 
 from adapters.ctrader import forward_test_engine as fte_module  # noqa: E402
 from adapters.ctrader.forward_test_engine import ForwardTestEngine  # noqa: E402

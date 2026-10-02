@@ -218,7 +218,7 @@ The M15 dataset (Jan 2023 – Apr 2026) covers:
 
 | Component | Path | Status |
 |-----------|------|--------|
-| Walk-forward runner | `src/forex-bot/backtest/walk_forward_runner.py` | Functional |
+| Walk-forward runner | `src/forex_bot/backtest/walk_forward_runner.py` | Functional |
 | Backtest engine | `src/forex_trading/services/backtest/` | Functional |
 | Strategy base class | `src/forex_trading/services/backtest/strategies.py` | Functional (ABC protocol) |
 | Backtest strategies | `src/forex_trading/strategies/` | 7 strategies including carry, regime_aware |
@@ -270,7 +270,7 @@ The Cabal scoring system (referenced in related cards) does not exist in the cod
 
 | Step | Deliverable | Files | SP |
 |------|-------------|-------|----|
-| 3a | Port winning archetype to live strategy format (forex-bot adapter) | `src/forex-bot/strategies/usdjpy_intervention.py` | 1.0 |
+| 3a | Port winning archetype to live strategy format (forex_bot adapter) | `src/forex_bot/strategies/usdjpy_intervention.py` | 1.0 |
 | 3b | Register in `StrategyRegistry`, add to walk-forward rotation | Modify `registry.py` | 0.5 |
 
 ### Phase 4: Advanced (deferred)

@@ -25,9 +25,9 @@ from pathlib import Path
 
 import pytest
 
-# Ensure src/forex-bot is importable
+# Ensure src/forex_bot is importable
 _repo_root = Path(__file__).resolve().parents[3]
-_src = _repo_root / "src" / "forex-bot"
+_src = _repo_root / "src" / "forex_bot"
 if str(_src) not in sys.path:
     sys.path.insert(0, str(_src))
 

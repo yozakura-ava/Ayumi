@@ -19,7 +19,7 @@ import duckdb
 
 # Make strategies importable
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src" / "forex-bot"))
+sys.path.insert(0, str(ROOT / "src" / "forex_bot"))
 
 from core.types import Bar, MarketState, SessionType, TradeDirection  # noqa: E402, I001
 from strategies.donchian_atr_trend_v2 import (  # noqa: E402

@@ -27,7 +27,7 @@ import pytest
 
 # Load best_day_rule.py directly to avoid the heavy backtest/__init__.py chain.
 _PACKAGE_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-_FXBOT = (_PACKAGE_ROOT / "src" / "forex-bot").resolve()
+_FXBOT = (_PACKAGE_ROOT / "src" / "forex_bot").resolve()
 sys.path.insert(0, str(_FXBOT))
 
 import importlib.util as _ilu  # noqa: E402

@@ -10,7 +10,7 @@
 
 ## 1. Strategy Inventory
 
-### 1.1 Active Strategies (in `src/forex-bot/strategies/`)
+### 1.1 Active Strategies (in `src/forex_bot/strategies/`)
 
 | Strategy | File | Status | Notes |
 |----------|------|--------|-------|
@@ -192,12 +192,12 @@ Current state vs FTMO requirements:
 
 ## 6. File Locations Referenced
 
-- Strategies: `src/forex-bot/strategies/`
-- Backtest engine: `src/forex-bot/backtest/engine.py`, `multi_strategy_engine.py`
-- Walk-forward: `src/forex-bot/quant/walk_forward.py`, `backtest/walk_forward_runner.py`
-- cTrader adapter: `src/forex-bot/adapters/ctrader/`
-- FIX protocol: `src/forex-bot/ctrader_fix/connection.py`
-- Live paper: `src/forex-bot/run_live_paper.py`
+- Strategies: `src/forex_bot/strategies/`
+- Backtest engine: `src/forex_bot/backtest/engine.py`, `multi_strategy_engine.py`
+- Walk-forward: `src/forex_bot/quant/walk_forward.py`, `backtest/walk_forward_runner.py`
+- cTrader adapter: `src/forex_bot/adapters/ctrader/`
+- FIX protocol: `src/forex_bot/ctrader_fix/connection.py`
+- Live paper: `src/forex_bot/run_live_paper.py`
 - Walk-forward eval: `docs/forex/hybrid-strategy-walk-forward-evaluation.md`
 - QA gate analysis: `docs/forex/qa-gate-evaluation-analysis-april2026.md`
 - Q1-Q7 synthesis: `docs/forex/tbd_backtest_synthesis.md`

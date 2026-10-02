@@ -76,7 +76,7 @@ def feed_factory():
         # Patch heavy dependencies during construction so __init__ doesn't
         # create real TCP connections, file I/O, or thread pools.
         # Must patch the archive module directly since that's where the names
-        # are looked up, not the shim in src/forex-bot/adapters/.
+        # are looked up, not the shim in src/forex_bot/adapters/.
         with (
             patch("archive.legacy_ctrader._pkg.open_api_spot_feed.CTraderConnection") as mock_conn_cls,
             patch("archive.legacy_ctrader._pkg.open_api_spot_feed.TokenManager") as mock_token_cls,

@@ -141,7 +141,7 @@ May 22 22:15:37 Main process exited, code=dumped, status=6/ABRT
 
 **Code changes since:**
 
-- New `ConnectionWatchdog` (`src/forex-bot/adapters/ctrader/connection_watchdog.py`) with 30 s DEGRADED / 90 s FAILED thresholds surfaces trouble *before* systemd's 5-min watchdog fires.
+- New `ConnectionWatchdog` (`src/forex_bot/adapters/ctrader/connection_watchdog.py`) with 30 s DEGRADED / 90 s FAILED thresholds surfaces trouble *before* systemd's 5-min watchdog fires.
 - `forward_test_engine.py` (research-doc line 130–133): `stale_tick_threshold_sec = 60.0` lowered from 900 s — earlier disconnect detection.
 - `_check_connection_health()` + `_attempt_reconnect()` in `forward_test_engine.py:2147-2247` (BQ-1335) actively reconnects on staleness.
 
@@ -300,16 +300,16 @@ Jun 10 23:35:12 Consumed 3.290 s CPU; Stop → Started (back-to-back)
 
 | Existing Fix | Path | What it fixes | Crash patterns addressed (from §1.1 table) |
 |---|---|---|---|
-| `7af7a73` ProtoMessage double-wrap fix | `src/forex-bot/adapters/ctrader/open_api_spot_feed.py:680` | Double-wrapped protobuf envelope being passed to `TcpProtocol.send()` → server sees malformed frame → auth death-spirals on every reconnect | #2, #5, #6, #8, #9, #10 (the 1/FAILURE / 75/TEMPFAIL storms) |
-| `a487b69` `authenticate_with_retry()` (BQ-1330a) | `src/forex-bot/adapters/ctrader/connection_manager.py:785-833` | Wraps auth callable in 3-attempt exponential backoff (1s/2s/4s); FSM survives transient failures | #2, #5, #6, #8, #9, #10 |
-| `a0663c1` BQ-1335 reconnect-stuck fix | `src/forex-bot/adapters/ctrader/connection_state.py:88-95` + `forward_test_engine.py:88-91, 2147-2247` | Stuck `RECONNECTING` state after partial recovery → `_check_connection_health` + `_attempt_reconnect` with market-closed guard + backoff gate | #2, #5, #6, #8, #9, #10 |
+| `7af7a73` ProtoMessage double-wrap fix | `src/forex_bot/adapters/ctrader/open_api_spot_feed.py:680` | Double-wrapped protobuf envelope being passed to `TcpProtocol.send()` → server sees malformed frame → auth death-spirals on every reconnect | #2, #5, #6, #8, #9, #10 (the 1/FAILURE / 75/TEMPFAIL storms) |
+| `a487b69` `authenticate_with_retry()` (BQ-1330a) | `src/forex_bot/adapters/ctrader/connection_manager.py:785-833` | Wraps auth callable in 3-attempt exponential backoff (1s/2s/4s); FSM survives transient failures | #2, #5, #6, #8, #9, #10 |
+| `a0663c1` BQ-1335 reconnect-stuck fix | `src/forex_bot/adapters/ctrader/connection_state.py:88-95` + `forward_test_engine.py:88-91, 2147-2247` | Stuck `RECONNECTING` state after partial recovery → `_check_connection_health` + `_attempt_reconnect` with market-closed guard + backoff gate | #2, #5, #6, #8, #9, #10 |
 | `c845983` cTrader resilience improvements | multiple paths | Adds correlation risk modules + new test coverage | All `1/FAILURE` paths indirectly |
 | `affd729` credential boundary | `data/.credentials` + guard | Atomic `.env` clobbering cannot destroy working tokens | #5, #10 |
 | `1f4b3aa` dual-source guard + env parse | `scripts/launch_blend_forward_test.py:686-709` | Refuse paper mode on live endpoint (fail-closed) + `.env` comment parsing | #5 |
 | `d0512d7` stop .env token clobbering | (BQ-1036) | Stops atomic writers from destroying tokens | #5 |
-| `ConnectionWatchdog` | `src/forex-bot/adapters/ctrader/connection_watchdog.py` | 30 s DEGRADED / 90 s FAILED surfaced before systemd's 5-min watchdog | #3 (ABRT-from-watchdog) |
-| `ReconnectStrategy` | `src/forex-bot/adapters/ctrader/reconnect_strategy.py` | AWS decorrelated jitter backoff, tiered error classification | All `9/KILL`-during-operation patterns going forward |
-| `error_classifier` | `src/forex-bot/adapters/ctrader/error_classifier.py` | TIER_1/2/3A/3B routing — auth failures *don't loop forever*, they halt | #6 specifically |
+| `ConnectionWatchdog` | `src/forex_bot/adapters/ctrader/connection_watchdog.py` | 30 s DEGRADED / 90 s FAILED surfaced before systemd's 5-min watchdog | #3 (ABRT-from-watchdog) |
+| `ReconnectStrategy` | `src/forex_bot/adapters/ctrader/reconnect_strategy.py` | AWS decorrelated jitter backoff, tiered error classification | All `9/KILL`-during-operation patterns going forward |
+| `error_classifier` | `src/forex_bot/adapters/ctrader/error_classifier.py` | TIER_1/2/3A/3B routing — auth failures *don't loop forever*, they halt | #6 specifically |
 | `3644108` reconstruct `_api_client` on reconnect | `forward_test_engine.py` | Prevents dead-connection zombies after partial reconnect | All reconnecting patterns |
 | `21f73a6` expand FAILED-state transitions | `connection_state.py:88-130` | FAILED state can re-enter normal lifecycle (no more sticky-failed trap) | All reconnecting patterns |
 | `72252c2` SIGTERM handling | `launch_blend_forward_test.py:862-863` | Clean shutdown on SIGTERM | #1 (stop-timeout kill) |
@@ -489,11 +489,11 @@ A: Memory leaks in application code (none identified yet). Log rotation policy (
 - `$AYUMI_ROOT/docs/post-mortems/forward-test-regression-cycle-2026-06-12.md`
 - `$AYUMI_ROOT/docs/plans/ayumi-reliability-sprint-2026-07-05.md` (§2.1, §2.2)
 - `$AYUMI_ROOT/scripts/launch_blend_forward_test.py` (lines 30–40, 670–750, 850–890)
-- `$AYUMI_ROOT/src/forex-bot/adapters/ctrader/connection_watchdog.py` (full)
-- `$AYUMI_ROOT/src/forex-bot/adapters/ctrader/reconnect_strategy.py` (full)
-- `$AYUMI_ROOT/src/forex-bot/adapters/ctrader/connection_manager.py` (lines 780–860 — `authenticate_with_retry`)
-- `$AYUMI_ROOT/src/forex-bot/adapters/ctrader/connection_state.py` (lines 1–130 — `_VALID_TRANSITIONS`)
-- `$AYUMI_ROOT/src/forex-bot/adapters/ctrader/forward_test_engine.py` (lines 430–470 — `start()`)
+- `$AYUMI_ROOT/src/forex_bot/adapters/ctrader/connection_watchdog.py` (full)
+- `$AYUMI_ROOT/src/forex_bot/adapters/ctrader/reconnect_strategy.py` (full)
+- `$AYUMI_ROOT/src/forex_bot/adapters/ctrader/connection_manager.py` (lines 780–860 — `authenticate_with_retry`)
+- `$AYUMI_ROOT/src/forex_bot/adapters/ctrader/connection_state.py` (lines 1–130 — `_VALID_TRANSITIONS`)
+- `$AYUMI_ROOT/src/forex_bot/adapters/ctrader/forward_test_engine.py` (lines 430–470 — `start()`)
 - `/etc/systemd/system/ayumi-forward-test.service` (current)
 - `/etc/systemd/system/ayumi-forward-test.service.bak` (2026-06-05 snapshot)
 - `/home/$USER/.config/systemd/user/ayumi-forward-test.service` (Task 5.2 target file)

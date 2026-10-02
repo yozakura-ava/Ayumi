@@ -44,7 +44,7 @@ A forward test on cTrader demo running under **FTMO 1-Step rules** that passes c
 | Account size | $100,000 (demo) | Reconcile all configs to this |
 | Min trading days | None (1-Step advantage) | |
 
-**Canonical config location:** `src/forex-bot/risk/ftmo_guard.py` `FTMOConfig` — all other references (`config/strategies.yaml`, `sl_position_sizer.py`, `backtest/ftmo_simulation.py`) must import from this.
+**Canonical config location:** `src/forex_bot/risk/ftmo_guard.py` `FTMOConfig` — all other references (`config/strategies.yaml`, `sl_position_sizer.py`, `backtest/ftmo_simulation.py`) must import from this.
 
 **Current config disagreement (must reconcile in Phase 0):**
 | File | Daily loss | Total DD | Account |

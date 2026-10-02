@@ -46,8 +46,8 @@ archive/ scope: 39 sites deferred to Ava's pending archive-disposition decision 
 | 24 | tests/ops/test_honcho_message_backfill.py:46 | `MessageEvent` | T1 | REMOVED | All other names from the same `from ... import (...)` block ARE used; `MessageEvent` was the only dead one. Removed dead name + matching noqa token. |
 | 25 | tests/integration/ctrader/test_p5a_characterization.py:91 | `ExecutionPermissionPolicy` | T1 | KEEP-justified | Test name + docstring explicitly say "class is importable". The import itself is the assertion — if it raises ImportError, the test fails. Targeted noqa + comment added. |
 | 26 | tests/e2e/test_forward_test_token_validity_diagnostic.py:21 | `re` | T1 | REMOVED | Stdlib `re` never referenced in code. Removed import + matching noqa token. |
-| 27 | src/forex-bot/data/fred_fetcher.py:60 | `fredapi` | T3 | KEEP-justified | Inside `_has_fredapi()` availability probe; this is the live data-path module. Already had targeted `# noqa: F401`. Justification comment added. |
-| 28 | src/forex-bot/srf/permutation_drift.py:184 | `shap` | T3 | KEEP-justified | Inside `ShapDrift.is_available()` availability probe on execution path. Already had targeted `# noqa: F401`. Justification comment added. |
+| 27 | src/forex_bot/data/fred_fetcher.py:60 | `fredapi` | T3 | KEEP-justified | Inside `_has_fredapi()` availability probe; this is the live data-path module. Already had targeted `# noqa: F401`. Justification comment added. |
+| 28 | src/forex_bot/srf/permutation_drift.py:184 | `shap` | T3 | KEEP-justified | Inside `ShapDrift.is_available()` availability probe on execution path. Already had targeted `# noqa: F401`. Justification comment added. |
 
 ## Notes on Policy Application
 

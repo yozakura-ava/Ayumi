@@ -166,9 +166,9 @@ PATH=$AYUMI_ROOT/.venv/bin:$PATH \
 * Non-USD central bank APIs beyond ECB (BOE, BOJ, etc.) — explicit
   follow-up card.
 * Real-time swap updates — daily cadence only.
-* Confidence-engine modifications (`src/forex-bot/confidence/engine.py`
+* Confidence-engine modifications (`src/forex_bot/confidence/engine.py`
   is **not** in `allowed_files`).
-* Orchestrator wiring — `src/forex-bot/orchestrator/signal_orchestrator.py`
+* Orchestrator wiring — `src/forex_bot/orchestrator/signal_orchestrator.py`
   is **not** in `allowed_files`; left as a follow-up card.
 
 ## Source-debt finding
@@ -183,13 +183,13 @@ worth noting to Ava; it does not block the implementation.
 ## Builder Completion Report
 
 - **Files modified:**
-  - `src/forex-bot/data/fred_fetcher.py` (new, 8.9 KB)
-  - `src/forex-bot/data/carry_signals.py` (new, 20.5 KB)
+  - `src/forex_bot/data/fred_fetcher.py` (new, 8.9 KB)
+  - `src/forex_bot/data/carry_signals.py` (new, 20.5 KB)
   - `tests/unit/data/test_carry_signals.py` (new, 19 KB)
   - `docs/ayumi/data-sources/carry-signals.md` (this file)
 - **Syntax validation:**
-  - `python3 -m py_compile src/forex-bot/data/fred_fetcher.py` → exit 0
-  - `python3 -m py_compile src/forex-bot/data/carry_signals.py` → exit 0
+  - `python3 -m py_compile src/forex_bot/data/fred_fetcher.py` → exit 0
+  - `python3 -m py_compile src/forex_bot/data/carry_signals.py` → exit 0
   - `python3 -m py_compile tests/unit/data/test_carry_signals.py` → exit 0
 - **Tests run:** `pytest tests/unit/data/test_carry_signals.py -q` → 29 passed in 0.68s
 - **Integration notes:** `score_with_carry` wraps `ConfidenceEngine.score`

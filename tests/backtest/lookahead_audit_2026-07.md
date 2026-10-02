@@ -18,15 +18,15 @@ Reviewed all data-access patterns in the backtest engine for future-leak:
 
 | # | File | Responsibility |
 |---|------|----------------|
-| 1 | `src/forex-bot/backtest/engine.py` | Base engine core (BacktestConfig, Bar, MarketState, trade primitives) |
-| 2 | `src/forex-bot/backtest/simple_engine.py` | SimpleBacktestEngine — legacy single-strategy engine |
-| 3 | `src/forex-bot/backtest/enhanced_engine.py` | EnhancedBacktestEngine — ATR, Kelly, enhanced features |
-| 4 | `src/forex-bot/backtest/multi_strategy_engine.py` | MultiStrategyBacktestEngine — multi-strategy + Kelly overlay |
-| 5 | `src/forex-bot/backtest/walk_forward_runner.py` | Walk-forward backtest orchestration |
-| 6 | `src/forex-bot/backtest/data_loader.py` | Data loading from DuckDB / file sources |
-| 7 | `src/forex-bot/backtest/abstract_data_loader.py` | Abstract data loader interface |
-| 8 | `src/forex-bot/backtest/audit_bar_close.py` | Bar-close timing audit utility |
-| 9 | `src/forex-bot/quant/walk_forward.py` | WalkForwardValidator — train/val/test splitting |
+| 1 | `src/forex_bot/backtest/engine.py` | Base engine core (BacktestConfig, Bar, MarketState, trade primitives) |
+| 2 | `src/forex_bot/backtest/simple_engine.py` | SimpleBacktestEngine — legacy single-strategy engine |
+| 3 | `src/forex_bot/backtest/enhanced_engine.py` | EnhancedBacktestEngine — ATR, Kelly, enhanced features |
+| 4 | `src/forex_bot/backtest/multi_strategy_engine.py` | MultiStrategyBacktestEngine — multi-strategy + Kelly overlay |
+| 5 | `src/forex_bot/backtest/walk_forward_runner.py` | Walk-forward backtest orchestration |
+| 6 | `src/forex_bot/backtest/data_loader.py` | Data loading from DuckDB / file sources |
+| 7 | `src/forex_bot/backtest/abstract_data_loader.py` | Abstract data loader interface |
+| 8 | `src/forex_bot/backtest/audit_bar_close.py` | Bar-close timing audit utility |
+| 9 | `src/forex_bot/quant/walk_forward.py` | WalkForwardValidator — train/val/test splitting |
 
 ## Methods
 
@@ -64,7 +64,7 @@ No critical look-ahead bias was found. The engine is structurally sound. The two
 ### MOD-2: Progressive SL update runs before exit check
 
 - **Severity:** MODERATE (mildly optimistic for winning trades)
-- **File:** `src/forex-bot/backtest/simple_engine.py`, lines 299-300, 310-337
+- **File:** `src/forex_bot/backtest/simple_engine.py`, lines 299-300, 310-337
 - **Description:** In `SimpleBacktestEngine._check_open_trades()`, `_progressive_sl_update(trade, bar)` runs before `_check_trade_exit(trade, bar)`. The progressive SL update tightens the stop-loss when price reaches TP1 or TP2 thresholds. Because this runs before the exit check on the same bar, the exit check sees a tighter SL than what was in effect at the start of the bar. For longs where the bar hits both the original SL and TP1, the progressive update moves SL to breakeven+1pip before the exit check — making the exit check more likely to hit the (now tighter) SL rather than the original wider one. This is mildly optimistic because it assumes you could observe the TP1 hit and adjust SL before the bar closes.
 - **Code path:**
   ```python
@@ -78,14 +78,14 @@ No critical look-ahead bias was found. The engine is structurally sound. The two
 ### LOW-1: Kelly position sizing default state
 
 - **Severity:** LOW
-- **File:** `src/forex-bot/backtest/multi_strategy_engine.py`
+- **File:** `src/forex_bot/backtest/multi_strategy_engine.py`
 - **Description:** Kelly overlay initializes with empty closed-trade list and skip counter at 0. Before `min_trades` closed trades exist, Kelly has no effect. This is correct behavior, not a bias, but the initialization path was verified.
 - **Impact:** None — verified correct.
 
 ### LOW-2: Walk-forward overlap parameter
 
 - **Severity:** LOW
-- **File:** `src/forex-bot/quant/walk_forward.py`
+- **File:** `src/forex_bot/quant/walk_forward.py`
 - **Description:** The `overlap_ratio` parameter (default 0.2) allows training data to overlap with the previous window's validation data. This is intentional for walk-forward design but could be misused if set too high. The default is conservative.
 - **Impact:** None at default settings. Misconfiguration risk only.
 

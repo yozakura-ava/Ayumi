@@ -11,20 +11,20 @@ import pickle
 import numpy as np
 import pandas as pd
 from _project_root import PROJECT_ROOT
-from src.forex_trading.services.backtest.engine_v2 import (
+from forex_trading.services.backtest.engine_v2 import (
     BacktestEngine,
     WalkForwardConfig,
 )
-from src.forex_trading.services.backtest.prop_firm_rules import PropFirmConfig
-from src.forex_trading.strategies.breakout import BreakoutStrategy
-from src.forex_trading.strategies.carry import CarryTradeStrategy
-from src.forex_trading.strategies.mean_reversion import MeanReversionStrategy
-from src.forex_trading.strategies.momentum import MomentumCrossoverStrategy
-from src.forex_trading.strategies.regime_aware import (
+from forex_trading.services.backtest.prop_firm_rules import PropFirmConfig
+from forex_trading.strategies.breakout import BreakoutStrategy
+from forex_trading.strategies.carry import CarryTradeStrategy
+from forex_trading.strategies.mean_reversion import MeanReversionStrategy
+from forex_trading.strategies.momentum import MomentumCrossoverStrategy
+from forex_trading.strategies.regime_aware import (
     RegimeAwareStrategy,
     RegimeClassifier,
 )
-from src.forex_trading.strategies.regime_switching_momentum import (
+from forex_trading.strategies.regime_switching_momentum import (
     RegimeSwitchingMomentumStrategy,
 )
 

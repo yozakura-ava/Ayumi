@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(_PROJECT_ROOT / "src" / "forex-bot"))
+sys.path.insert(0, str(_PROJECT_ROOT / "src" / "forex_bot"))
 
 # THIS is the key difference: importing the run_paper_mvp module
 # which triggers module-level code including load_dotenv

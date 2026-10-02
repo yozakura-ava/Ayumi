@@ -6,7 +6,7 @@
 
 ## Overview
 
-The forward test runs the Ayumi forex-bot strategies against cTrader demo/live
+The forward test runs the Ayumi forex_bot strategies against cTrader demo/live
 accounts in real-time. This runbook covers operational procedures.
 
 ## Service Management

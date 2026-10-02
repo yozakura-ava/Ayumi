@@ -87,10 +87,10 @@ After the preload fix, the engine has 99 H1 bars per symbol (well above the 50-b
 
 | File | What needs investigation |
 |------|-------------------------|
-| `src/forex-bot/adapters/ctrader/forward_test_engine.py` | `_on_tick` needs debug logging |
-| `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` | Verify tick callback is firing |
-| `src/forex-bot/adapters/ctrader/forward_test_engine.py` | `_resolve_symbol_name` needs verification |
-| `src/forex-bot/forward_test/blend_runner.py` | Verify signal routing |
+| `src/forex_bot/adapters/ctrader/forward_test_engine.py` | `_on_tick` needs debug logging |
+| `src/forex_bot/adapters/ctrader/open_api_spot_feed.py` | Verify tick callback is firing |
+| `src/forex_bot/adapters/ctrader/forward_test_engine.py` | `_resolve_symbol_name` needs verification |
+| `src/forex_bot/forward_test/blend_runner.py` | Verify signal routing |
 
 ---
 

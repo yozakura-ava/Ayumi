@@ -45,22 +45,22 @@ import pytest
 # The repo root (``$AYUMI_ROOT``) contains a top-level
 # ``backtest/`` package that only exposes bootstrap/sweep scripts. The real
 # ``backtest`` package (with ``backtest.engine``, ``backtest.amalgamation``,
-# etc.) lives at ``src/forex-bot/backtest/``. When pytest sets the cwd as
+# etc.) lives at ``src/forex_bot/backtest/``. When pytest sets the cwd as
 # the first entry on ``sys.path``, Python resolves ``import backtest`` to
 # the shadow package, and ``from backtest.engine import Bar, MarketState``
 # inside ``forward_test_engine.py:33`` fails with
 # ``ModuleNotFoundError: No module named 'backtest.engine'``.
 #
-# Inserting ``src/forex-bot`` at position 0 of ``sys.path`` at module load
+# Inserting ``src/forex_bot`` at position 0 of ``sys.path`` at module load
 # is too early — pytest mutates ``sys.path`` again before any test
 # function runs, putting the cwd back at position 0. The fix is to
 # re-insert the path at the start of every test via an autouse fixture.
-_FOREX_BOT_SRC = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "src", "forex-bot"))
+_FOREX_BOT_SRC = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "src", "forex_bot"))
 
 
 @pytest.fixture(autouse=True)
 def _ensure_forex_bot_on_path():
-    """Put ``src/forex-bot`` at the head of ``sys.path`` for each test."""
+    """Put ``src/forex_bot`` at the head of ``sys.path`` for each test."""
     sys.path.insert(0, _FOREX_BOT_SRC)
     yield
     # No cleanup — leaving the path inserted is harmless for subsequent tests.

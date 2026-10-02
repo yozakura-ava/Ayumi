@@ -96,8 +96,8 @@ ForwardTestEngine (modified: multi-symbol, multi-strategy)
 ### Modify
 | File | Change |
 |------|--------|
-| `src/forex-bot/adapters/ctrader/forward_test_engine.py` | Add `blend_runner` optional parameter; when set, route signals through blend pipeline instead of direct PaperTrader execution. Add multi-symbol support (`symbols: list[str]` in config). |
-| `src/forex-bot/adapters/ctrader/signal_adapter.py` | Ensure `evaluate_all_strategies` returns signals with strategy_id attribution compatible with `StrategyAdapter.adapt_signal()`. |
+| `src/forex_bot/adapters/ctrader/forward_test_engine.py` | Add `blend_runner` optional parameter; when set, route signals through blend pipeline instead of direct PaperTrader execution. Add multi-symbol support (`symbols: list[str]` in config). |
+| `src/forex_bot/adapters/ctrader/signal_adapter.py` | Ensure `evaluate_all_strategies` returns signals with strategy_id attribution compatible with `StrategyAdapter.adapt_signal()`. |
 
 ### No Changes Needed (already work)
 | File | Why |

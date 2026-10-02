@@ -19,7 +19,7 @@ import sys
 import unittest
 
 # Ensure the source path is available
-sys.path.insert(0, "src/forex-bot")
+sys.path.insert(0, "src/forex_bot")
 
 from adapters.ctrader.connection_manager import (
     AUTH_FULL_RECONNECT_THRESHOLD,

@@ -54,7 +54,7 @@ from typing import Sequence
 import numpy as np
 
 # Resolve the Ayumi project root by walking up from this file until we
-# find a directory that has both ``.git`` and ``src/forex-bot`` — that
+# find a directory that has both ``.git`` and ``src/forex_bot`` — that
 # combination uniquely identifies an Ayumi git checkout (worktree or
 # main). We intentionally do NOT depend on the SRF helpers because the
 # schema may drift between SRF versions and we want this script to
@@ -65,7 +65,7 @@ import numpy as np
 THIS_DIR = Path(__file__).resolve().parent
 REPO_ROOT = THIS_DIR
 while REPO_ROOT != REPO_ROOT.parent:
-    if (REPO_ROOT / ".git").exists() and (REPO_ROOT / "src" / "forex-bot").exists():
+    if (REPO_ROOT / ".git").exists() and (REPO_ROOT / "src" / "forex_bot").exists():
         break
     REPO_ROOT = REPO_ROOT.parent
 # Last-resort fallback: if the upward walk never identified an Ayumi
@@ -74,7 +74,7 @@ while REPO_ROOT != REPO_ROOT.parent:
 # Ayumi checkout.
 if REPO_ROOT == REPO_ROOT.parent:
     fallback = Path("$AYUMI_ROOT")
-    if (fallback / "src" / "forex-bot").exists():
+    if (fallback / "src" / "forex_bot").exists():
         REPO_ROOT = fallback
 DEFAULT_DB = REPO_ROOT / "data" / "research" / "research.duckdb"
 DEFAULT_REPORT = REPO_ROOT / "reports" / "quant" / f"bootstrap_ci_{date.today().isoformat()}.md"

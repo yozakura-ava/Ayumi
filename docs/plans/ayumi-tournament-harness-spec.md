@@ -31,7 +31,7 @@ src/tournament/
     │                          build & rank scorecard rows
     └── scorecard.py          ← FTMO metric computation + JSON/console render
 
-src/forex-bot/strategies/     ← **UNTOUCHED** — strategies run via existing
+src/forex_bot/strategies/     ← **UNTOUCHED** — strategies run via existing
     registry.py                 registry; harness imports via
                                 ``STRATEGY_CLASS_MAP`` mapping only
 ```
@@ -41,7 +41,7 @@ src/forex-bot/strategies/     ← **UNTOUCHED** — strategies run via existing
 Strategies are registered by `id` against a single canonical id→class map
 in `src/tournament/harness.py:STRATEGY_CLASS_MAP`. Adding a new strategy
 to the tournament is a **one-line change** in that map; no strategy code
-under `src/forex-bot/strategies/` is ever modified by the harness.
+under `src/forex_bot/strategies/` is ever modified by the harness.
 
 For strategies whose config is symbol-aware (e.g. `SRMRPlusConfig` requires
 `symbol` to resolve USDJPY pip size), the harness passes the active
@@ -215,8 +215,8 @@ contract).
 | `docs/plans/ayumi-tournament-harness-spec.md` | NEW (this file) | spec + decomposition |
 | `data/build-rin-reports/db04d5b5-build.md` | NEW | post-mortem (separate file) |
 
-**No existing files were modified.** `src/forex-bot/strategies/*`,
-`src/forex-bot/risk/ftmo_params.py`, `scripts/backtest_blend_harness.py`,
+**No existing files were modified.** `src/forex_bot/strategies/*`,
+`src/forex_bot/risk/ftmo_params.py`, `scripts/backtest_blend_harness.py`,
 `conftest.py`, `pytest.ini`, `ruff.toml` are all untouched.
 
 ## 6. Edge cases handled
@@ -303,9 +303,9 @@ These exist as backlog notes but are NOT part of this card:
 - Sprint plan: `docs/plans/sprint-2026-09-13-ayumi-tournament-scaffold.md`
 - Reference harness: `scripts/backtest_blend_harness.py` (production
   guard-resolver pattern)
-- FTMO canonical constants: `src/forex-bot/risk/ftmo_params.py`
-- Strategy registry: `src/forex-bot/strategies/registry.py` +
-  `src/forex-bot/strategies/__init__.py`
+- FTMO canonical constants: `src/forex_bot/risk/ftmo_params.py`
+- Strategy registry: `src/forex_bot/strategies/registry.py` +
+  `src/forex_bot/strategies/__init__.py`
 - Backing isolation precedent: card e1e32b07 (worktree guard resolver)
 
 ## 10. Build metadata
@@ -321,8 +321,8 @@ post-mortem + BUILD-METADATA footer.
 > **Investigation date:** 2026-09-14.
 > **Author:** Tsubaki (builder lane).
 > **Evidence:** harness spec §3 smoke run output (`srmr_plus signals=0 trades=0`)
-> + `src/forex-bot/strategies/srmr_plus.py:292-310` (`_is_trading_session`,
-> `_get_bar_session_type`) + `src/forex-bot/config/sessions.py:104-114`
+> + `src/forex_bot/strategies/srmr_plus.py:292-310` (`_is_trading_session`,
+> `_get_bar_session_type`) + `src/forex_bot/config/sessions.py:104-114`
 > (`SessionRangeHours`).
 
 ### A.1 Symptom
@@ -427,9 +427,9 @@ persists on the recommended 90-day window.
 
 ### A.7 Verification path
 
-- Read `src/forex-bot/strategies/srmr_plus.py` lines 290–310 (session
+- Read `src/forex_bot/strategies/srmr_plus.py` lines 290–310 (session
   filter) + lines 640–655 (filter call site) for the contract.
-- Read `src/forex-bot/config/sessions.py` lines 104–115 for the
+- Read `src/forex_bot/config/sessions.py` lines 104–115 for the
   boundary constants.
 - Read `src/tournament/harness.py:load_bars_for_window` for the bar
   UTC construction.

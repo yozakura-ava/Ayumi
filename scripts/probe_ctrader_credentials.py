@@ -104,8 +104,8 @@ def check_auth(creds: dict[str, str], host: str | None = None, port: int = 5035)
     ProbeResult
     """
     try:
-        # Make src/forex-bot importable  (hyphen in dir name prevents normal import)
-        _src = str(PROJECT_ROOT / "src" / "forex-bot")
+        # Make src/forex_bot importable  (hyphen in dir name prevents normal import)
+        _src = str(PROJECT_ROOT / "src" / "forex_bot")
         if _src not in sys.path:
             sys.path.insert(0, _src)
 

@@ -2,7 +2,7 @@
 
 **Auditor:** Satsuki (research lane)
 **Card:** [70a53daa](https://workboard/70a53daa) — `[RESEARCH] forward_test_engine.py — 51 mypy errors remediation plan`
-**Scope:** Inventory and categorize all mypy errors in `src/forex-bot/adapters/ctrader/forward_test_engine.py` (3,496 lines). Produce a remediation plan with safe-vs-behavior-affecting split and live-trading review path.
+**Scope:** Inventory and categorize all mypy errors in `src/forex_bot/adapters/ctrader/forward_test_engine.py` (3,496 lines). Produce a remediation plan with safe-vs-behavior-affecting split and live-trading review path.
 **Method:** Static mypy run on a clean checkout, categorized by error code and reachability into live-trading paths. Cross-referenced against `signal_adapter.py:313` (runtime return type) and `market_data_feed.py:351` (deprecated stub).
 
 ---
@@ -13,7 +13,7 @@
 - **Total project errors: 196 in 25 files** (only reachable because of a config regression — see §3).
 - **1 real behavior bug** (line 2371, bar-close leak detector silently no-op) — **live-trading safety relevant**.
 - **46 annotation-only** — 39 of them collapse into ONE annotation fix (`self._market_feed` type widening).
-- **1 mypy.ini regression** introduced by lint sprint `91aa8ee2` (Aug 14, Tsubaki) prevents mypy from scanning ANY file under `src/forex-bot/`. Silent — CI doesn't run mypy (`ci.yml.disabled`).
+- **1 mypy.ini regression** introduced by lint sprint `91aa8ee2` (Aug 14, Tsubaki) prevents mypy from scanning ANY file under `src/forex_bot/`. Silent — CI doesn't run mypy (`ci.yml.disabled`).
 
 **Verdict:** Doable in ~1.1 SP. The "annotation-only" framing in the card is mostly right — but **the leak detector at line 2371 is a real bug that's been silently broken**, masked because `dict.get(int_key)` against a `dict[str, ...]` returns None instead of raising.
 
@@ -21,7 +21,7 @@
 
 ## 1. Error Inventory (47 errors)
 
-Captured via `MYPYPATH=src/forex-bot python3 -m mypy --explicit-package-bases src/forex-bot/adapters/ctrader/forward_test_engine.py` on `main` (HEAD = `bef7fd3f`, Aug 16 ~12:30 EDT).
+Captured via `MYPYPATH=src/forex_bot python3 -m mypy --explicit-package-bases src/forex_bot/adapters/ctrader/forward_test_engine.py` on `main` (HEAD = `bef7fd3f`, Aug 16 ~12:30 EDT).
 
 ### 1.1 Category breakdown
 
@@ -124,15 +124,15 @@ The `mypy.ini` change in commit `91aa8ee2` (Aug 14, Tsubaki's card `e1ba054c`) r
 
 | Setting | Before | After | Status |
 |---------|--------|-------|--------|
-| `mypy_path` | `src/forex-bot` | `src` | **Broken** — mypy refuses to scan files inside `forex-bot/` ("forex-bot contains __init__.py but is not a valid Python package name") |
+| `mypy_path` | `src/forex_bot` | `src` | **Broken** — mypy refuses to scan files inside `forex_bot/` ("forex_bot contains __init__.py but is not a valid Python package name") |
 
-The commit message claims the old config was broken because `forex-bot` is a hyphenated dir. **That claim is wrong** — `mypy_path` is a *sys.path entry*, not a package name. With `MYPYPATH=src/forex-bot`, mypy treats `src/forex-bot` as a path root and resolves `adapters.ctrader.forward_test_engine` correctly (returns 196 errors across 25 files, which is the truth).
+The commit message claims the old config was broken because `forex_bot` is a hyphenated dir. **That claim is wrong** — `mypy_path` is a *sys.path entry*, not a package name. With `MYPYPATH=src/forex_bot`, mypy treats `src/forex_bot` as a path root and resolves `adapters.ctrader.forward_test_engine` correctly (returns 196 errors across 25 files, which is the truth).
 
-The original config (`mypy_path = src/forex-bot`) was correct. The new config (`mypy_path = src`) was a misdiagnosis. **Revert** the mypy.ini line; the ruff config change in the same commit should stay.
+The original config (`mypy_path = src/forex_bot`) was correct. The new config (`mypy_path = src`) was a misdiagnosis. **Revert** the mypy.ini line; the ruff config change in the same commit should stay.
 
 | Step | Fix |
 |------|-----|
-| 2.3.a | `mypy_path = src` → `mypy_path = src/forex-bot` |
+| 2.3.a | `mypy_path = src` → `mypy_path = src/forex_bot` |
 
 ### 2.4 Total SP estimate
 
@@ -174,8 +174,8 @@ Single-source claims: none. Every claim has direct file/line evidence.
 ## 5. Conflicts surfaced (NOT silently resolved)
 
 - **Card 70a53daa claims "~51 mypy errors" — actual count is 47.** Possible explanations: error count drifted downward via intermediate fixes, or the card title was rough. Flag for Himari to confirm whether the AC ("Full mypy error inventory") is satisfied by 47 or whether the requester wanted a broader sweep.
-- **Card c40bd9e3 ("Were historical Ayumi mypy claims vacuous?") premise was that `mypy_path = src/forex-bot` was broken.** That premise is **wrong** per the evidence above. The c40bd9e3 audit may want to revisit — but that's out of scope here.
-- **Commit `91aa8ee2` message claims `mypy_path=src/forex-bot` was broken.** This brief contradicts that claim with direct evidence. Surface to Tsubaki for follow-up; possibly amend the commit message in a future PR.
+- **Card c40bd9e3 ("Were historical Ayumi mypy claims vacuous?") premise was that `mypy_path = src/forex_bot` was broken.** That premise is **wrong** per the evidence above. The c40bd9e3 audit may want to revisit — but that's out of scope here.
+- **Commit `91aa8ee2` message claims `mypy_path=src/forex_bot` was broken.** This brief contradicts that claim with direct evidence. Surface to Tsubaki for follow-up; possibly amend the commit message in a future PR.
 
 ---
 

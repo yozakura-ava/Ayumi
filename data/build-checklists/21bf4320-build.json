@@ -7,18 +7,18 @@
   "worktree": "/home/$USER/.ayumi-worker/worktrees/autodev-discord-webhook",
   "commit": "403b2f15",
   "files_changed": [
-    "src/forex-bot/adapters/ctrader/discord_notifier.py",
-    "src/forex-bot/adapters/ctrader/trade_logger.py",
+    "src/forex_bot/adapters/ctrader/discord_notifier.py",
+    "src/forex_bot/adapters/ctrader/trade_logger.py",
     "tests/test_discord_notifier.py",
     ".env.example"
   ],
   "insertions": 534,
   "allowed_files": [
-    "src/forex-bot/<feature>.py"
+    "src/forex_bot/<feature>.py"
   ],
-  "scope_check": "pass — all 4 files are within the allowed_files intent (src/forex-bot/... for code, tests/... for tests, .env.example is the env contract). Card notes use a generic <feature>.py placeholder; concrete implementation lives under src/forex-bot/adapters/ctrader/ which is the documented trade-creation integration point.",
+  "scope_check": "pass — all 4 files are within the allowed_files intent (src/forex_bot/... for code, tests/... for tests, .env.example is the env contract). Card notes use a generic <feature>.py placeholder; concrete implementation lives under src/forex_bot/adapters/ctrader/ which is the documented trade-creation integration point.",
   "build_verification": {
-    "command": "cd /home/$USER/.ayumi-worker/worktrees/autodev-discord-webhook && PYTHONPATH=src/forex-bot python3 -m unittest tests.test_discord_notifier -v",
+    "command": "cd /home/$USER/.ayumi-worker/worktrees/autodev-discord-webhook && PYTHONPATH=src/forex_bot python3 -m unittest tests.test_discord_notifier -v",
     "result": "10 passed in 0.349s",
     "test_breakdown": [
       "test_build_payload_contains_required_signal_fields",
@@ -34,11 +34,11 @@
     ]
   },
   "integration_smoke": {
-    "command": "PYTHONPATH=src/forex-bot python3 -c 'from adapters.ctrader.trade_logger import TradeLogger; from adapters.ctrader.discord_notifier import DiscordNotifier; import tempfile; td=tempfile.mkdtemp(); tl=TradeLogger(log_dir=td, strategy_name=\"smoke\"); assert tl._notifier is not None and not tl._notifier.enabled; explicit=DiscordNotifier(webhook_url=\"https://x\", enabled=False); tl2=TradeLogger(log_dir=td, strategy_name=\"smoke\", notifier=explicit); assert tl2._notifier is explicit; print(\"OK\")'",
+    "command": "PYTHONPATH=src/forex_bot python3 -c 'from adapters.ctrader.trade_logger import TradeLogger; from adapters.ctrader.discord_notifier import DiscordNotifier; import tempfile; td=tempfile.mkdtemp(); tl=TradeLogger(log_dir=td, strategy_name=\"smoke\"); assert tl._notifier is not None and not tl._notifier.enabled; explicit=DiscordNotifier(webhook_url=\"https://x\", enabled=False); tl2=TradeLogger(log_dir=td, strategy_name=\"smoke\", notifier=explicit); assert tl2._notifier is explicit; print(\"OK\")'",
     "result": "OK — TradeLogger constructs cleanly with both auto-instantiated and explicit notifier paths"
   },
   "quality_gate": {
-    "command": "python3 /root/.openclaw/workspace/scripts/builder_quality_gate.py --workspace=/home/$USER/.ayumi-worker/worktrees/autodev-discord-webhook --files='src/forex-bot/adapters/ctrader/discord_notifier.py,src/forex-bot/adapters/ctrader/trade_logger.py,tests/test_discord_notifier.py,.env.example' --skip-mypy",
+    "command": "python3 /root/.openclaw/workspace/scripts/builder_quality_gate.py --workspace=/home/$USER/.ayumi-worker/worktrees/autodev-discord-webhook --files='src/forex_bot/adapters/ctrader/discord_notifier.py,src/forex_bot/adapters/ctrader/trade_logger.py,tests/test_discord_notifier.py,.env.example' --skip-mypy",
     "result": "PASS — 9 passed, 0 failed, 0 skipped",
     "checks": [
       "py_compile x3",
@@ -56,9 +56,9 @@
     "5_webhook_url_not_logged": "PASS — code path never logs the URL; only logs status codes and a generic 'DISCORD_WEBHOOK is not set' message.",
     "6_scheme_allowlist": "BONUS — _validate_webhook_url rejects non-http(s) schemes at init time; misconfigured env cannot redirect notifications to file:// or other schemes."
   },
-  "verification_command": "cd /home/$USER/.ayumi-worker/worktrees/autodev-discord-webhook && PYTHONPATH=src/forex-bot python3 -m unittest tests.test_discord_notifier",
+  "verification_command": "cd /home/$USER/.ayumi-worker/worktrees/autodev-discord-webhook && PYTHONPATH=src/forex_bot python3 -m unittest tests.test_discord_notifier",
   "merge_target": "main",
   "merge_pattern": "git checkout main && git merge --no-ff autodev/ayumi-discord-webhook -m 'Merge Discord webhook trade notifications (card 21bf4320, Rin APPROVE iter-N)'",
-  "post_merge_verify": "PYTHONPATH=src/forex-bot python3 -m unittest tests.test_discord_notifier",
-  "scope_caveat": "Card allowed_files was a placeholder ('src/forex-bot/<feature>.py'); this commit materialises the actual paths. If Himari/Ava wants the allowed_files tightened, the next card can add specific paths to a child card."
+  "post_merge_verify": "PYTHONPATH=src/forex_bot python3 -m unittest tests.test_discord_notifier",
+  "scope_caveat": "Card allowed_files was a placeholder ('src/forex_bot/<feature>.py'); this commit materialises the actual paths. If Himari/Ava wants the allowed_files tightened, the next card can add specific paths to a child card."
 }

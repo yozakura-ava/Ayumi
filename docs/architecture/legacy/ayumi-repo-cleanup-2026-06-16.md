@@ -19,7 +19,7 @@ Both stashes were old log file diffs (forward test log appends) with no unique c
 | `worktrees/junior-dev-2/` | git worktree | `junior-dev-2/AYUAA-785-srmr-multi-pair` | 2026-05-18 (4 weeks) | SRMR+ multi-pair work; main has progressed |
 | `worktrees/junior-dev-1-old/` | orphan dir (not git) | n/a | 2026-04-11 (2 months) | Pre-refactor forex research experiments, 185 files, no longer relevant |
 
-Architecture-v2 references Kai's `core/engine/indicators` packages in Section 6. The architecture concept has been incorporated into the current `src/forex-bot/` structure (refactor completed June 12). The Kai prototype work is no longer needed.
+Architecture-v2 references Kai's `core/engine/indicators` packages in Section 6. The architecture concept has been incorporated into the current `src/forex_bot/` structure (refactor completed June 12). The Kai prototype work is no longer needed.
 
 ## Local Branches Pruned (33)
 

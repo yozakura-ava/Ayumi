@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-_FOREX_SRC = str(Path(__file__).resolve().parent.parent.parent / "src" / "forex-bot")
+_FOREX_SRC = str(Path(__file__).resolve().parent.parent.parent / "src" / "forex_bot")
 if _FOREX_SRC not in sys.path:
     sys.path.insert(0, _FOREX_SRC)
 

@@ -5,7 +5,7 @@ Background
 ``ayumi-forward-test.service`` crash-looped 5x on 2026-09-11 13:30-13:33 UTC with::
 
     AttributeError: 'BlendForwardTestRunner' object has no attribute '_persistence'
-        at src/forex-bot/forward_test/blend_runner.py:189 in start()
+        at src/forex_bot/forward_test/blend_runner.py:189 in start()
 
 Root cause (diagnosed in-worktree): the service runs from the MAIN tree
 (WorkingDirectory=$AYUMI_ROOT). Commit 823e5e29
@@ -34,7 +34,7 @@ import sys
 from pathlib import Path
 
 WORKTREE = Path.cwd()
-SRC = WORKTREE / "src" / "forex-bot"
+SRC = WORKTREE / "src" / "forex_bot"
 
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))

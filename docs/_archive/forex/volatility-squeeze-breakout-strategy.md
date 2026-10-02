@@ -133,7 +133,7 @@ VolatilitySqueezeConfig(
 ## File Structure
 
 ```
-src/forex-bot/
+src/forex_bot/
   strategies/
     volatility_squeeze.py    # New strategy implementation
   backtest/

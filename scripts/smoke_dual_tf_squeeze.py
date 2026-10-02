@@ -23,7 +23,7 @@ from typing import List
 # Ensure src is on path.
 HERE = Path(__file__).resolve().parent
 SRC = HERE.parent / "src"
-sys.path.insert(0, str(SRC / "forex-bot"))
+sys.path.insert(0, str(SRC / "forex_bot"))
 sys.path.insert(0, str(SRC))
 
 

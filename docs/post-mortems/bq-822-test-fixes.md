@@ -46,7 +46,7 @@ This makes the production code robust against execution events with unexpected o
 ## Files Modified
 
 1. `tests/integration/test_open_api_spot_feed.py` — 3 changes (mock setup fixes)
-2. `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` — defensive symbol_id handling in exec event
+2. `src/forex_bot/adapters/ctrader/open_api_spot_feed.py` — defensive symbol_id handling in exec event
 
 ## Validation
 

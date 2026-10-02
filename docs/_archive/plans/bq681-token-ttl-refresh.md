@@ -66,7 +66,7 @@ The refresh logic is a method on `OpenApiSpotFeed` — hard to unit test without
 ```
 ┌─────────────────────────────────────────────────┐
 │                  TokenManager                    │
-│  (src/forex-bot/adapters/ctrader/token_manager.py)│
+│  (src/forex_bot/adapters/ctrader/token_manager.py)│
 ├─────────────────────────────────────────────────┤
 │ - state_path: Path  (data/token_state.json)     │
 │ - client_id, client_secret                       │
@@ -121,11 +121,11 @@ class ValidationResult:
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/forex-bot/adapters/ctrader/token_manager.py` | **CREATE** | Standalone `TokenManager` class |
+| `src/forex_bot/adapters/ctrader/token_manager.py` | **CREATE** | Standalone `TokenManager` class |
 | `tests/test_token_manager.py` | **CREATE** | Unit tests for TokenManager |
 | `data/token_state.json` | **AUTO-CREATED** | Persistent token state (gitignored) |
 | `scripts/launch_blend_forward_test.py` | **MODIFY** | Add startup token validation via TokenManager |
-| `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` | **MODIFY** | Delegate refresh to TokenManager; keep inline as fallback |
+| `src/forex_bot/adapters/ctrader/open_api_spot_feed.py` | **MODIFY** | Delegate refresh to TokenManager; keep inline as fallback |
 
 ### Integration Points
 
@@ -184,7 +184,7 @@ tm.on_warn = lambda level, days: logger.warning(
 
 ## Acceptance Criteria
 
-- [ ] `TokenManager` class in `src/forex-bot/adapters/ctrader/token_manager.py`
+- [ ] `TokenManager` class in `src/forex_bot/adapters/ctrader/token_manager.py`
 - [ ] `TokenState` persisted to `data/token_state.json` after every refresh
 - [ ] `validate_on_startup()` detects placeholder tokens, expired tokens, and near-expiry tokens
 - [ ] `refresh()` calls cTrader OAuth endpoint, returns new token pair, persists to `.env` + state file

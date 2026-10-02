@@ -153,9 +153,9 @@ This will get closer to ~170 trades but will still miss the FTMO risk guard nuan
 |---|---|---|
 | run_blend_5strat.py | `scripts/run_blend_5strat.py` | Full (366 lines) |
 | launch_blend_forward_test.py | `scripts/launch_blend_forward_test.py` | Key sections (1496 lines, grep + targeted reads) |
-| paper_trader.py | `src/forex-bot/adapters/ctrader/paper_trader.py` | Lines 90-220 (process_signal) |
-| order_manager.py | `src/forex-bot/adapters/ctrader/order_manager.py` | Lines 73-243 (OrderManager class) |
-| ftmo_guard.py | `src/forex-bot/risk/ftmo_guard.py` | Lines 360-410 (position gating) |
-| ftmo_params.py | `src/forex-bot/risk/ftmo_params.py` | Line 41 (FTMO_MAX_CONCURRENT_POSITIONS=3) |
-| risk_guard.py | `src/forex-bot/adapters/ctrader/risk_guard.py` | Key constants (grep) |
-| models.py | `src/forex-bot/adapters/ctrader/models.py` | Position class fields (grep) |
+| paper_trader.py | `src/forex_bot/adapters/ctrader/paper_trader.py` | Lines 90-220 (process_signal) |
+| order_manager.py | `src/forex_bot/adapters/ctrader/order_manager.py` | Lines 73-243 (OrderManager class) |
+| ftmo_guard.py | `src/forex_bot/risk/ftmo_guard.py` | Lines 360-410 (position gating) |
+| ftmo_params.py | `src/forex_bot/risk/ftmo_params.py` | Line 41 (FTMO_MAX_CONCURRENT_POSITIONS=3) |
+| risk_guard.py | `src/forex_bot/adapters/ctrader/risk_guard.py` | Key constants (grep) |
+| models.py | `src/forex_bot/adapters/ctrader/models.py` | Position class fields (grep) |

@@ -21,7 +21,7 @@ REPORT_DIR = Path("reports/walk_forward")
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
-sys.path.insert(0, str(project_root / "src" / "forex-bot"))
+sys.path.insert(0, str(project_root / "src" / "forex_bot"))
 
 from backtest import CsvDataLoader
 from backtest.engine import BacktestConfig, BacktestMetrics

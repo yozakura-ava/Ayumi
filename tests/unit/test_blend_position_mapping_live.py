@@ -60,7 +60,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 WORKSPACE = Path("$AYUMI_ROOT")
-ENGINE = WORKSPACE / "src" / "forex-bot" / "adapters" / "ctrader" / "forward_test_engine.py"
+ENGINE = WORKSPACE / "src" / "forex_bot" / "adapters" / "ctrader" / "forward_test_engine.py"
 
 
 # ---------------------------------------------------------------------------
@@ -355,7 +355,7 @@ def test_engine_has_register_blend_position_mapping_method():
     """``_register_blend_position_mapping`` MUST be defined on
     ``ForwardTestEngine`` (the single source of truth for the wiring).
     """
-    sys.path.insert(0, str(WORKSPACE / "src" / "forex-bot"))
+    sys.path.insert(0, str(WORKSPACE / "src" / "forex_bot"))
     from adapters.ctrader.forward_test_engine import ForwardTestEngine
 
     assert hasattr(ForwardTestEngine, "_register_blend_position_mapping"), (

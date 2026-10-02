@@ -148,7 +148,7 @@ MIN_TRADES_PER_WINDOW = 15     # hard — too high for monthly windows, see "Spa
 
 ## Portfolio Blend
 
-`src/forex-bot/backtest/portfolio_blend.py` (1140 LOC) handles multi-strategy blending:
+`src/forex_bot/backtest/portfolio_blend.py` (1140 LOC) handles multi-strategy blending:
 
 **Built-in weight methods:**
 - `equal_risk` — equal risk contribution per strategy
@@ -200,7 +200,7 @@ python3 scripts/run_srf_sweep.py --pair XAUUSD --timeframes M15,H1,M5 --windows 
 
 ## Adding New Strategies
 
-**1. Create strategy file** in `src/forex-bot/strategies/<name>.py`:
+**1. Create strategy file** in `src/forex_bot/strategies/<name>.py`:
 - Must inherit base strategy interface (see existing strategies for pattern)
 - Must implement `evaluate(state: MarketState) -> StrategySignal | None`
 - Config dataclass at top with sensible defaults
@@ -210,7 +210,7 @@ Edit `scripts/run_srf_sweep.py`, `get_strategies_for_pair()` function. Add facto
 
 **3. Verify it fires signals** (sanity check before sweep):
 ```python
-import sys; sys.path.insert(0, 'src/forex-bot'); sys.path.insert(0, 'src')
+import sys; sys.path.insert(0, 'src/forex_bot'); sys.path.insert(0, 'src')
 from strategies.<name> import <Strategy>, <Config>
 from backtest.tick_loader import load_bars
 from core.types import MarketState, SessionType
@@ -261,7 +261,7 @@ For sub-15-minute timeframes, expect:
 
 ## Best Day Rule (FTMO Funded Phase)
 
-**Module:** `src/forex-bot/backtest/best_day_rule.py`
+**Module:** `src/forex_bot/backtest/best_day_rule.py`
 **Class:** `BestDayRuleTracker`
 **Reference:** `docs/research/ftmo-risk-and-port-sizing-2026-07.md` §A.7
 
@@ -328,7 +328,7 @@ print(tracker.status(now=datetime.now(timezone.utc)))
 
 ### Difference from `risk/ftmo_guard.py`
 
-`src/forex-bot/risk/ftmo_guard.py` also implements a Best Day check, but with a different formula: it uses the **sum of positive-day P/L** as the denominator, not cumulative P/L. The two implementations are complementary:
+`src/forex_bot/risk/ftmo_guard.py` also implements a Best Day check, but with a different formula: it uses the **sum of positive-day P/L** as the denominator, not cumulative P/L. The two implementations are complementary:
 
 | Use case | Module |
 |---|---|
@@ -397,8 +397,8 @@ An event triggers a blackout if:
 
 | File | Purpose |
 |------|---------|
-| `src/forex-bot/data/news_calendar.py` | Filter implementation |
-| `src/forex-bot/backtest/portfolio_blend.py` | `check_news_blackout()` entry gate |
+| `src/forex_bot/data/news_calendar.py` | Filter implementation |
+| `src/forex_bot/backtest/portfolio_blend.py` | `check_news_blackout()` entry gate |
 | `tests/unit/data/test_news_calendar.py` | Unit tests |
 
 ---
@@ -438,11 +438,11 @@ An event triggers a blackout if:
 - `scripts/aggregate_ticks_to_bars.py` — tick → bars aggregation
 - `scripts/run_srf_sweep.py` — single-symbol sweep driver
 - `scripts/run_portfolio_blend.py` — multi-strategy blend (built, commit 942e4a4)
-- `src/forex-bot/backtest/tick_loader.py` — bar loader (DuckDB + CSV fallback)
-- `src/forex-bot/backtest/walk_forward_runner.py` — walk-forward engine
-- `src/forex-bot/backtest/portfolio_blend.py` — blend framework
-- `src/forex-bot/srf/gonogo.py` — go/no-go gate logic
-- `src/forex-bot/srf/schema.py` — DuckDB schema for sweep data
+- `src/forex_bot/backtest/tick_loader.py` — bar loader (DuckDB + CSV fallback)
+- `src/forex_bot/backtest/walk_forward_runner.py` — walk-forward engine
+- `src/forex_bot/backtest/portfolio_blend.py` — blend framework
+- `src/forex_bot/srf/gonogo.py` — go/no-go gate logic
+- `src/forex_bot/srf/schema.py` — DuckDB schema for sweep data
 - `data/ayumi_market.duckdb` — bars + ticks source
 - `data/research/research.duckdb` — sweep results + portfolio metrics
 

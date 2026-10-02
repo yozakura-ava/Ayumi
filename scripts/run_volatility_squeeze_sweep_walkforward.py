@@ -18,7 +18,7 @@ from typing import Any
 project_root = Path(__file__).parent.parent
 scripts_dir = Path(__file__).parent
 sys.path.insert(0, str(project_root / "src"))
-sys.path.insert(0, str(project_root / "src" / "forex-bot"))
+sys.path.insert(0, str(project_root / "src" / "forex_bot"))
 sys.path.insert(0, str(scripts_dir))
 
 from backtest import CsvDataLoader

@@ -12,8 +12,8 @@ from pathlib import Path
 
 import pytest
 
-# Ensure src/forex-bot is on the path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "forex-bot"))
+# Ensure src/forex_bot is on the path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src" / "forex_bot"))
 
 from backtest.engine import StrategySignal, TradeDirection  # noqa: E402
 from overlays.dxy_regime_overlay import DxyBar, DxyRegimeOverlay  # noqa: E402, I001

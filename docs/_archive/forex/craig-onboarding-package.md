@@ -92,7 +92,7 @@ python -m hybrid signal BUY EURUSD entry=1.2345 sl=1.2330 tp1=1.2355 confidence=
 ## Getting Started Guide
 
 ### Step 1: Install and Configure
-1. Clone repo: `git clone https://github.com/ayumi/forex-bot`
+1. Clone repo: `git clone https://github.com/ayumi/forex_bot`
 2. Install: `pip install -r requirements.txt`
 3. Copy `.env.example` to `.env` and configure cTrader credentials
 4. Test connection: `python -m hybrid status`
@@ -162,7 +162,7 @@ Manually close a specific position
 ---
 
 ## Files Referenced
-- Hybrid engine: `src/forex-bot/hybrid/engine.py`
-- Risk guard: `src/forex-bot/adapters/ctrader/risk_guard.py`
+- Hybrid engine: `src/forex_bot/hybrid/engine.py`
+- Risk guard: `src/forex_bot/adapters/ctrader/risk_guard.py`
 - Forward test protocol: `docs/forex/forward-test-protocol.md`
 - FTMO rules: `docs/forex/ftmo-challenge-risk-parameters-and-trade-plan.md`

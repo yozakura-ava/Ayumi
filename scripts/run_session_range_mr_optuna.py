@@ -18,7 +18,7 @@ from typing import Any, Dict, List
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root / "src"))
-sys.path.insert(0, str(project_root / "src" / "forex-bot"))
+sys.path.insert(0, str(project_root / "src" / "forex_bot"))
 
 from backtest import CsvDataLoader  # noqa: E402
 from backtest.engine import Bar  # noqa: E402, I001

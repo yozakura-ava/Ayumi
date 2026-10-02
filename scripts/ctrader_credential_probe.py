@@ -30,7 +30,7 @@ from urllib.parse import urlparse
 
 # Allow running from repo root without package install
 project_root = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(project_root / "src" / "forex-bot"))
+sys.path.insert(0, str(project_root / "src" / "forex_bot"))
 
 from adapters.ctrader.auth import CredentialError, CTraderAuth
 from adapters.ctrader.token_manager import TokenStatus

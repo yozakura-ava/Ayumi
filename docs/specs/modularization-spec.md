@@ -19,7 +19,7 @@ The forward test system has a **fake archive**: `archive/legacy_ctrader/_pkg/` w
 
 ### Current State
 
-The shim at `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` (52 lines) re-exports everything from `archive/legacy_ctrader/_pkg/open_api_spot_feed.py` (1132 lines). This is the **only runtime import path** into the archive — but it's a big one (the entire `OpenApiSpotFeed` class).
+The shim at `src/forex_bot/adapters/ctrader/open_api_spot_feed.py` (52 lines) re-exports everything from `archive/legacy_ctrader/_pkg/open_api_spot_feed.py` (1132 lines). This is the **only runtime import path** into the archive — but it's a big one (the entire `OpenApiSpotFeed` class).
 
 **Runtime imports from archive (src/ + scripts/):**
 
@@ -40,7 +40,7 @@ The shim at `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` (52 lines) re
 
 ### Files Already Duplicated in src/
 
-Most archive `_pkg/` files **already exist** in `src/forex-bot/adapters/ctrader/`:
+Most archive `_pkg/` files **already exist** in `src/forex_bot/adapters/ctrader/`:
 
 | Archive File | In src/? | Identical? | Notes |
 |-------------|----------|------------|-------|
@@ -66,7 +66,7 @@ Most archive `_pkg/` files **already exist** in `src/forex-bot/adapters/ctrader/
 ### A1: Extract `open_api_spot_feed.py` (THE BIG ONE)
 
 **Source:** `archive/legacy_ctrader/_pkg/open_api_spot_feed.py` (1132 lines)  
-**Target:** `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` (replace the 52-line shim with the real code)
+**Target:** `src/forex_bot/adapters/ctrader/open_api_spot_feed.py` (replace the 52-line shim with the real code)
 
 **What it contains:**
 - `OpenApiSpotFeed` class — the main cTrader spot feed + order execution client
@@ -85,17 +85,17 @@ from .models import ...                              # ✅
 from .market_hours import is_forex_market_closed     # ✅
 ```
 
-All relative imports will work as-is after the move since the dependencies already exist in `src/forex-bot/adapters/ctrader/`.
+All relative imports will work as-is after the move since the dependencies already exist in `src/forex_bot/adapters/ctrader/`.
 
 **Path fix needed:** The archive version has `_PROJECT_ROOT` calculation based on archive depth. After move to `src/`, the path needs `parents[4]` instead of `parents[3]`. **BUT** the src/ version of `auth.py` already fixed this, and the `OpenApiSpotFeed` class itself doesn't compute project root — it receives credentials as constructor args. So this is likely a non-issue.
 
 **Risk:** Low. The relative imports all resolve to files that already exist in the target directory. No circular dependencies.
 
 **Steps:**
-1. Copy `archive/legacy_ctrader/_pkg/open_api_spot_feed.py` → `src/forex-bot/adapters/ctrader/open_api_spot_feed.py` (overwrite shim)
+1. Copy `archive/legacy_ctrader/_pkg/open_api_spot_feed.py` → `src/forex_bot/adapters/ctrader/open_api_spot_feed.py` (overwrite shim)
 2. Remove the shim code entirely
 3. Verify the file's relative imports resolve correctly
-4. Run: `python -c "import sys; sys.path.insert(0, 'src/forex-bot'); from adapters.ctrader.open_api_spot_feed import OpenApiSpotFeed; print('OK')"`
+4. Run: `python -c "import sys; sys.path.insert(0, 'src/forex_bot'); from adapters.ctrader.open_api_spot_feed import OpenApiSpotFeed; print('OK')"`
 5. Run tests
 
 **Effort:** M (single file move + verify)
@@ -130,7 +130,7 @@ All relative imports will work as-is after the move since the dependencies alrea
 
 **Finding:** Tests already import it as `adapters.ctrader.oauth_refresh` but the file isn't in `src/`. There's a `.pyc` in `__pycache__` meaning it used to exist. It was likely removed from src/ but the test still references it. `token_lifecycle.py` (443 lines, in src/) covers similar functionality.
 
-**Action:** Copy `oauth_refresh.py` to `src/forex-bot/adapters/ctrader/oauth_refresh.py`. No import changes needed since tests already use the `adapters.ctrader.` path.
+**Action:** Copy `oauth_refresh.py` to `src/forex_bot/adapters/ctrader/oauth_refresh.py`. No import changes needed since tests already use the `adapters.ctrader.` path.
 
 **Effort:** S (1 file copy)
 
@@ -154,7 +154,7 @@ All relative imports will work as-is after the move since the dependencies alrea
 | `wire_connection_reliability()` | 451–465 | 15 |
 | `main()` | 466–688 | **223** |
 
-### B1: Extract `BlendForwardTestEngine` → `src/forex-bot/engine/blend_engine.py`
+### B1: Extract `BlendForwardTestEngine` → `src/forex_bot/engine/blend_engine.py`
 
 **What it contains:**
 - `BlendForwardTestEngine(ForwardTestEngine)` — subclass with blend-specific signal evaluation and routing
@@ -167,21 +167,21 @@ All relative imports will work as-is after the move since the dependencies alrea
 - `TradeSignal`, `Bar`, `BarPeriod` types
 - `CorrelationGate`, `HeartbeatTracker` (move alongside or keep in launcher)
 
-**Target:** `src/forex-bot/engine/blend_engine.py` (~271 lines)
+**Target:** `src/forex_bot/engine/blend_engine.py` (~271 lines)
 
 **Effort:** M (move class + fix imports + new `__init__.py` for `engine/` package)
 
-### B2: Extract `CorrelationGate` + `HeartbeatTracker` → `src/forex-bot/engine/guards.py`
+### B2: Extract `CorrelationGate` + `HeartbeatTracker` → `src/forex_bot/engine/guards.py`
 
 **What they do:**
 - `CorrelationGate` — prevents correlated strategies from both taking positions on the same symbol
 - `HeartbeatTracker` — monitors strategy evaluation frequency and flags stalls
 
-**Target:** `src/forex-bot/engine/guards.py` (~80 lines)
+**Target:** `src/forex_bot/engine/guards.py` (~80 lines)
 
 **Effort:** S (2 class moves + minimal imports)
 
-### B3: Extract health/heartbeat logging → `src/forex-bot/engine/health_logger.py`
+### B3: Extract health/heartbeat logging → `src/forex_bot/engine/health_logger.py`
 
 **What it contains:** The health logging block inside `main()` (~80 lines of the 223):
 - Periodic balance/equity logging
@@ -189,7 +189,7 @@ All relative imports will work as-is after the move since the dependencies alrea
 - Bar build health checks
 - Live vs paper balance reporting
 
-**Target:** `src/forex-bot/engine/health_logger.py` (~100 lines, as a function `log_health_status(engine, mode, last_log_time, interval)`)
+**Target:** `src/forex_bot/engine/health_logger.py` (~100 lines, as a function `log_health_status(engine, mode, last_log_time, interval)`)
 
 **Effort:** S (extract inline block into function + wire callback)
 
@@ -247,9 +247,9 @@ Each item is independently testable. Run `pytest tests/ -q` after each step.
 
 ### Launcher Split (Part B)
 - [ ] `scripts/launch_blend_forward_test.py` is under 200 lines
-- [ ] `src/forex-bot/engine/blend_engine.py` exists and contains `BlendForwardTestEngine`
-- [ ] `src/forex-bot/engine/guards.py` exists and contains `CorrelationGate` + `HeartbeatTracker`
-- [ ] `src/forex-bot/engine/health_logger.py` exists and contains the health logging function
+- [ ] `src/forex_bot/engine/blend_engine.py` exists and contains `BlendForwardTestEngine`
+- [ ] `src/forex_bot/engine/guards.py` exists and contains `CorrelationGate` + `HeartbeatTracker`
+- [ ] `src/forex_bot/engine/health_logger.py` exists and contains the health logging function
 - [ ] All existing tests pass
 - [ ] `python scripts/launch_blend_forward_test.py --help` runs without import errors
 

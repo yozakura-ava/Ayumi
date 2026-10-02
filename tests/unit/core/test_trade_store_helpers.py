@@ -1,4 +1,4 @@
-"""Test coverage for forex-bot/storage/trade_store.py helpers.
+"""Test coverage for forex_bot/storage/trade_store.py helpers.
 
 Covers:
   - _simple_sharpe: empty/insufficient input, zero variance, known positive/negative series

@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 # Ensure src is on path
-sys.path.insert(0, "src/forex-bot")
+sys.path.insert(0, "src/forex_bot")
 
 from backtest.engine import Bar
 from backtest.types import SessionType, determine_session

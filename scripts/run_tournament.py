@@ -23,12 +23,12 @@ from pathlib import Path
 
 # Make the tournament module importable.  When invoked as a script from
 # any CWD, prepend both ``src/`` (so ``tournament`` resolves) and
-# ``src/forex-bot`` (so strategies.core_types resolves).  Mirrors the
+# ``src/forex_bot`` (so strategies.core_types resolves).  Mirrors the
 # pythonpath declared in pytest.ini so ``--smoke`` produces the same
 # import context as ``pytest``.
 _HERE = Path(__file__).resolve()
 _REPO = _HERE.parent.parent
-for _p in (str(_REPO / "src"), str(_REPO / "src" / "forex-bot")):
+for _p in (str(_REPO / "src"), str(_REPO / "src" / "forex_bot")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 

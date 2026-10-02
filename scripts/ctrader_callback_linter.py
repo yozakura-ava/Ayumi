@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """cTrader adapter callback linter.
 
-Scans src/forex-bot/adapters/ctrader/ for cTrader callback registrations such
+Scans src/forex_bot/adapters/ctrader/ for cTrader callback registrations such
 as setConnectCallback / setDisconnectCallback / setMessageReceivedCallback
 and flags:
   - common typos (e.g. setConnectedCallback vs setConnectCallback)
@@ -10,7 +10,7 @@ and flags:
 
 Can run standalone or as a pre-commit hook:
   python3 scripts/ctrader_callback_linter.py
-  python3 scripts/ctrader_callback_linter.py src/forex-bot/adapters/ctrader/
+  python3 scripts/ctrader_callback_linter.py src/forex_bot/adapters/ctrader/
 
 Exit codes:
   0 = no issues
@@ -199,7 +199,7 @@ def main() -> int:
         targets = [Path(p).resolve() for p in argv]
     else:
         project_root = Path(__file__).resolve().parents[1]
-        targets = [project_root / "src" / "forex-bot" / "adapters" / "ctrader"]
+        targets = [project_root / "src" / "forex_bot" / "adapters" / "ctrader"]
 
     all_issues: list[dict] = []
     files_scanned = 0
