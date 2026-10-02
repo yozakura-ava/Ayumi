@@ -935,7 +935,7 @@ class ForwardTestEngine:
                         )
                     dd_pct = rg.current_drawdown_pct * 100
                     logger.info(
-                        "[Balance Sync] RiskGuard synced: live=$%.2f starting=$%.2f dd=%.2f%%",
+                        "[Balance Sync] RiskGuard synced: live=$%.2f starting=$%.2f dd_from_start=%.2f%%",
                         live_balance,
                         rg._starting_balance,
                         dd_pct,

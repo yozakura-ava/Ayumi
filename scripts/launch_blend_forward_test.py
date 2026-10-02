@@ -3055,13 +3055,13 @@ def main():
                     _ftmo_status = _ftmo_guard.get_status()
                     _ftmo_str = (
                         f"ftmo: action={_ftmo_status['action_level']} "
-                        f"dd={_ftmo_status['current_dd_pct']:.2f}% "
-                        f"daily_loss={_ftmo_status['daily_loss_pct']:.2f}% "
+                        f"dd_from_peak={_ftmo_status['current_dd_pct']:.2f}% "
+                        f"daily_loss_from_day_start={_ftmo_status['daily_loss_pct']:.2f}% "
                         f"peak=${_ftmo_status['peak_balance']:.2f}"
                     )
 
                     logger.info(
-                        "[B5 Health] ticks=%d tps=%.2f bars=%d signals=%d "
+                        "[B5 Health] ticks=%d tps=%.2f bars_total=%d signals=%d "
                         "trades=%d live_fills=%d signals_failed_live=%d "
                         "signals_unreachable=%d regime_filtered=%d "
                         "stats_fails=%d %s %s %s uptime=%.0fs",
@@ -3174,7 +3174,7 @@ def main():
                             )
                         elif _is_forex_market_closed():
                             logger.info(
-                                "[B5 Pipeline] Market closed — ticks=%d bars=%d (idle, expected)",
+                                "[B5 Pipeline] Market closed — ticks=%d bars_total=%d (idle, expected)",
                                 h.get("ticks_received", 0),
                                 engine.health.bars_built,
                             )
