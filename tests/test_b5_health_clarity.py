@@ -33,7 +33,6 @@ import pytest
 # required for this narrow observability test).
 from engine.health_monitor import HealthMonitor
 
-
 # --------------------------------------------------------------------- #
 # Path helpers
 # --------------------------------------------------------------------- #
