@@ -96,8 +96,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--timeframe",
         default="H1",
-        choices=["H1", "M15"],
-        help="Bar timeframe (default H1).  M15 supported for strategies that run M15.",
+        choices=["M3", "M5", "M15", "M30", "H1"],
+        help=(
+            "Bar timeframe (default H1).  Supported choices: M3, M5, M15, M30, H1.  "
+            "Sub-hour choices (M3, M5) and M30 are wired for strategies that "
+            "register at those timeframes; clean main currently ships H1 + M15 "
+            "data and raises TournamentEmptyWindow if the DuckDB bars table "
+            "lacks the requested timeframe."
+        ),
     )
     parser.add_argument(
         "--window",
