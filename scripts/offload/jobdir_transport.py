@@ -43,9 +43,12 @@ if any cell bypassed the worker (HR27 silent-success guard).
 
 from __future__ import annotations
 
+import os
+import socket
 import subprocess
 import sys
 from pathlib import Path
+from typing import Callable
 
 from offload.transport import (
     BundleTooLargeError,
@@ -57,7 +60,12 @@ from offload.transport import (
     WorktreeUnreachableError,
 )
 
-__all__ = ["JobDirBundleTransport", "fetch_descriptor_done_sentinel"]
+__all__ = [
+    "JobDirBundleTransport",
+    "LocalJobDirBundleTransport",
+    "detect_local_node",
+    "fetch_descriptor_done_sentinel",
+]
 
 
 # Worker-side directory layout (mirrored in worker_runner.py).
@@ -267,3 +275,258 @@ def fetch_descriptor_done_sentinel(
         return result.stdout.strip() == "yes"
     except (subprocess.CalledProcessError, BundleTransportError):
         return False
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Local-node transport (card 79793579-37f1-4636-8979-99b5c9ac35c7)
+# ─────────────────────────────────────────────────────────────────────────
+#
+# When the runner executes ON the target worker node itself, the node's
+# CLI has no gateway credentials (``/root/.openclaw/openclaw.json`` on
+# node = ``{plugins:{}}`` only). The original JobDirBundleTransport
+# round-trips every push through ``openclaw nodes invoke terminal.upload``
+# which fails with ``gateway node.list requires credentials before
+# opening a websocket``. Card 79793579 mandates a local-staging path:
+# when the runner is already on the target node (--local-node flag or
+# hostname sniff), write bundles directly to the jobdir staging path
+# and never invoke ``openclaw`` at all.
+#
+# Design contract (binding per card notes):
+#   1. NEVER call ``subprocess.run`` / ``openclaw nodes invoke`` —
+#      this transport proves the no-gateway-auth dependency is gone.
+#   2. Wire-shape on disk must be byte-identical to the gateway wire:
+#      bundles land at {job_dir}/{run_id}/incoming/{name} (the same
+#      path the remote transport's mv would produce).
+#   3. fetch_output reads the same {job_dir}/{run_id}/done/ tree the
+#      remote transport would have read — local FUSE / filesystem is
+#      identical to a successful wire fetch.
+#   4. fetch_descriptor_done_sentinel_local reads the same .done
+#      sentinel the worker_runner writes — no wire needed.
+#   5. Selection is deterministic: explicit --local-node flag wins
+#      over hostname detection; hostname detection only auto-enables
+#      the local path when the OS hostname matches --local-node-name
+#      (default: ``ava-worker-local``).
+
+
+def detect_local_node(
+    *,
+    local_node_flag: bool | None,
+    expected_node_name: str = OpenClawNodeBundleTransport.DEFAULT_NODE,
+    hostname_fn: Callable[[], str] = socket.gethostname,
+) -> bool:
+    """Decide whether the runner is executing on the target worker node.
+
+    Determinism (card AC #3): explicit flag wins over hostname sniffing.
+
+    Args:
+        local_node_flag: tri-state from the CLI:
+            ``True``  → user passed ``--local-node`` (force local path).
+            ``False`` → user passed ``--no-local-node`` (force remote).
+            ``None``  → not specified → auto-detect by hostname.
+        expected_node_name: the worker node name to compare the OS
+            hostname against (default: ``ava-worker-local``).
+        hostname_fn: hostname lookup, injected for tests.
+
+    Returns:
+        True iff the runner should use ``LocalJobDirBundleTransport``.
+
+    The comparison is case-insensitive and trimmed — node names in
+    OpenClaw are conventionally lower-case, but hostnames can carry
+    mixed case from the OS. We normalize both sides.
+    """
+    if local_node_flag is True:
+        return True
+    if local_node_flag is False:
+        return False
+    # Auto-detect: hostname matches expected node name.
+    try:
+        host = hostname_fn().strip().lower()
+    except (OSError, AttributeError):
+        return False
+    return host == expected_node_name.strip().lower()
+
+
+class LocalJobDirBundleTransport(JobDirBundleTransport):
+    """Job-dir transport that bypasses the gateway entirely.
+
+    Same wire-shape on disk as ``JobDirBundleTransport`` (push lands
+    at ``{job_dir}/{run_id}/incoming/{name}``; fetch reads
+    ``{job_dir}/{run_id}/done/{cell_id}.output.json``) but every
+    operation is a direct filesystem call. No ``openclaw nodes invoke``,
+    no subprocess, no gateway auth — the runner can execute on the
+    worker node without any credentials.
+
+    Selection (card 79793579 AC #3): prefer the explicit ``--local-node``
+    flag over hostname sniffing. The runner's argparse layer is
+    responsible for calling ``detect_local_node`` and instantiating this
+    class when the answer is True.
+
+    Selection tests work with both ``--local-node`` and hostname-based
+    detection (``socket.gethostname() == ``ava-worker-local``); see
+    ``tests/offload/test_jobdir_local_transport.py``.
+
+    Wire-shape tests:
+      * ``test_local_push_writes_directly_to_incoming_*: bundle lands
+        at the same path the gateway-side mv would produce.
+      * ``test_local_push_never_invokes_subprocess``: subprocess.run
+        is NOT called (HR5 boundary; CRIP §3 architectural constraint).
+      * ``test_local_fetch_output_reads_done_filesystem``: byte-equality
+        with a sibling file-fetch.
+      * ``test_local_sentinel_check_reads_local_fs``: .done sentinel
+        via ``Path.is_file``, no exec.
+      * ``test_local_push_preserves_sha_contract``: WorkerCell.sha256
+        matches the dispatcher's expected SHA (Rin finding #2 wire
+        integrity is preserved on the local path).
+
+    Logging: the runner's ``--local-node`` flag triggers a one-line
+    log statement naming the chosen transport BEFORE the cell loop
+    starts — operators can grep the run log for the chosen transport
+    without reading the code.
+    """
+
+    def __init__(
+        self,
+        node: str = OpenClawNodeBundleTransport.DEFAULT_NODE,
+        *,
+        job_dir: str = JOB_DIR_DEFAULT,
+    ) -> None:
+        # NOTE: no OpenClawNodeBundleTransport instantiation — the
+        # parent's __init__ would build a wire object we never use.
+        # Bypass the parent __init__ to avoid the unused-attribute lint.
+        self._node = node
+        self._job_dir = job_dir
+        # Deliberately do NOT set self._wire — the parent's
+        # push_bundle / fetch_output paths reference it. We override
+        # every method that touches the wire, so a missing attribute
+        # would fail loudly if a future change adds a wire-using method.
+        self._local_only = True
+
+    # ── ABC methods (overridden for direct FS) ─────────────────────────────
+
+    def push_bundle(
+        self,
+        run_id: str,
+        bundle_path: Path,
+        expected_sha256: str,
+    ) -> WorkerCell:
+        """Stage the bundle directly at ``{job_dir}/{run_id}/incoming/{name}``.
+
+        Local SHA pre-flight (mirrors the wire transport's Q1 loud skew
+        rejection so the trust boundary holds on the local path). No
+        subprocess, no openclaw invoke — pure stdlib filesystem.
+        """
+        local_sha = self._sha256_file(bundle_path)
+        if local_sha != expected_sha256:
+            raise CodeSHARejectedError(
+                f"Local descriptor SHA {local_sha!r} != expected "
+                f"{expected_sha256!r} (local jobdir transport pre-flight)"
+            )
+
+        # Size cap pre-flight (16 MB; matches gateway MAX_UPLOAD_BYTES).
+        size = bundle_path.stat().st_size
+        if size > OpenClawNodeBundleTransport.MAX_UPLOAD_BYTES:
+            raise BundleTooLargeError(
+                f"descriptor size {size} bytes exceeds gateway cap "
+                f"{OpenClawNodeBundleTransport.MAX_UPLOAD_BYTES} bytes (16 MB); "
+                f"refusing to write"
+            )
+
+        # Land at {job_dir}/{run_id}/incoming/{name} — the same path
+        # the gateway-side mv would produce. ``os.makedirs`` is
+        # idempotent so a re-stage of an in-progress cell is safe.
+        incoming_dir = Path(self._job_dir) / run_id / "incoming"  # noqa: S108
+        incoming_dir.mkdir(parents=True, exist_ok=True)
+        target_path = incoming_dir / bundle_path.name
+        # POSIX-atomic rename when the source lives on the same FS,
+        # else a streaming copy. Both are local-only — no subprocess.
+        try:
+            os.replace(bundle_path, target_path)
+        except OSError:
+            # Cross-device: fall back to a streaming copy + unlink.
+            target_path.write_bytes(bundle_path.read_bytes())
+            bundle_path.unlink(missing_ok=True)
+
+        return WorkerCell(path=str(target_path), sha256=local_sha)
+
+    def fetch_output(
+        self,
+        run_id: str,
+        cell_id: str,
+    ) -> bytes | None:
+        """Read ``{cell_id}.output.json`` from the local ``done/`` tree.
+
+        Returns ``None`` if the file isn't there yet (cell not done) or
+        isn't readable. Mirrors the wire transport's NO_POLICY +
+        ENOENT semantics so the matrix driver's behavior is identical
+        whether it dispatched locally or via the gateway.
+        """
+        output_path = (
+            Path(self._job_dir) / run_id / "done" / f"{cell_id}.output.json"  # noqa: S108
+        )
+        try:
+            return output_path.read_bytes()
+        except FileNotFoundError:
+            return None
+        except OSError:
+            return None
+
+    # ── Non-ABC helpers (overridden for direct FS) ────────────────────────
+
+    def fetch_output_via_exec(
+        self,
+        run_id: str,
+        cell_id: str,
+    ) -> bytes | None:
+        """Local equivalent of the wire transport's exec-cat fallback.
+
+        On the local path there is no exec to fall back from, so this
+        is just a thin alias over ``fetch_output`` — kept for API
+        parity with the wire transport so the matrix driver's polling
+        loop is transport-agnostic.
+        """
+        return self.fetch_output(run_id, cell_id)
+
+    # ── Private helpers (overridden for direct FS) ────────────────────────
+
+    def _exec_mv(self, src: str, dst: str) -> None:  # noqa: ARG002 — protocol parity
+        """Local equivalent of the wire transport's mv.
+
+        The local push_bundle writes directly to the target, so the
+        ``_exec_mv`` step is a no-op on the local path. We override
+        instead of removing so a caller that still hits the parent's
+        push_bundle code path (e.g. via isinstance checks) doesn't
+        accidentally trigger a wire call.
+        """
+        return None
+
+    @staticmethod
+    def _sha256_file(path: Path) -> str:
+        """Streamed SHA256 over a local file (no full-file read).
+
+        Mirrors ``OpenClawNodeBundleTransport._sha256_file`` so the
+        trust-boundary check is byte-identical across transports.
+        """
+        import hashlib as _hashlib
+
+        h = _hashlib.sha256()
+        with path.open("rb") as f:
+            for chunk in iter(lambda: f.read(65536), b""):
+                h.update(chunk)
+        return h.hexdigest()
+
+
+def fetch_descriptor_done_sentinel_local(
+    *,
+    run_id: str,
+    cell_id: str,
+    job_dir: str = JOB_DIR_DEFAULT,
+) -> bool:
+    """Local equivalent of ``fetch_descriptor_done_sentinel``.
+
+    Reads the ``{cell_id}.done`` sentinel directly from the worker-side
+    filesystem — no exec, no openclaw. Returns True iff the sentinel
+    file exists. Used by ``LocalJobDirBundleTransport`` consumers that
+    need to poll for completion without the wire.
+    """
+    sentinel_path = Path(job_dir) / run_id / "done" / f"{cell_id}.done"  # noqa: S108
+    return sentinel_path.is_file()
