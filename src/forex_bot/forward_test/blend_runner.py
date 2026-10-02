@@ -31,11 +31,17 @@ from risk.state_persistence import StatePersistence
 # The blend-mode pipeline does NOT route through PaperTrader.process_signal
 # (the adapter short-circuits in blend mode), so we wire the recorder
 # directly into the runner to keep signal_stats.jsonl up to date.
-from signal_engine.signal_stats import SignalRecord, SignalStatsRecorder
+from signal_engine.signal_stats import HeartbeatRecorder, SignalRecord, SignalStatsRecorder
 
 logger = logging.getLogger("ayumi.forward_test")
 
 _DEFAULT_STATS_LOG_PATH = "data/signal_stats.jsonl"
+# Sidecar heartbeat log path (card 9f427c3b): same directory as the main
+# stats log so the operator sees both files side-by-side. Derived from
+# the configured stats_log_path when present, otherwise falls back to
+# the default location.
+_DEFAULT_HEARTBEAT_LOG_PATH = "data/signal_stats.heartbeat.jsonl"
+_HEARTBEAT_ENV_VAR = "STATS_HEARTBEAT_LOG_PATH"
 
 
 class BlendForwardTestRunner:
@@ -88,6 +94,24 @@ class BlendForwardTestRunner:
             config.get("stats_log_path") or os.environ.get("STATS_LOG_PATH") or _DEFAULT_STATS_LOG_PATH
         )
         self._stats_recorder: SignalStatsRecorder | None = None
+        # Phase 0 forward-test heartbeat (card 9f427c3b): low-frequency
+        # "alive" signal emitted to data/signal_stats.heartbeat.jsonl so a
+        # multi-day signal_stats.jsonl freeze is distinguishable from
+        # writer death. Counters are incremented at the top of
+        # on_signal(); the heartbeat writer decides when to emit based
+        # on a rolling-window throttle (default 1h). Failures are non-
+        # fatal — heartbeat observability is best-effort and must never
+        # block the live trading pipeline.
+        # When no explicit override is supplied the heartbeat path
+        # mirrors ``stats_log_path`` (same directory, sibling filename)
+        # so unit tests that redirect the stats log to a tmp_path
+        # automatically redirect the heartbeat too — keeping the
+        # ``_isolate_repo_data_writes`` autouse fixture happy.
+        self._heartbeat_log_override: str | None = (
+            config.get("heartbeat_log_path") or os.environ.get(_HEARTBEAT_ENV_VAR)
+        )
+        self._heartbeat_log_path: str | None = self._heartbeat_log_override
+        self._heartbeat: HeartbeatRecorder | None = None
 
         # Build pipeline components
         spread_pips = config.get("spread_pips", {})
@@ -183,6 +207,35 @@ class BlendForwardTestRunner:
                 log_path=self._stats_log_path,
             )
         return self._stats_recorder
+
+    def _get_heartbeat(self) -> HeartbeatRecorder:
+        """Lazy-init the HeartbeatRecorder (card 9f427c3b).
+
+        Mirrors :meth:`_get_stats_recorder` so heartbeat creation has
+        zero cost for runners that never invoke ``on_signal`` (the only
+        place that increments the rolling-window counters).
+
+        Path resolution:
+        - explicit override (config ``heartbeat_log_path`` or
+          ``STATS_HEARTBEAT_LOG_PATH`` env var) wins if set;
+        - otherwise derive from ``stats_log_path`` by replacing the
+          ``.jsonl`` suffix with ``.heartbeat.jsonl`` so the heartbeat
+          sidecar lives next to the stats log;
+        - if neither override nor stats_log_path is set, fall back to
+          ``data/signal_stats.heartbeat.jsonl``.
+        """
+        if self._heartbeat is None:
+            if self._heartbeat_log_path is None:
+                base = self._stats_log_path or _DEFAULT_STATS_LOG_PATH
+                if base.endswith(".jsonl"):
+                    derived = base[: -len(".jsonl")] + ".heartbeat.jsonl"
+                else:
+                    derived = base + ".heartbeat.jsonl"
+                self._heartbeat_log_path = derived
+            self._heartbeat = HeartbeatRecorder(
+                log_path=self._heartbeat_log_path,
+            )
+        return self._heartbeat
 
     def start(self) -> None:
         """Initialize all components, restore state, start logging."""
@@ -441,9 +494,43 @@ class BlendForwardTestRunner:
 
     def on_signal(self, strategy_id: str, signal_data: dict) -> OrchestratedOrder:
         """Handle incoming strategy signal through full pipeline."""
+        # Phase 0 forward-test heartbeat (card 9f427c3b AC2): every call
+        # to on_signal is a candidate signal — increment the counter at
+        # the very top so a thrown exception during processing is captured
+        # in the next heartbeat window. Errors here must NEVER block the
+        # pipeline; the heartbeat call is best-effort observability.
+        try:
+            self._get_heartbeat().record_signal_generated()
+        except Exception as _hb_exc:  # noqa: BLE001
+            logger.warning("Heartbeat counter increment failed (non-fatal): %s", _hb_exc)
+
         signal = self._adapter.adapt_signal(strategy_id, signal_data)
         self._check_daily_reset(signal.timestamp)
         order = self._orchestrator.process_signal(signal)
+
+        # Mirror the accept/reject decision into the heartbeat counter
+        # so the sidecar distinguishes "alive but filtered" from "writer
+        # dead" without ever touching the main signal_stats.jsonl file.
+        try:
+            heartbeat = self._get_heartbeat()
+            if order.rejected:
+                heartbeat.record_regime_filtered()
+            else:
+                heartbeat.record_traded()
+        except Exception as _hb_exc:  # noqa: BLE001
+            logger.warning("Heartbeat counter increment failed (non-fatal): %s", _hb_exc)
+
+        # Try to emit at the end of on_signal so the rolling-window
+        # counters include ALL increments for this signal before any
+        # heartbeat row is persisted. maybe_emit() is throttle-gated:
+        # the first call after construction fires immediately so the
+        # heartbeat sidecar reflects "alive" without waiting an hour;
+        # subsequent calls inside the throttle window return False
+        # without writing.
+        try:
+            self._get_heartbeat().maybe_emit()
+        except Exception as _hb_exc:  # noqa: BLE001
+            logger.warning("Heartbeat maybe_emit failed (non-fatal): %s", _hb_exc)
 
         if not order.rejected:
             # Phase 4: Apply regime-aware exposure multiplier
