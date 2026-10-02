@@ -30,7 +30,6 @@ import time
 from pathlib import Path
 
 import pytest
-
 from forward_test import blend_runner
 from signal_engine import signal_stats as ss_mod
 from signal_engine.signal_stats import (
@@ -38,7 +37,6 @@ from signal_engine.signal_stats import (
     SignalRecord,
     SignalStatsRecorder,
 )
-
 
 # ---------------------------------------------------------------------------
 # HeartbeatRecorder direct tests (AC2, AC4)
