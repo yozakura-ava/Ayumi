@@ -92,7 +92,9 @@ class SessionBreakoutStrategy:
         self.h4_trend_filter: bool = config.get("h4_trend_filter", False)
 
         # Cache: {(date_string, symbol): {"high": float, "low": float, "valid": bool}}
-        self._range_cache: dict[tuple[str, str], dict] = {}
+        # Values may be ``None`` (set on line ~133 when the range window has
+        # too few bars); the type annotation reflects the runtime invariant.
+        self._range_cache: dict[tuple[str, str], dict | None] = {}
 
         # Fired signals: {(date_string, symbol, direction): True}
         self._fired_signals: dict[tuple[str, str, str], bool] = {}
