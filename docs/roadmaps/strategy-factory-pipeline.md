@@ -11,6 +11,15 @@
 
 ---
 
+## Status (2026-10-04 — Craig-approved sprint split)
+
+- **Sprint A — Factory Phase 1 wiring: APPROVED AND IN FLIGHT.** Workboard parent `bc8439dd-c329-4fb1-8ecd-a22fbdfd045f`, children SFA-1/2/3 (Reina, builder lane). Spec §7 Phase 1, wiring only. Craig 2026-10-04: "Sprint A is vital. Let's get the machinery built."
+- **Sprint B — R&D hopper engine: DESIGNED-GATED.** Research card `ea42e6be-ed0f-4044-ab5d-3c8c5eb8baf6` (Satsuki) triggers when Sprint A exits. Autonomous hypothesis generation / confluence research / ML development — keeps the factory fed without handholding. Generate freely, promote with gate.
+- **Node asset (Craig 2026-10-04):** Tournament scripting ALREADY EXISTS on the node and may need rework — evaluate and evolve it to current standards rather than reinventing (folded into SFA-3). The node provides additional processing power + GPU for when GPU calculations become beneficial, and takes pressure off the main server. Route heavy sweeps there when factory wiring lands.
+- Forward test verified live 2026-10-04 (`ayumi-forward-test.service`, XAUUSD SRMR+ blend). Crypto lane (A1–A3 merged) runs parallel; forex remains primary; FTMO 1-Step still the target.
+
+---
+
 ## Ground Rules (Council-Mandated, Non-Negotiable)
 
 1. **OOS isolation (Kaito):** Last 6 months (Jan 2026-Jul 2026) held out. No optimizer touches it. Final validation only.
