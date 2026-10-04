@@ -168,7 +168,7 @@ class TestCryptoPositionSizing:
         assert not result.blocked, result.block_reason
         # lots = risk / (sl_pips * pip_value_per_lot)
         # sl_distance_price = $1,000, pip_size = 1.0 → 1000 pips
-        # pip_value_per_lot = 0.001 BTC * $100,000 = $100 / pip / lot
+        # pip_value_per_lot = 0.001 BTC * $1 pip = $0.001 / pip / lot
         # lots = $50 / (1000 * $100) = 0.0005 → rounded up to 0.01
         # The sizer enforces a 0.01 lot floor on sub-floor calcs.
         assert result.sl_distance_pips == pytest.approx(1000.0, rel=1e-6)

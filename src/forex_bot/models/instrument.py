@@ -152,7 +152,7 @@ class Instrument:
 #
 # Storing the contract face in ``lot_size`` is the single source of
 # truth: ``1 lot == 1 contract == lot_size base-asset units``.  The
-# sizer computes ``pip_value_per_lot = lot_size * price`` at sizing
+# sizer computes ``pip_value_per_lot = lot_size * pip_size`` at sizing
 # time so notional stays correct as price moves.
 DEFAULT_INSTRUMENTS: dict[str, Instrument] = {
     # Forex majors
