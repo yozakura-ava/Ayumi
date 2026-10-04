@@ -6,6 +6,8 @@ edit cannot silently regress the Liora ground rule numbers.
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 
 from forex_bot.factory.spread_costs import (
@@ -15,7 +17,6 @@ from forex_bot.factory.spread_costs import (
     SpreadCostTable,
     default_spread_costs,
 )
-
 
 # ---------------------------------------------------------------------------
 # Module-level constants (Liora ground rule — never mutate)
@@ -109,7 +110,7 @@ def test_spread_costs_requires_symbol() -> None:
 
 def test_spread_costs_frozen() -> None:
     entry = SpreadCosts(symbol="EURUSD", spread_pips=1.5)
-    with pytest.raises(Exception):
+    with pytest.raises(dataclasses.FrozenInstanceError):
         entry.spread_pips = 2.0  # type: ignore[misc]
 
 

@@ -15,7 +15,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Mapping
 
-
 # Fixed ground-rule constants (never mutate, never inline elsewhere).
 COMMISSION_PER_LOT_USD: float = 3.5
 PIP_SLIPPAGE: float = 0.2

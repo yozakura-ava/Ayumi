@@ -22,8 +22,8 @@ from __future__ import annotations
 
 from forex_bot.factory.bridge import (
     BridgeError,
-    build_strategy_from_template,
     build_strategies_for_registry,
+    build_strategy_from_template,
 )
 from forex_bot.factory.pipeline_config import (
     DSRConfig,
@@ -40,14 +40,14 @@ from forex_bot.factory.registry import FactoryRegistry, default_factory_registry
 from forex_bot.factory.spread_costs import (
     COMMISSION_PER_LOT_USD,
     PIP_SLIPPAGE,
-    SpreadCostTable,
     SpreadCosts,
+    SpreadCostTable,
     default_spread_costs,
 )
 from forex_bot.factory.template import (
     ARCHETYPE_AFFINITY,
-    ParamSpec,
     ParamKind,
+    ParamSpec,
     StrategyTemplate,
 )
 

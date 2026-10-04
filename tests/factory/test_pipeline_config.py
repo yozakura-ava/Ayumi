@@ -7,6 +7,7 @@ trade-count floors, OOS isolation + unlock guard, and PBO tier mapping.
 
 from __future__ import annotations
 
+import dataclasses
 from datetime import date
 
 import pytest
@@ -22,7 +23,6 @@ from forex_bot.factory.pipeline_config import (
     compute_dsr_n_trials,
     default_pipeline_config,
 )
-
 
 # ---------------------------------------------------------------------------
 # WalkForwardWindowConfig (§4.1)
@@ -277,7 +277,7 @@ def test_default_pipeline_config_has_all_subconfigs() -> None:
 
 def test_pipeline_config_is_frozen() -> None:
     cfg = default_pipeline_config()
-    with pytest.raises(Exception):
+    with pytest.raises(dataclasses.FrozenInstanceError):
         cfg.dsr = DSRConfig(base_n_trials=999)  # type: ignore[misc]
 
 

@@ -22,9 +22,9 @@ archetype throws at it without further changes here.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping
 
 
 class ParamKind(str, Enum):
@@ -209,9 +209,22 @@ class StrategyTemplate(ABC):
             elif spec.kind is ParamKind.FLOAT:
                 coerced[name] = float(value)
             else:  # categorical
-                if value not in spec.choices:
+                # ``spec.choices`` is ``tuple[Any, ...] | None``; for the
+                # categorical branch we have an invariant from
+                # ``__post_init__`` (every categorical ``ParamSpec`` carries
+                # a non-empty ``choices`` tuple).  Mypy cannot see that
+                # invariant, so we narrow it explicitly here with an
+                # explicit ``RuntimeError`` (ruff S101 forbids ``assert`` in
+                # non-test code because ``python -O`` strips it).
+                choices = spec.choices
+                if choices is None:
+                    raise RuntimeError(
+                        f"ParamSpec({name!r}) categorical branch reached "
+                        "with choices=None — __post_init__ invariant violated"
+                    )
+                if value not in choices:
                     raise ValueError(
-                        f"param {name!r} value {value!r} not in choices {spec.choices!r}"
+                        f"param {name!r} value {value!r} not in choices {choices!r}"
                     )
                 coerced[name] = value
         return coerced

@@ -22,13 +22,11 @@ from dataclasses import dataclass, replace
 from typing import Any, Mapping
 
 import pytest
-
-from backtest.strategies.isignal_strategy import ISignalStrategy
 from strategies.registry import StrategyConfig, default_registry
 
 from forex_bot.factory.bridge import (
-    BridgeError,
     REGISTRY_STRATEGY_BUILDERS,
+    BridgeError,
     RegistryStrategyTemplate,
     build_default_registry_strategy,
     build_strategies_for_registry,
@@ -44,7 +42,6 @@ from forex_bot.factory.template import (
     ParamSpec,
     StrategyTemplate,
 )
-
 
 # ---------------------------------------------------------------------------
 # Negative-test fixture: a template that returns a non-ISignalStrategy

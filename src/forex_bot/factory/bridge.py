@@ -195,7 +195,7 @@ def build_strategies_for_registry(
 
 
 def _make_default_builder(
-    cls: type[ISignalStrategy],
+    cls: type[ISignalStrategy] | None = None,
     *,
     init_kwargs: Mapping[str, Any] | None = None,
 ) -> Callable[[str], ISignalStrategy]:
@@ -203,10 +203,21 @@ def _make_default_builder(
 
     ``pair`` is currently unused (kept for SFA-2 per-pair optuna sampling
     where builders may need to know which symbol they target).
+
+    ``cls`` may be ``None`` at module-import time (the placeholder pattern
+    below) — the lazy resolver in :func:`build_default_registry_strategy`
+    patches it before first call.  When ``None`` is still present at call
+    time we raise :class:`BridgeError` so the placeholder fails loud
+    instead of constructing a ``NoneType`` instance.
     """
     init_kwargs = dict(init_kwargs or {})
 
     def _builder(_pair: str) -> ISignalStrategy:
+        if cls is None:
+            raise BridgeError(
+                "default builder invoked before class resolution; "
+                "strategy_id has no (module, class) mapping"
+            )
         return cls(**init_kwargs) if init_kwargs else cls()
 
     return _builder

@@ -28,7 +28,6 @@ from forex_bot.factory.template import (
     StrategyTemplate,
 )
 
-
 # ---------------------------------------------------------------------------
 # Test fixtures — minimal concrete subclasses of StrategyTemplate
 # ---------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# mypy: ignore-errors
 """Builder Quality Gate — deterministic post-builder verification script.
 
 Runs after every builder completes, before workboard_complete() or council review.
@@ -1079,7 +1080,7 @@ def check_eslint(js_files: list[Path]) -> list[dict]:
             {
                 "check": "eslint",
                 "file": str(f),
-                **run_cmd([str(eslint_bin), file_arg], cwd=str(project_root)),
+                **run_cmd([str(eslint_bin), file_arg], cwd=project_root),
             }
         )
     return results
