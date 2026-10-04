@@ -215,14 +215,17 @@ class CTraderOpenApiClient:
         #
         # Card 377b2bab auth-follow-up (2026-10-04): the ctrader_open_api
         # SDK invokes disconnected callbacks as ``callback(client, reason)``
-        # (two positional args — see ``Client.connectionLost``).  The bound
-        # method ``_on_tcp_disconnected(self, _)`` only accepts one
+        # (two positional args — see ``Client._disconnected`` which calls
+        # ``self._disconnectedCallback(self, reason)``). The bound method
+        # ``_on_tcp_disconnected(self, reason)`` only accepts one
         # positional after binding — registering it directly raised
         # ``TypeError: _on_tcp_disconnected() takes 2 positional arguments
         # but 3 were given`` and made the diagnostic probe unusable.
-        # Wrap with a lambda so the SDK call signature matches.
+        # Wrap with a 2-arg lambda so the SDK call signature matches
+        # exactly; the ``client`` arg is dropped (it is redundant — the
+        # method already has ``self``) and only ``reason`` is forwarded.
         self._client.setDisconnectedCallback(
-            lambda reason: self._on_tcp_disconnected(reason)
+            lambda client, reason: self._on_tcp_disconnected(reason)
         )
         self._client.setConnectedCallback(self._on_connected)
         self._client.startService()

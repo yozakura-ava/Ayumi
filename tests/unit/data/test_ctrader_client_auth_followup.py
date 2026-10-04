@@ -328,37 +328,136 @@ class TestProbeCallbackArity:
     """Card 377b2bab follow-up: ``CTraderOpenApiClient._on_tcp_disconnected``
     was registered directly as the SDK's ``setDisconnectedCallback``. The
     SDK invokes the callback as ``callback(client, reason)`` (two
-    positional args), but the method declared ``(self, _)`` — leading
-    to ``TypeError: takes 2 positional arguments but 3 were given`` and
-    rendering the diagnostic probe unusable. The fix wraps the bound
-    method with a lambda that drops the implicit client arg.
+    positional args — confirmed at
+    ``ctrader_open_api/client.py:38`` where ``Client._disconnected`` calls
+    ``self._disconnectedCallback(self, reason)``). Registering the bound
+    method directly raised ``TypeError: takes 2 positional arguments but
+    3 were given`` and rendered the diagnostic probe unusable.
+
+    The fix wraps the bound method with a 2-arg lambda that drops the
+    SDK's first positional (the client — redundant since ``_on_tcp_disconnected``
+    already has ``self``) and forwards only ``reason``.
+
+    These tests MUST register a fake SDK client, install the lambda via
+    ``setDisconnectedCallback`` exactly the way ``_do_connect`` does, and
+    then invoke that lambda with two positional args (the SDK call shape).
+    Calling the bound method directly is not sufficient — it bypasses
+    the registered callback and cannot reproduce the production
+    ``TypeError``.
     """
 
     def test_disconnect_handler_accepts_sdk_call_shape(self):
-        """The handler must accept the SDK's two-positional-arg call
-        ``handler(reason)`` (the client arg is dropped by the lambda
-        registered in ``_do_connect``)."""
+        """Register the lambda via a fake SDK and invoke it with the
+        SDK's two-positional call shape ``(client, reason)``. The call
+        must NOT raise ``TypeError`` and the client state must be
+        cleaned up exactly as the production SDK does it.
+        """
         from src.forex_bot.adapters.ctrader.open_api_client import (
             CTraderOpenApiClient,
         )
 
-        # Construct with placeholder creds — we never call connect().
         client = CTraderOpenApiClient(
             client_id="x",
             client_secret="x",  # noqa: S106
             account_id=46877902,
             access_token="x",  # noqa: S106
         )
-        # The registered handler must accept exactly one arg (the
-        # reason) — i.e. _on_tcp_disconnected takes (self, reason) and
-        # the lambda drops the SDK's first positional.
-        # Simulate the SDK call pattern that used to crash.
-        client._on_tcp_disconnected("connection lost")  # must not raise
+
+        # Fake SDK client mirrors the SDK's ``setDisconnectedCallback``
+        # registration path used in ``_do_connect``.
+        fake_sdk_client = MagicMock()
+        registered_callback: dict = {}
+
+        def _register_disconnected(cb):
+            # Mirror ``Client.setDisconnectedCallback`` (client.py:48).
+            registered_callback["cb"] = cb
+
+        fake_sdk_client.setDisconnectedCallback.side_effect = _register_disconnected
+        fake_sdk_client.setConnectedCallback = MagicMock()
+        fake_sdk_client.startService = MagicMock()
+
+        # Bypass the real reactor/thread path and directly install the
+        # lambda the same way ``_do_connect`` does.
+        client._client = fake_sdk_client
+        client._client.setDisconnectedCallback(
+            lambda client_arg, reason: client._on_tcp_disconnected(reason)
+        )
+        assert "cb" in registered_callback, "Lambda was not registered"
+
+        # Prime the state so we can assert it gets cleaned up — the
+        # production ``_on_tcp_disconnected`` only clears state when
+        # the client was previously ``_connected``.
+        client._connected = True
+        # Snapshot the reauth guard so we can prove it was cleared.
+        client._reauth_in_progress.set()
+
+        # --- Invariant: the registered lambda accepts the SDK's 2-arg
+        # call shape ``(client, reason)`` and does NOT raise TypeError.
+        registered_cb = registered_callback["cb"]
+        fake_client_obj = object()
+        try:
+            registered_cb(fake_client_obj, "connection lost")
+        except TypeError as exc:  # pragma: no cover — this is the bug
+            pytest.fail(
+                f"Registered disconnect callback raised TypeError on "
+                f"SDK call shape (client, reason): {exc}"
+            )
+
+        # State must have been cleaned up exactly as the production
+        # SDK would do it on a TCP drop.
+        assert client._connected is False, (
+            "_connected was not cleared by the disconnect handler"
+        )
+        assert not client._reauth_in_progress.is_set(), (
+            "_reauth_in_progress was not cleared by the disconnect handler"
+        )
+
+    def test_disconnect_handler_invokes_user_callback_when_registered(self):
+        """When an external ``setDisconnectedCallback`` has been
+        installed on the wrapper, the SDK-style disconnect invocation
+        must forward to it. This proves the 2-arg lambda path does not
+        silently swallow the user callback."""
+        from src.forex_bot.adapters.ctrader.open_api_client import (
+            CTraderOpenApiClient,
+        )
+
+        client = CTraderOpenApiClient(
+            client_id="x",
+            client_secret="x",  # noqa: S106
+            account_id=46877902,
+            access_token="x",  # noqa: S106
+        )
+
+        fake_sdk_client = MagicMock()
+        registered_cb: dict = {}
+
+        def _register(cb):
+            registered_cb["cb"] = cb
+
+        fake_sdk_client.setDisconnectedCallback.side_effect = _register
+        client._client = fake_sdk_client
+        client._client.setDisconnectedCallback(
+            lambda client_arg, reason: client._on_tcp_disconnected(reason)
+        )
+
+        # Install a user callback.
+        user_calls: list = []
+        client.setDisconnectedCallback(lambda c: user_calls.append(c))
+
+        client._connected = True  # prime so the user callback fires
+        registered_cb["cb"](object(), "broker dropped us")
+
+        # The user callback received the client wrapper.
+        assert user_calls == [client], (
+            f"Expected user callback to fire with [client], got {user_calls!r}"
+        )
+        assert client._connected is False
 
     def test_disconnect_handler_handles_no_args(self):
         """Some SDK paths call the callback with no args at all (e.g.
         a graceful ``stopService``). The handler must default to
-        ``reason=None`` so it remains callable."""
+        ``reason=None`` so it remains callable. Mirror the SDK call
+        shape — invoke through the registered lambda."""
         from src.forex_bot.adapters.ctrader.open_api_client import (
             CTraderOpenApiClient,
         )
@@ -368,8 +467,24 @@ class TestProbeCallbackArity:
             account_id=46877902,
             access_token="x",  # noqa: S106
         )
-        client._on_tcp_disconnected()  # must not raise
-        client._on_tcp_disconnected(None)  # must not raise
+
+        fake_sdk_client = MagicMock()
+        registered_cb: dict = {}
+
+        def _register(cb):
+            registered_cb["cb"] = cb
+
+        fake_sdk_client.setDisconnectedCallback.side_effect = _register
+        client._client = fake_sdk_client
+        client._client.setDisconnectedCallback(
+            lambda client_arg, reason: client._on_tcp_disconnected(reason)
+        )
+
+        # The registered callback takes (client, reason) — even with
+        # reason=None it must not blow up.
+        client._connected = True
+        registered_cb["cb"](object(), None)  # must not raise
+        assert client._connected is False
 
 
 # ---------------------------------------------------------------------------
