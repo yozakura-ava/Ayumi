@@ -879,34 +879,60 @@ class TournamentHarness:
                     exc.__class__.__name__,
                     exc,
                 )
-                run_meta[strategy_id] = {"signals": 0, "skipped": True, "error": str(exc)}
+                run_meta[strategy_id] = {
+                    "signals": 0,
+                    "trades": 0,
+                    "skipped": True,
+                    "reason": "signal_extraction_error",
+                    "error": str(exc),
+                }
                 continue
 
-            # Fail-loud guard (card c4b86732 AC1): a registered strategy
-            # that processes 0 bars OR emits 0 signals over the window
-            # must not exit silently.  Raise TournamentNoSignals so the
-            # CLI catches it and exits non-zero with a clear error naming
-            # strategy/symbol/window.  bars_processed == 0 means the
-            # warm-up gate (30 bars) was never cleared (window too small
-            # for this strategy); 0 signals with bars_processed > 0 means
-            # the strategy was evaluated but never triggered.
+            # Per-cell fail-loud guard (card 82d33f73, council binding #1+#3).
+            # A registered strategy that processes 0 bars OR emits 0
+            # signals over the window must NOT silently die — the loop
+            # must mark this strategy as `signals_skipped=True` with the
+            # strategy/symbol/window context in `error`, then continue
+            # to the next strategy.  This unifies the silent-empty path
+            # (was: import-error swallowed by `except Exception`, 0 rows,
+            # exit 0) with the fail-loud path (was: signal-empty raised
+            # TournamentNoSignals, exit 1).  Both now produce 0 rows for
+            # this strategy; the CLI checks `if not scorecard.rows`
+            # AFTER the loop and exits non-zero if every strategy was
+            # empty (single source of truth).
+            #
+            # Council binding #3 (Kaito/Sora 2026-10-04): tolerate
+            # TournamentNoSignals per-cell as skip-and-continue, not
+            # card-blocking.  The matrix driver already handles per-cell
+            # failures (worker_runner exit_code=3/4); this change makes
+            # the single-cell CLI consistent.
             bars_processed = len(df)
             if bars_processed == 0 or len(signals) == 0:
+                reason = (
+                    "warmup_window_too_small"
+                    if bars_processed == 0
+                    else "no_signals"
+                )
                 logger.error(
                     "fail-loud guard: strategy=%s symbol=%s window=%s..%s "
-                    "bars_processed=%d signals=%d — raising TournamentNoSignals",
+                    "bars_processed=%d signals=%d — skip-and-continue (reason=%s)",
                     strategy_id, self.symbol, self.start_date, self.end_date,
-                    bars_processed, len(signals),
+                    bars_processed, len(signals), reason,
                 )
-                raise TournamentNoSignals(
-                    strategy_id=strategy_id,
-                    symbol=self.symbol,
-                    timeframe=self.timeframe,
-                    start_date=self.start_date,
-                    end_date=self.end_date,
-                    bars_processed=bars_processed,
-                    signals_emitted=len(signals),
-                )
+                run_meta[strategy_id] = {
+                    "signals": 0,
+                    "trades": 0,
+                    "skipped": True,
+                    "reason": reason,
+                    "bars_processed": bars_processed,
+                    "error": (
+                        f"strategy '{strategy_id}' produced 0 signals on "
+                        f"{self.symbol}/{self.timeframe} window "
+                        f"{self.start_date}..{self.end_date} "
+                        f"(bars_processed={bars_processed}, signals=0)"
+                    ),
+                }
+                continue
 
             trades = _simulate_trades(
                 df, signals, cost_model=self.cost_model,
@@ -930,10 +956,12 @@ class TournamentHarness:
             rows.append(row)
 
         if not rows:
-            # Edge case 1/2: every strategy was skipped.  Emit an empty
-            # scorecard rather than crashing the caller.
+            # Edge case 1/2: every strategy was skipped or produced 0
+            # signals.  Emit an empty scorecard; the CLI / worker_runner
+            # applies the loud-exit guard (this is the single source of
+            # truth for the silent-empty failure mode — card 82d33f73).
             logger.warning(
-                "no scorecard rows produced (all %d strategies failed signal extraction)",
+                "no scorecard rows produced (all %d strategies skipped or 0-signals)",
                 len(self.strategy_ids),
             )
 

@@ -1,16 +1,19 @@
 """Scoped tests for the tournament harness fail-loud guard (card c4b86732, AC1).
 
 These tests cover the TournamentNoSignals exception class added to
-``src/tournament/harness.py`` so a registered strategy that processes 0 bars
-or emits 0 signals over the window produces a non-zero exit + clear error
-naming strategy/symbol/window — instead of exiting silently with an empty
-scorecard.
+``src/tournament/harness.py`` (c4b86732 AC1: registered strategy that
+processes 0 bars or emits 0 signals over the window must not exit silently).
+Card 82d33f73 (2026-10-04) refined the contract: the harness now
+**marks** the strategy as ``signals_skipped=True`` in ``run_meta`` and
+**continues** to the next strategy (council binding #3: skip-and-continue
+for per-cell no-signals heatmap; the loud-exit guard is now the CLI's
+single source of truth — ``if not scorecard.rows: return 1``).
 
 Run via::
 
     bash scripts/run_test_scope.sh tests/test_tournament_empty_window.py
 
-NO full suite (HR4).
+NO full suite (HR5).
 """
 
 from __future__ import annotations
@@ -129,14 +132,18 @@ class TestTournamentNoSignalsContract:
 
 
 class TestHarnessFailLoud:
-    """The harness must raise TournamentNoSignals when a registered
-    strategy emits 0 signals over the window."""
+    """The harness must skip-and-continue (NOT raise) when a registered
+    strategy emits 0 signals over the window (card 82d33f73 council
+    binding #3).  The CLI checks ``if not scorecard.rows: return 1``
+    AFTER the scorecard is rendered (council binding #1, Kaito 2026-10-04)."""
 
-    def test_zero_signals_raises_tournament_no_signals(
+    def test_zero_signals_marks_strategy_skipped_not_raise(
         self, synthetic_duckdb_60: Path
     ) -> None:
         """bb_rsi_reversion has a low-volatility filter that suppresses
-        signals on the synthetic 60-bar USDJPY H1 walk → fail-loud must fire."""
+        signals on the synthetic 60-bar USDJPY H1 walk → harness must
+        NOT raise; it marks the strategy as signals_skipped=True in
+        run_meta and the scorecard is empty."""
         harness = TournamentHarness(
             strategy_ids=["bb_rsi_reversion"],
             db_path=synthetic_duckdb_60,
@@ -145,20 +152,28 @@ class TestHarnessFailLoud:
             start_date="2024-06-03",
             end_date="2024-06-05",
         )
-        with pytest.raises(TournamentNoSignals) as exc_info:
-            harness.run()
-        # Message names strategy + symbol + window
-        assert "bb_rsi_reversion" in str(exc_info.value)
-        assert "USDJPY" in str(exc_info.value)
+        scorecard = harness.run()  # must NOT raise
+        assert len(scorecard.rows) == 0
+        run_meta = scorecard.meta["run_meta"]
+        assert "bb_rsi_reversion" in run_meta
+        assert run_meta["bb_rsi_reversion"]["skipped"] is True
+        assert run_meta["bb_rsi_reversion"]["reason"] in (
+            "no_signals",
+            "warmup_window_too_small",
+        )
+        assert "USDJPY" in run_meta["bb_rsi_reversion"]["error"]
 
-    def test_window_too_small_raises_tournament_empty_window(
+    def test_window_too_small_returns_empty_scorecard(
         self, tiny_duckdb_5: Path
     ) -> None:
-        """Window smaller than the 30-bar warm-up gate: 5 bars loaded but
-        no signals after warm-up.  The fail-loud guard raises
-        ``TournamentNoSignals`` which IS-A ``TournamentEmptyWindow`` (the
-        CLI's ``except TournamentEmptyWindow`` catches both).
-        """
+        """Window smaller than the 30-bar warm-up gate: 5 bars loaded
+        from DuckDB, but no strategy produces signals after warm-up.
+        The 8ndb33f73 skip-and-continue change converts this from a
+        raise (TournamentNoSignals IS-A TournamentEmptyWindow) into a
+        normal scorecard-empty return.  The CLI's
+        ``if not scorecard.rows: return 1`` guard then fails loud.
+        Document the new contract: harness returns empty scorecard,
+        CLI fails loud."""
         harness = TournamentHarness(
             strategy_ids=["srmr_plus"],
             db_path=tiny_duckdb_5,
@@ -167,22 +182,18 @@ class TestHarnessFailLoud:
             start_date="2024-06-03",
             end_date="2024-06-03",
         )
-        # Both TournamentEmptyWindow (data-load) and TournamentNoSignals
-        # (signal-extraction fail-loud) satisfy this assertion — they share
-        # the same parent class which the CLI's except clause catches.
-        with pytest.raises(TournamentEmptyWindow) as exc_info:
-            harness.run()
-        assert "USDJPY" in str(exc_info.value)
-        # Document that this specific 5-bar path triggers TournamentNoSignals
-        # (signal-extraction fail-loud) rather than the upstream
-        # TournamentEmptyWindow from the data-load guard.
-        assert isinstance(exc_info.value, TournamentNoSignals)
+        scorecard = harness.run()  # must NOT raise
+        assert len(scorecard.rows) == 0
+        run_meta = scorecard.meta["run_meta"]
+        assert "srmr_plus" in run_meta
+        assert run_meta["srmr_plus"]["skipped"] is True
 
-    def test_cli_returns_nonzero_on_zero_signals(
+    def test_cli_returns_nonzero_on_empty_scorecard(
         self, synthetic_duckdb_60: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """End-to-end smoke: run_tournament.py on a zero-signal run
-        returns non-zero exit (the contract AC1 enforces)."""
+        returns non-zero exit (the new loud-exit guard enforces this
+        for both host AND node surfaces)."""
         import importlib
         import sys
 
@@ -206,7 +217,10 @@ class TestHarnessFailLoud:
             "--output", str(synthetic_duckdb_60.parent / "out.json"),
         ]
         exit_code = cli.main(argv)
-        assert exit_code == 1, f"expected non-zero exit on zero-signal run, got {exit_code}"
+        assert exit_code == 1, (
+            f"CLI must exit 1 on silent-empty scorecard (Kaito parity guard); "
+            f"got {exit_code}"
+        )
 
 
 # ── Tests: STRATEGY_CLASS_MAP coverage ───────────────────────────────────────
