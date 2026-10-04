@@ -23,7 +23,7 @@ from typing import Optional
 
 import pandas as pd
 import requests
-from ctrader_open_api import Client, TcpProtocol
+from ctrader_open_api import Client, Protobuf, TcpProtocol
 from ctrader_open_api.messages.OpenApiMessages_pb2 import (
     ProtoOAAccountAuthReq,
     ProtoOAApplicationAuthReq,
@@ -71,6 +71,38 @@ OAUTH_TOKEN_URL = "https://openapi.ctrader.com/apps/token"  # noqa: S105
 _PROTOBUF_HOST = "live.ctraderapi.com"
 _PROTOBUF_PORT = 5035
 _MAX_BARS_PER_REQUEST = 1000
+
+# Canonical cTrader OpenAPI payloadType codes (the wire-format discriminator
+# each ProtoMessage carries). Used for explicit dispatch when the broker
+# returns a non-success frame (ProtoOAErrorRes / ProtoOAAccountAuthRes) on
+# the shared TCP connection. Source: OpenApiCommonMessages / OpenApiMessages.
+_PAYLOAD_TYPE_ERROR = 2102
+
+
+def _extract_or_raise(res, expected_msg_name: str):
+    """Extract the typed payload from a cTrader ProtoMessage and raise on
+    error frames.
+
+    The cTrader OpenAPI library ships ``Protobuf.extract(res)`` which routes
+    a ``ProtoMessage`` to its concrete message class via ``payloadType``.
+    That dispatch is what was missing on the async historical path — every
+    protobuf response carries a ``payloadType`` discriminator and the
+    caller MUST inspect it before calling ``ParseFromString`` against a
+    hard-coded message type. Without that, an account-auth or symbols-list
+    response frame gets misread as a trendbars/symbols payload and the
+    protobuf parser raises ``DecodeError: Wire format was corrupt``.
+
+    Returns the typed message on success. Raises ``RuntimeError`` with the
+    broker-provided error code/description if the frame is a
+    ``ProtoOAErrorRes`` (payloadType=2102) — never a try/except swallow.
+    """
+    typed = Protobuf.extract(res)
+    if isinstance(typed, ProtoOAErrorRes):
+        raise RuntimeError(
+            f"cTrader {expected_msg_name} failed: errorCode={typed.errorCode} "
+            f"description={typed.description!r}"
+        )
+    return typed
 
 
 def _run_reactor(coro):
@@ -169,8 +201,12 @@ class CTraderHistoricalClient:
         req.accessToken = self.access_token
         res = await client.send(req, responseTimeoutInSeconds=10)
 
-        parsed = ProtoOAGetAccountListByAccessTokenRes()
-        parsed.ParseFromString(res.payload)
+        parsed = _extract_or_raise(res, "ProtoOAGetAccountListByAccessToken")
+        if not isinstance(parsed, ProtoOAGetAccountListByAccessTokenRes):
+            raise RuntimeError(
+                f"Expected ProtoOAGetAccountListByAccessTokenRes, got "
+                f"{type(parsed).__name__} (payloadType={res.payloadType})"
+            )
 
         for acc in parsed.ctidTraderAccount:
             if acc.traderLogin == self.trader_login:
@@ -192,28 +228,58 @@ class CTraderHistoricalClient:
         return self._resolve_ctid_account_id()
 
     async def _auth(self, client: Client) -> None:
-        """Authenticate: app auth → account auth using OAuth2 access token."""
+        """Authenticate: app auth → account auth using OAuth2 access token.
+
+        Must be called AFTER ``_resolve_ctid_account_id`` because
+        ``ProtoOAAccountAuthReq.ctidTraderAccountId`` requires the internal
+        ctid (not the human-readable ``trader_login``). Resolving inline
+        here also guards against a stale ``self._ctid_account_id`` if the
+        caller mutated the underlying credentials between sessions.
+        """
+        # Resolve first so account-auth has a non-None ctidTraderAccountId.
+        await self._resolve_ctid_account_id(client)
+
         auth = ProtoOAApplicationAuthReq()
         auth.clientId = self.client_id
         auth.clientSecret = self.client_secret
-        await client.send(auth, responseTimeoutInSeconds=10)
+        app_res = await client.send(auth, responseTimeoutInSeconds=10)
+        # App auth has no useful payload but the broker can return an error
+        # frame; route on payloadType so a failure surfaces clearly.
+        _extract_or_raise(app_res, "ProtoOAApplicationAuth")
 
         acct = ProtoOAAccountAuthReq()
         acct.ctidTraderAccountId = self._ctid_account_id
         acct.accessToken = self.access_token
-        await client.send(acct, responseTimeoutInSeconds=10)
+        acc_res = await client.send(acct, responseTimeoutInSeconds=10)
+        _extract_or_raise(acc_res, "ProtoOAAccountAuth")
 
     async def _a_ensure_symbols(self, client: Client) -> dict[str, int]:
         """Load and cache symbol list {name: symbolId} (async, reuses client)."""
         if self._symbol_cache:
             return self._symbol_cache
 
+        # Defensive: ensure ctid is resolved before issuing a per-account
+        # request. The async entry point (`fetch_all`) goes through
+        # `_auth -> _a_ensure_symbols`; `_auth` now guarantees this, but keep
+        # the resolve here too so it's idempotent if a caller hits symbols
+        # before auth.
+        await self._resolve_ctid_account_id(client)
+
         req = ProtoOASymbolsListReq()
         req.ctidTraderAccountId = self._ctid_account_id
         res = await client.send(req, responseTimeoutInSeconds=30)
 
-        parsed = ProtoOASymbolsListRes()
-        parsed.ParseFromString(res.payload)
+        # Route on payloadType — DO NOT hard-parse the payload as
+        # ProtoOASymbolsListRes. The earlier DecodeError ('Wire format was
+        # corrupt') happened because the next frame on the shared TCP
+        # connection was a non-symbols message that was misrouted onto
+        # this parse slot.
+        parsed = _extract_or_raise(res, "ProtoOASymbolsList")
+        if not isinstance(parsed, ProtoOASymbolsListRes):
+            raise RuntimeError(
+                f"Expected ProtoOASymbolsListRes, got "
+                f"{type(parsed).__name__} (payloadType={res.payloadType})"
+            )
 
         syms = {}
         for s in parsed.symbol:

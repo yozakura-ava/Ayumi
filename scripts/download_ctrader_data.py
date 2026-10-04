@@ -241,6 +241,26 @@ def import_one(
 
 
 # ---------------------------------------------------------------------------
+# Env helpers
+# ---------------------------------------------------------------------------
+
+
+def read_env_with_aliases(*names: str) -> str | None:
+    """Read the first non-empty env var from a list of alias names.
+
+    Used to give the canonical ``CTRADER_OPENAPI_*`` env names precedence
+    over the legacy ``CTRADER_OAUTH_*`` / ``CTRADER_*`` variants so the
+    script can be driven from a single .env block alongside the working
+    live adapter (``credential_store._ENV_KEYS`` is the source of truth).
+    """
+    for name in names:
+        val = os.environ.get(name)
+        if val:
+            return val
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -257,15 +277,31 @@ def main(argv: list[str] | None = None) -> int:
 
     client_id = os.environ.get("CTRADER_OPENAPI_CLIENT_ID")
     client_secret = os.environ.get("CTRADER_OPENAPI_CLIENT_SECRET")
-    refresh_token = os.environ.get("CTRADER_REFRESH_TOKEN") or os.environ.get("CTRADER_OAUTH_REFRESH_TOKEN")
-    access_token = os.environ.get("CTRADER_OAUTH_ACCESS_TOKEN") or os.environ.get("CTRADER_ACCESS_TOKEN")
-    account_login = os.environ.get("CTRADER_ACCOUNT") or os.environ.get("CTRADER_TRADER_LOGIN")
+    # Alias ladder for tokens: prefer the canonical CTRADER_OPENAPI_* names
+    # (mirrors credential_store._ENV_KEYS) but accept the legacy
+    # CTRADER_OAUTH_* / CTRADER_* / CTRADER_REFRESH_* variants for callers
+    # with older .env blocks.
+    refresh_token = read_env_with_aliases(
+        "CTRADER_OPENAPI_REFRESH_TOKEN",
+        "CTRADER_OAUTH_REFRESH_TOKEN",
+        "CTRADER_REFRESH_TOKEN",
+    )
+    access_token = read_env_with_aliases(
+        "CTRADER_OPENAPI_ACCESS_TOKEN",
+        "CTRADER_OAUTH_ACCESS_TOKEN",
+        "CTRADER_ACCESS_TOKEN",
+    )
+    account_login = read_env_with_aliases(
+        "CTRADER_OPENAPI_TRADER_LOGIN",
+        "CTRADER_TRADER_LOGIN",
+        "CTRADER_ACCOUNT",
+    )
 
     if not all([client_id, client_secret, refresh_token, access_token, account_login]):
         logger.error(
             "Missing cTrader credentials. Need CTRADER_OPENAPI_CLIENT_ID, "
-            "CTRADER_OPENAPI_CLIENT_SECRET, CTRADER_REFRESH_TOKEN, "
-            "CTRADER_OAUTH_ACCESS_TOKEN, CTRADER_ACCOUNT in .env"
+            "CTRADER_OPENAPI_CLIENT_SECRET, CTRADER_OPENAPI_REFRESH_TOKEN, "
+            "CTRADER_OPENAPI_ACCESS_TOKEN, CTRADER_OPENAPI_TRADER_LOGIN in .env"
         )
         return 1
 
@@ -324,7 +360,10 @@ def main(argv: list[str] | None = None) -> int:
 
     # Print summary
     print("=" * 100)
-    print(f"{'symbol':<8} {'tf':<5} {'mode':<8} {'staged':>8} {'inserted':>9} {'updated':>8} {'pre':>5} {'post':>5}  result")
+    print(
+        f"{'symbol':<8} {'tf':<5} {'mode':<8} {'staged':>8} {'inserted':>9} "
+        f"{'updated':>8} {'pre':>5} {'post':>5}  result"
+    )
     print("-" * 100)
     for r in summary:
         print(
