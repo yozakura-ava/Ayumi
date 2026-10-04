@@ -212,7 +212,21 @@ class CTraderOpenApiClient:
         # BQ-1327: Wire disconnected callback so the client cleans up state
         # when the TCP connection drops unexpectedly (mirrors archived
         # spot feed's setDisconnectedCallback pattern).
-        self._client.setDisconnectedCallback(self._on_tcp_disconnected)
+        #
+        # Card 377b2bab auth-follow-up (2026-10-04): the ctrader_open_api
+        # SDK invokes disconnected callbacks as ``callback(client, reason)``
+        # (two positional args — see ``Client._disconnected`` which calls
+        # ``self._disconnectedCallback(self, reason)``). The bound method
+        # ``_on_tcp_disconnected(self, reason)`` only accepts one
+        # positional after binding — registering it directly raised
+        # ``TypeError: _on_tcp_disconnected() takes 2 positional arguments
+        # but 3 were given`` and made the diagnostic probe unusable.
+        # Wrap with a 2-arg lambda so the SDK call signature matches
+        # exactly; the ``client`` arg is dropped (it is redundant — the
+        # method already has ``self``) and only ``reason`` is forwarded.
+        self._client.setDisconnectedCallback(
+            lambda client, reason: self._on_tcp_disconnected(reason)
+        )
         self._client.setConnectedCallback(self._on_connected)
         self._client.startService()
 
@@ -305,8 +319,16 @@ class CTraderOpenApiClient:
         if self._send_event is not None:
             self._send_event.set()
 
-    def _on_tcp_disconnected(self, _: object) -> None:
-        """Internal handler for TCP disconnect events (BQ-1327)."""
+    def _on_tcp_disconnected(self, reason: object = None) -> None:
+        """Internal handler for TCP disconnect events (BQ-1327).
+
+        Card 377b2bab auth-follow-up (2026-10-04): signature accepts the
+        ``reason`` arg the ctrader_open_api SDK passes (drop the implicit
+        client arg via the lambda registered in ``_do_connect``). The
+        arg is currently unused for state changes (the SDK's first
+        positional is the client itself, which is redundant here) but
+        keeping it preserves room for future disconnect-reason telemetry.
+        """
         was_connected = self._connected
         self._connected = False
         self._reauth_in_progress.clear()

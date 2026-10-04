@@ -35,7 +35,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
 import sys
 import time
 from pathlib import Path
@@ -45,10 +44,13 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
-from dotenv import load_dotenv
-
-load_dotenv(PROJECT_ROOT / ".env")
-
+# Card 377b2bab auth-follow-up (2026-10-04, Craig binding): the historical
+# client MUST consume the live-maintained credential store
+# (``adapters/ctrader/credential_store.py``) — the same path the live
+# forward test uses, kept fresh by ``token_lifecycle.manage()``. We do
+# NOT manage env vars directly here; CredentialStore is the single
+# source of truth for credential schema + .env I/O.
+from src.forex_bot.adapters.ctrader.credential_store import CredentialStore  # noqa: E402
 from src.forex_bot.data.ctrader_client import CTraderHistoricalClient  # noqa: E402
 
 logging.basicConfig(
@@ -241,23 +243,19 @@ def import_one(
 
 
 # ---------------------------------------------------------------------------
-# Env helpers
+# Credential loading — delegates to CredentialStore (Craig binding)
 # ---------------------------------------------------------------------------
 
 
-def read_env_with_aliases(*names: str) -> str | None:
-    """Read the first non-empty env var from a list of alias names.
+def _load_credential_store(env_path: Path) -> CredentialStore:
+    """Return a ``CredentialStore`` pointed at the project's .env.
 
-    Used to give the canonical ``CTRADER_OPENAPI_*`` env names precedence
-    over the legacy ``CTRADER_OAUTH_*`` / ``CTRADER_*`` variants so the
-    script can be driven from a single .env block alongside the working
-    live adapter (``credential_store._ENV_KEYS`` is the source of truth).
+    The store is the single source of truth for credential schema and
+    ``.env`` I/O (card 377b2bab auth-follow-up, Craig binding 2026-10-04).
+    The historical client consumes it; it does NOT mint its own OAuth
+    tokens.
     """
-    for name in names:
-        val = os.environ.get(name)
-        if val:
-            return val
-    return None
+    return CredentialStore(env_path=str(env_path))
 
 
 # ---------------------------------------------------------------------------
@@ -275,43 +273,21 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(str(exc))
         return 2  # unreachable; parser.error exits
 
-    client_id = os.environ.get("CTRADER_OPENAPI_CLIENT_ID")
-    client_secret = os.environ.get("CTRADER_OPENAPI_CLIENT_SECRET")
-    # Alias ladder for tokens: prefer the canonical CTRADER_OPENAPI_* names
-    # (mirrors credential_store._ENV_KEYS) but accept the legacy
-    # CTRADER_OAUTH_* / CTRADER_* / CTRADER_REFRESH_* variants for callers
-    # with older .env blocks.
-    refresh_token = read_env_with_aliases(
-        "CTRADER_OPENAPI_REFRESH_TOKEN",
-        "CTRADER_OAUTH_REFRESH_TOKEN",
-        "CTRADER_REFRESH_TOKEN",
-    )
-    access_token = read_env_with_aliases(
-        "CTRADER_OPENAPI_ACCESS_TOKEN",
-        "CTRADER_OAUTH_ACCESS_TOKEN",
-        "CTRADER_ACCESS_TOKEN",
-    )
-    account_login = read_env_with_aliases(
-        "CTRADER_OPENAPI_TRADER_LOGIN",
-        "CTRADER_TRADER_LOGIN",
-        "CTRADER_ACCOUNT",
-    )
-
-    if not all([client_id, client_secret, refresh_token, access_token, account_login]):
-        logger.error(
-            "Missing cTrader credentials. Need CTRADER_OPENAPI_CLIENT_ID, "
-            "CTRADER_OPENAPI_CLIENT_SECRET, CTRADER_OPENAPI_REFRESH_TOKEN, "
-            "CTRADER_OPENAPI_ACCESS_TOKEN, CTRADER_OPENAPI_TRADER_LOGIN in .env"
-        )
+    # Card 377b2bab auth-follow-up (2026-10-04, Craig binding): consume
+    # the live-maintained credential store. It reads .env (the canonical
+    # credential source) and exposes the access token the live path's
+    # token_lifecycle maintains. The historical client never calls the
+    # OAuth refresh grant itself.
+    try:
+        credential_store = _load_credential_store(PROJECT_ROOT / ".env")
+        # Touch the store to surface missing-credential errors loudly
+        # before we open any network connection.
+        credential_store.load()
+    except RuntimeError as exc:
+        logger.error("CredentialStore load failed: %s", exc)
         return 1
 
-    client = CTraderHistoricalClient(
-        client_id=client_id,
-        client_secret=client_secret,
-        access_token=access_token,
-        refresh_token=refresh_token,
-        trader_login=int(account_login),
-    )
+    client = CTraderHistoricalClient(credential_store=credential_store)
 
     total = len(args.symbols) * len(args.timeframes)
     done = 0
