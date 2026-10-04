@@ -69,7 +69,7 @@ INSTRUMENTS = {
     "XAUUSD": InstrumentSpec("XAUUSD", pip_size=0.1, lot_size=100.0, pip_value_per_lot=10.0),
     # Crypto USDⓈ-M perpetuals (1 lot == 1 contract == contract face).
     # ``pip_value_per_lot`` listed is a placeholder; the sizer overrides
-    # it with ``lot_size * entry_price`` at runtime.
+    # it with ``lot_size * pip_size`` at runtime.
     "BTCUSDT_PERP": InstrumentSpec(
         "BTCUSDT_PERP", pip_size=1.0, lot_size=0.001, pip_value_per_lot=0.001
     ),
