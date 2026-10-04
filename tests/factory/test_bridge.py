@@ -147,11 +147,22 @@ def test_session_range_mr_ict_filtered_builder_loads() -> None:
 
 
 def test_usdjpy_d1_trend_placeholder_rejected() -> None:
-    """No concrete class for this strategy_id → :class:`BridgeError`."""
+    """SFA-2: ``usdjpy_d1_trend`` now resolves (no longer a placeholder).
+
+    Card 55e98f6b-c7a8-48e3-9e6f-71ad6273b3df lands
+    :class:`forex_bot.factory.strategies.USDJPYD1TrendStrategy`, so the
+    SFA-1 placeholder bridge builder is replaced with a real
+    ``_make_default_builder`` that instantiates the concrete strategy
+    class via the lazy class map.  The bridge MUST succeed (no
+    :class:`BridgeError`) and the returned object MUST look like a
+    strategy.  See ``tests/factory/test_usdjpy_d1_trend.py`` for the
+    dedicated coverage of the new strategy class.
+    """
     reg = default_registry()
     template = RegistryStrategyTemplate(reg.get("usdjpy_d1_trend"))
-    with pytest.raises(BridgeError, match="no concrete strategy class"):
-        build_strategy_from_template(template, {}, "USDJPY")
+    strategy = build_strategy_from_template(template, {}, "USDJPY")
+    assert looks_like_strategy(strategy)
+    assert strategy.name == "usdjpy_d1_trend"
 
 
 def test_unknown_strategy_id_rejected() -> None:
