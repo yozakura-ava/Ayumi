@@ -94,16 +94,24 @@ class Instrument:
         Asset-class tag used for detector routing.
     pip_size : float
         Price change per pip (e.g. 0.0001 for EURUSD).
-    lot_size : int
-        Units per lot (e.g. 100000 for forex, 100 for XAUUSD).
+    lot_size : float
+        Units per lot. Forex: 100_000 (1 lot = 100k base units).
+        Metals (XAUUSD): 100 (1 lot = 100 oz). Crypto perps: contract
+        face in base asset (e.g. 0.001 BTC for BTCUSDT_PERP, 0.01 ETH
+        for ETHUSDT_PERP, 1 SOL for SOLUSDT_PERP — Binance USDⓈ-M
+        perpetual contract sizes; see crypto_phase_a spec).
     pip_value_per_lot : float
-        USD value of 1 pip movement per 1 lot.
+        USD value of 1 pip movement per 1 lot. For forex this is a
+        fixed $10 per pip per 100k lot. For crypto perps it is the
+        notional contract face at the reference price and is
+        recomputed dynamically by the sizer from the live entry
+        price (see :mod:`risk.sl_position_sizer`).
     """
 
     symbol: str
     symbol_type: SymbolType = SymbolType.forex_major
     pip_size: float = 0.0001
-    lot_size: int = 100_000
+    lot_size: float = 100_000.0
     pip_value_per_lot: float = 10.0
 
     @property
@@ -134,31 +142,71 @@ class Instrument:
 # ---------------------------------------------------------------------------
 # Extends the legacy INSTRUMENTS dict from risk/sl_position_sizer.py with
 # symbol_type.  Existing crypto symbols default to crypto_perp.
+#
+# Crypto perp contract faces (Binance USDⓈ-M perpetual futures spec,
+# verified 2026-10-04 for crypto_phase_a card 961aa7aa):
+#
+#   BTCUSDT_PERP  0.001 BTC  per contract
+#   ETHUSDT_PERP  0.01  ETH  per contract
+#   SOLUSDT_PERP  1     SOL  per contract
+#
+# Storing the contract face in ``lot_size`` is the single source of
+# truth: ``1 lot == 1 contract == lot_size base-asset units``.  The
+# sizer computes ``pip_value_per_lot = lot_size * price`` at sizing
+# time so notional stays correct as price moves.
 DEFAULT_INSTRUMENTS: dict[str, Instrument] = {
     # Forex majors
     "EURUSD": Instrument(
         "EURUSD",
         SymbolType.forex_major,
         pip_size=0.0001,
-        lot_size=100_000,
+        lot_size=100_000.0,
         pip_value_per_lot=10.0,
     ),
     "GBPUSD": Instrument(
         "GBPUSD",
         SymbolType.forex_major,
         pip_size=0.0001,
-        lot_size=100_000,
+        lot_size=100_000.0,
         pip_value_per_lot=10.0,
     ),
     "USDJPY": Instrument(
         "USDJPY",
         SymbolType.forex_major,
         pip_size=0.01,
-        lot_size=100_000,
+        lot_size=100_000.0,
         pip_value_per_lot=6.5,
     ),
     # Metals
-    "XAUUSD": Instrument("XAUUSD", SymbolType.metal, pip_size=0.1, lot_size=100, pip_value_per_lot=10.0),
+    "XAUUSD": Instrument(
+        "XAUUSD",
+        SymbolType.metal,
+        pip_size=0.1,
+        lot_size=100.0,
+        pip_value_per_lot=10.0,
+    ),
+    # Crypto USDⓈ-M perpetuals (Binance contract face; 1 lot = 1 contract)
+    "BTCUSDT_PERP": Instrument(
+        "BTCUSDT_PERP",
+        SymbolType.crypto_perp,
+        pip_size=1.0,           # 1 pip = $1.00 USD price move
+        lot_size=0.001,         # 1 lot = 1 contract = 0.001 BTC (Binance USDⓈ-M)
+        pip_value_per_lot=0.001, # overridden dynamically: lot_size * price
+    ),
+    "ETHUSDT_PERP": Instrument(
+        "ETHUSDT_PERP",
+        SymbolType.crypto_perp,
+        pip_size=0.1,           # 1 pip = $0.10 USD price move
+        lot_size=0.01,          # 1 lot = 1 contract = 0.01 ETH (Binance USDⓈ-M)
+        pip_value_per_lot=0.001, # overridden dynamically: lot_size * price
+    ),
+    "SOLUSDT_PERP": Instrument(
+        "SOLUSDT_PERP",
+        SymbolType.crypto_perp,
+        pip_size=0.01,          # 1 pip = $0.01 USD price move
+        lot_size=1.0,           # 1 lot = 1 contract = 1 SOL (Binance USDⓈ-M)
+        pip_value_per_lot=0.01, # overridden dynamically: lot_size * price
+    ),
 }
 
 

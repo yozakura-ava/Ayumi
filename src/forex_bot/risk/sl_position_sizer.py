@@ -27,11 +27,19 @@ logger = logging.getLogger(__name__)
 # Instrument specifications
 @dataclass(frozen=True)
 class InstrumentSpec:
-    """Specification for a trading instrument."""
+    """Specification for a trading instrument.
+
+    ``lot_size`` is the number of base-asset units per lot.  For forex
+    that is 100_000 (1 lot = 100k EUR); for crypto USDⓈ-M perpetuals
+    it is the Binance contract face (e.g. 0.001 BTC for BTCUSDT_PERP,
+    so 1 lot == 1 contract == 0.001 BTC).  See :mod:`models.instrument`
+    for the single source of truth and crypto_phase_a spec for the
+    rationale on contract-face sizing.
+    """
 
     symbol: str
     pip_size: float  # Price change per pip (e.g., 0.0001 for EURUSD, 0.1 for XAUUSD)
-    lot_size: int  # Units per lot (e.g., 100000 for forex, 100 for XAUUSD)
+    lot_size: float  # Units per lot (e.g., 100000 for forex, 0.001 BTC for BTCUSDT_PERP)
     pip_value_per_lot: float  # USD value of 1 pip movement per 1 lot
 
     @property
@@ -39,17 +47,38 @@ class InstrumentSpec:
         return 5.0  # Minimum SL distance in pips
 
 
-# Common instruments
+# Common instruments.
+#
+# Crypto perp contract faces (Binance USDⓈ-M perpetuals, verified
+# 2026-10-04 for crypto_phase_a card 961aa7aa).  ``pip_value_per_lot``
+# is the static USD value at the *reference* price; the sizer
+# recomputes it from the live ``entry_price`` for crypto routes so
+# notional stays correct as price moves (see
+# :meth:`SLPositionSizer.calculate`).
 INSTRUMENTS = {
-    "EURUSD": InstrumentSpec("EURUSD", pip_size=0.0001, lot_size=100000, pip_value_per_lot=10.0),
-    "GBPUSD": InstrumentSpec("GBPUSD", pip_size=0.0001, lot_size=100000, pip_value_per_lot=10.0),
+    # Forex majors
+    "EURUSD": InstrumentSpec("EURUSD", pip_size=0.0001, lot_size=100_000.0, pip_value_per_lot=10.0),
+    "GBPUSD": InstrumentSpec("GBPUSD", pip_size=0.0001, lot_size=100_000.0, pip_value_per_lot=10.0),
     # NOTE: USDJPY pip value varies with USD/JPY rate (~6.5 at 154.00).
     #       Update at runtime from broker feed for production accuracy.
-    "USDJPY": InstrumentSpec("USDJPY", pip_size=0.01, lot_size=100000, pip_value_per_lot=6.5),
-    "XAUUSD": InstrumentSpec("XAUUSD", pip_size=0.1, lot_size=100, pip_value_per_lot=10.0),
-    "AUDUSD": InstrumentSpec("AUDUSD", pip_size=0.0001, lot_size=100000, pip_value_per_lot=10.0),
-    "USDCHF": InstrumentSpec("USDCHF", pip_size=0.0001, lot_size=100000, pip_value_per_lot=10.0),
-    "USDCAD": InstrumentSpec("USDCAD", pip_size=0.0001, lot_size=100000, pip_value_per_lot=10.0),
+    "USDJPY": InstrumentSpec("USDJPY", pip_size=0.01, lot_size=100_000.0, pip_value_per_lot=6.5),
+    "AUDUSD": InstrumentSpec("AUDUSD", pip_size=0.0001, lot_size=100_000.0, pip_value_per_lot=10.0),
+    "USDCHF": InstrumentSpec("USDCHF", pip_size=0.0001, lot_size=100_000.0, pip_value_per_lot=10.0),
+    "USDCAD": InstrumentSpec("USDCAD", pip_size=0.0001, lot_size=100_000.0, pip_value_per_lot=10.0),
+    # Metals (legacy contract size = 100 oz/lot)
+    "XAUUSD": InstrumentSpec("XAUUSD", pip_size=0.1, lot_size=100.0, pip_value_per_lot=10.0),
+    # Crypto USDⓈ-M perpetuals (1 lot == 1 contract == contract face).
+    # ``pip_value_per_lot`` listed is a placeholder; the sizer overrides
+    # it with ``lot_size * entry_price`` at runtime.
+    "BTCUSDT_PERP": InstrumentSpec(
+        "BTCUSDT_PERP", pip_size=1.0, lot_size=0.001, pip_value_per_lot=0.001
+    ),
+    "ETHUSDT_PERP": InstrumentSpec(
+        "ETHUSDT_PERP", pip_size=0.1, lot_size=0.01, pip_value_per_lot=0.001
+    ),
+    "SOLUSDT_PERP": InstrumentSpec(
+        "SOLUSDT_PERP", pip_size=0.01, lot_size=1.0, pip_value_per_lot=0.01
+    ),
 }
 
 
@@ -640,6 +669,22 @@ class SLPositionSizer:
                 block_reason=f"Unknown instrument: {symbol}",
             )
 
+        # ── Instrument-type-aware pip_value_per_lot (crypto_phase_a) ──
+        # ``SymbolTypeGate`` is the single classification source — same
+        # gate the confidence engine consumes.  For crypto perps the
+        # static ``pip_value_per_lot`` is derived from the contract
+        # face (lot_size) and the configured pip step (pip_size), so
+        # 1 lot == 1 contract == lot_size base asset and the USD
+        # P&L per pip per lot = lot_size × pip_size.  Forex keeps its
+        # legacy static value (e.g. $10/pip/lot for EURUSD).
+        from confidence.symbol_type_gating import SymbolTypeGate  # noqa: E402  lazy import
+
+        routing = SymbolTypeGate().route({"symbol": symbol})
+        if routing.is_crypto:
+            pip_value_per_lot = float(spec.lot_size) * float(spec.pip_size)
+        else:
+            pip_value_per_lot = float(spec.pip_value_per_lot)
+
         # Calculate SL distance
         sl_distance_price = abs(entry_price - sl_price)
         sl_distance_pips = sl_distance_price / spec.pip_size
@@ -661,7 +706,7 @@ class SLPositionSizer:
                 risk_amount=0.0,
                 sl_distance_pips=sl_distance_pips,
                 sl_distance_price=sl_distance_price,
-                pip_value=spec.pip_value_per_lot,
+                pip_value=pip_value_per_lot,
                 blocked=True,
                 block_reason=f"SL distance {sl_distance_pips:.1f} pips < minimum {self.min_sl_pips} pips",
             )
@@ -674,7 +719,7 @@ class SLPositionSizer:
                 risk_amount=0.0,
                 sl_distance_pips=sl_distance_pips,
                 sl_distance_price=sl_distance_price,
-                pip_value=spec.pip_value_per_lot,
+                pip_value=pip_value_per_lot,
                 blocked=True,
                 block_reason="Account risk amount is zero",
             )
@@ -685,7 +730,7 @@ class SLPositionSizer:
                 risk_amount=0.0,
                 sl_distance_pips=sl_distance_pips,
                 sl_distance_price=sl_distance_price,
-                pip_value=spec.pip_value_per_lot if spec else 0.0,
+                pip_value=pip_value_per_lot,
                 blocked=True,
                 block_reason=f"Unknown profile: {profile}",
             )
@@ -703,7 +748,7 @@ class SLPositionSizer:
                 risk_amount=0.0,
                 sl_distance_pips=sl_distance_pips,
                 sl_distance_price=sl_distance_price,
-                pip_value=spec.pip_value_per_lot,
+                pip_value=pip_value_per_lot,
                 blocked=True,
                 block_reason=(f"Max {self.max_positions_per_symbol} position(s) already open for {symbol}"),
             )
@@ -718,7 +763,7 @@ class SLPositionSizer:
                 risk_amount=0.0,
                 sl_distance_pips=sl_distance_pips,
                 sl_distance_price=sl_distance_price,
-                pip_value=spec.pip_value_per_lot,
+                pip_value=pip_value_per_lot,
                 blocked=True,
                 block_reason=(
                     f"Total open risk ${current_open_risk:.2f} + new "
@@ -734,20 +779,20 @@ class SLPositionSizer:
                 risk_amount=0.0,
                 sl_distance_pips=sl_distance_pips,
                 sl_distance_price=sl_distance_price,
-                pip_value=spec.pip_value_per_lot,
+                pip_value=pip_value_per_lot,
                 blocked=True,
                 block_reason=f"Trade risk ${base_risk:.2f} exceeds daily remaining ${self.daily_risk_remaining:.2f}",
             )
 
         # Calculate lots: risk_amount / (sl_pips * pip_value_per_lot)
-        lots = base_risk / (sl_distance_pips * spec.pip_value_per_lot)
+        lots = base_risk / (sl_distance_pips * pip_value_per_lot)
 
         # Apply max lot cap
         if lots > self.max_lot_size:
             warnings.append(f"Lots {lots:.4f} capped to max {self.max_lot_size}")
             lots = self.max_lot_size
             # Recalculate actual risk with capped lots
-            actual_risk = lots * sl_distance_pips * spec.pip_value_per_lot
+            actual_risk = lots * sl_distance_pips * pip_value_per_lot
         else:
             actual_risk = base_risk
 
@@ -759,7 +804,7 @@ class SLPositionSizer:
                 risk_amount=0.0,
                 sl_distance_pips=sl_distance_pips,
                 sl_distance_price=sl_distance_price,
-                pip_value=spec.pip_value_per_lot,
+                pip_value=pip_value_per_lot,
                 blocked=True,
                 block_reason=f"Calculated lots {lots:.4f} below minimum 0.01",
             )
@@ -769,7 +814,7 @@ class SLPositionSizer:
             risk_amount=actual_risk,
             sl_distance_pips=sl_distance_pips,
             sl_distance_price=sl_distance_price,
-            pip_value=spec.pip_value_per_lot,
+            pip_value=pip_value_per_lot,
             warnings=warnings,
         )
 
@@ -815,7 +860,7 @@ def _compute_position_risk_usd(
         spec = InstrumentSpec(
             symbol=str(symbol),
             pip_size=0.0001,
-            lot_size=100_000,
+            lot_size=100_000.0,
             pip_value_per_lot=10.0,
         )
 
@@ -825,6 +870,17 @@ def _compute_position_risk_usd(
         # reserve a non-zero risk budget against the daily cap.
         return float(lots) * 100.0
 
+    # Crypto perps: pip_value_per_lot = lot_size × pip_size (mirrors
+    # :meth:`SLPositionSizer.calculate`) so seeded broker positions
+    # consume the same open_risk budget as a live trade.
+    from confidence.symbol_type_gating import SymbolTypeGate  # noqa: E402  lazy import
+
+    routing = SymbolTypeGate().route({"symbol": str(symbol)})
+    if routing.is_crypto:
+        pip_value_per_lot = float(spec.lot_size) * float(spec.pip_size)
+    else:
+        pip_value_per_lot = float(spec.pip_value_per_lot)
+
     price_distance = abs(float(entry_price) - float(sl_price))
     pips = price_distance / spec.pip_size if spec.pip_size > 0 else 0.0
-    return float(pips) * float(lots) * spec.pip_value_per_lot
+    return float(pips) * float(lots) * pip_value_per_lot
