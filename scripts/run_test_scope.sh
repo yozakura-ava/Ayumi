@@ -11,6 +11,7 @@ Scopes:
   --unit        Run tests/unit/ (all subcategories)
   --integration Run tests/integration/ (including ctrader/)
   --strategies  Run tests/strategies/ (including ict/)
+  --factory     Run tests/factory/ (SFA-1 strategy-factory contract tests)
   --e2e         Run tests/e2e/
   --regression  Run tests/regression/
   --heavy       Run only heavy-import files (numpy/pandas/scipy/sklearn)
@@ -36,6 +37,7 @@ while [[ $# -gt 0 ]]; do
     --unit)         SCOPE="unit"; shift ;;
     --integration)  SCOPE="integration"; shift ;;
     --strategies)   SCOPE="strategies"; shift ;;
+    --factory)      SCOPE="factory"; shift ;;
     --e2e)          SCOPE="e2e"; shift ;;
     --regression)   SCOPE="regression"; shift ;;
     --heavy)        SCOPE="heavy"; shift ;;
@@ -86,6 +88,9 @@ case "$SCOPE" in
     ;;
   strategies)
     run_pytest "strategies" tests/strategies/
+    ;;
+  factory)
+    run_pytest "factory" tests/factory/
     ;;
   e2e)
     run_pytest "e2e" tests/e2e/
