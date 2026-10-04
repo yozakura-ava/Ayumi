@@ -1,24 +1,33 @@
-"""Tests for the CTraderHistoricalClient host + account_id auth fix.
+"""Tests for the CTraderHistoricalClient auth fix.
 
 Card 377b2bab-1350-473c-b623-86cd86d4560b (auth follow-up).
 
-Root cause: ``src/forex_bot/data/ctrader_client.py`` hardcoded
-``_PROTOBUF_HOST = "live.ctraderapi.com"`` and required ``trader_login``
-(human-readable account number) which forced a
-``ProtoOAGetAccountListByAccessTokenReq`` round-trip on every run. The
-demo access token (loaded from ``.env`` with ``CTRADER_HOST=demo``)
-rejected that round-trip at the live endpoint with
-``UNSUPPORTED_MESSAGE / Trading account is not authorized``.
+The fix honours the Craig binding correction (2026-10-04): the historical
+client must consume the live-maintained credential store
+(``adapters/ctrader/credential_store.py``) — the same path the live
+forward test uses, kept fresh by ``token_lifecycle.manage()``. It must
+NEVER mint its own token via the OAuth refresh grant. Wheel-reinvention
+of the auth path is explicitly disallowed.
 
-The fix mirrors the working live adapter exactly:
+What the fix delivers:
 
-1. Host defaults to ``EndPoints.PROTOBUF_DEMO_HOST`` and honours the
-   ``CTRADER_HOST`` env var.
-2. The constructor accepts an ``account_id`` (the internal
-   ``ctidTraderAccountId``) and short-circuits the
-   ``GetAccountListByAccessToken`` round-trip when it's known.
-3. Auth sequence collapses to ``App auth 2101 → Account auth 2103``,
-   byte-identical to the live adapter's pattern.
+1. **Host resolution** — ``_resolve_host()`` defaults to
+   ``EndPoints.PROTOBUF_DEMO_HOST`` and honours ``CTRADER_HOST`` (matches
+   the live adapter). Fixes the historical client hardcoded to
+   ``live.ctraderapi.com`` (broker rejected demo token at live endpoint
+   with ``UNSUPPORTED_MESSAGE / Trading account is not authorized``).
+2. **``account_id`` path** — when the constructor knows the
+   ``ctidTraderAccountId`` up front, ``GetAccountListByAccessToken`` is
+   never issued. Auth sequence collapses to ``App auth 2101 → Account
+   auth 2103``, byte-identical to the live adapter.
+3. **CredentialStore consumption** — the historical client now reads
+   the access token + account id from ``CredentialStore`` (the same
+   store the live adapter / ``token_lifecycle`` uses). The
+   ``_refresh_oauth_token`` method has been REMOVED; the historical
+   client never calls the OAuth refresh grant.
+4. **Probe callback arity** — ``CTraderOpenApiClient._on_tcp_disconnected``
+   now accepts the SDK's ``callback(client, reason)`` call shape;
+   ``scripts/probe_ctrader_credentials.py`` is usable for diagnosis again.
 
 All tests use mocks; no live broker call is made.
 """
@@ -47,6 +56,31 @@ from data.ctrader_client import (  # noqa: E402
     CTraderHistoricalClient,
     _resolve_host,
 )
+
+
+@pytest.fixture
+def stub_env(tmp_path):
+    """Write a stub .env source file with the canonical CTRADER_OPENAPI_*
+    keys and return its ``str()`` path. The fixture writes to
+    ``stub_source.env`` (not ``.env``) so tests that copy it to ``.env``
+    don't trip shutil.SameFileError.
+    """
+    env = tmp_path / "stub_source.env"
+    env.write_text(
+        "\n".join(
+            [
+                "CTRADER_OPENAPI_CLIENT_ID=test_client_id",
+                "CTRADER_OPENAPI_CLIENT_SECRET=test_client_secret_value",
+                "CTRADER_OPENAPI_ACCESS_TOKEN=test_access_token_value",
+                "CTRADER_OPENAPI_REFRESH_TOKEN=test_refresh_token_value",
+                "CTRADER_OPENAPI_ACCOUNT_ID=46877902",
+                "CTRADER_OPENAPI_TRADER_LOGIN=5795523",
+                "CTRADER_OPENAPI_TOKEN_EXPIRES_AT=2026-11-03T03:12:29+00:00",
+                "",
+            ]
+        )
+    )
+    return str(env)
 
 
 def _make_proto_msg(payload_type: int, payload: bytes = b"") -> MagicMock:
@@ -271,86 +305,18 @@ class TestAccountIdAuthFlow:
 
 
 # ---------------------------------------------------------------------------
-# 4. download_ctrader_data.py passes account_id when available
+# 4. download_ctrader_data.py script wiring — REMOVED (Craig binding)
 # ---------------------------------------------------------------------------
-
-
-class TestDownloadScriptWiring:
-    def test_script_passes_account_id_from_env(self, monkeypatch, tmp_path):
-        """``CTRADER_OPENAPI_ACCOUNT_ID`` must flow through to the
-        client constructor as the preferred ``account_id`` arg."""
-        from scripts import download_ctrader_data
-
-        monkeypatch.setenv("CTRADER_OPENAPI_CLIENT_ID", "cid")
-        monkeypatch.setenv("CTRADER_OPENAPI_CLIENT_SECRET", "csec")
-        monkeypatch.setenv("CTRADER_OPENAPI_REFRESH_TOKEN", "rt")
-        monkeypatch.setenv("CTRADER_OPENAPI_ACCESS_TOKEN", "at")
-        monkeypatch.setenv("CTRADER_OPENAPI_ACCOUNT_ID", "46877902")
-        # No trader_login env — the script should fall back gracefully
-        # but account_id is canonical.
-
-        captured: dict = {}
-
-        class _FakeClient:
-            def __init__(self, **kwargs):
-                captured.update(kwargs)
-
-            def download_and_save(self, *a, **kw):
-                # No-op so the script returns without touching the broker.
-                return None
-
-        monkeypatch.setattr(download_ctrader_data, "CTraderHistoricalClient", _FakeClient)
-
-        with patch.object(download_ctrader_data, "validate_request", lambda args: None):
-            rc = download_ctrader_data.main([
-                "--symbols", "XAUUSD",
-                "--timeframes", "H1",
-                "--start", "2026-09-01",
-                "--end", "2026-09-02",
-                "--csv-dir", str(tmp_path),
-            ])
-        assert rc == 0
-        # The script must have called the client with account_id=46877902.
-        assert captured.get("account_id") == 46877902
-        # And NOT with trader_login (since account_id was supplied).
-        assert "trader_login" not in captured or captured.get("trader_login") is None
-
-    def test_script_falls_back_to_trader_login(self, monkeypatch, tmp_path):
-        """If ``CTRADER_OPENAPI_ACCOUNT_ID`` is absent, the script
-        must still pass ``trader_login`` from the legacy
-        ``CTRADER_OPENAPI_TRADER_LOGIN`` env."""
-        from scripts import download_ctrader_data
-
-        monkeypatch.setenv("CTRADER_OPENAPI_CLIENT_ID", "cid")
-        monkeypatch.setenv("CTRADER_OPENAPI_CLIENT_SECRET", "csec")
-        monkeypatch.setenv("CTRADER_OPENAPI_REFRESH_TOKEN", "rt")
-        monkeypatch.setenv("CTRADER_OPENAPI_ACCESS_TOKEN", "at")
-        monkeypatch.delenv("CTRADER_OPENAPI_ACCOUNT_ID", raising=False)
-        monkeypatch.setenv("CTRADER_OPENAPI_TRADER_LOGIN", "5795523")
-
-        captured: dict = {}
-
-        class _FakeClient:
-            def __init__(self, **kwargs):
-                captured.update(kwargs)
-
-            def download_and_save(self, *a, **kw):
-                return None
-
-        monkeypatch.setattr(download_ctrader_data, "CTraderHistoricalClient", _FakeClient)
-
-        with patch.object(download_ctrader_data, "validate_request", lambda args: None):
-            rc = download_ctrader_data.main([
-                "--symbols", "XAUUSD",
-                "--timeframes", "H1",
-                "--start", "2026-09-01",
-                "--end", "2026-09-02",
-                "--csv-dir", str(tmp_path),
-            ])
-        assert rc == 0
-        assert captured.get("trader_login") == 5795523
-        # And no account_id was supplied.
-        assert "account_id" not in captured or captured.get("account_id") is None
+# The historical-download script no longer reads individual env vars
+# (CTRADER_OPENAPI_*, CTRADER_OAUTH_*, CTRADER_*) to construct the
+# client. Per the Craig correction 2026-10-04, the script consumes the
+# live-maintained CredentialStore. The new coverage lives in
+# ``TestDownloadScriptUsesCredentialStore`` below. The prior
+# ``test_script_passes_account_id_from_env`` /
+# ``test_script_falls_back_to_trader_login`` tests exercised
+# superseded behaviour and have been removed.
+#
+# (Class placeholder kept to document the removal — see git history.)
 
 
 # ---------------------------------------------------------------------------
@@ -404,3 +370,339 @@ class TestProbeCallbackArity:
         )
         client._on_tcp_disconnected()  # must not raise
         client._on_tcp_disconnected(None)  # must not raise
+
+
+# ---------------------------------------------------------------------------
+# 6. CredentialStore is the PREFERRED path (Craig binding 2026-10-04)
+# ---------------------------------------------------------------------------
+
+
+class TestCredentialStoreIsPreferred:
+    """Card 377b2bab auth-follow-up (Craig binding 2026-10-04): the
+    historical client MUST consume the live-maintained
+    ``CredentialStore`` — the same path the live forward test uses,
+    kept fresh by ``token_lifecycle.manage()``. It must NEVER mint its
+    own token via the OAuth refresh grant. These tests pin that
+    contract.
+    """
+
+    def test_credential_store_loads_at_construction(self, stub_env):
+        """When given a ``CredentialStore``, the client must pull every
+        credential field from the store's ``Credentials`` snapshot.
+        """
+        from adapters.ctrader.credential_store import CredentialStore
+        store = CredentialStore(env_path=stub_env)
+        client = CTraderHistoricalClient(credential_store=store)
+        assert client.client_id == "test_client_id"
+        assert client.client_secret == "test_client_secret_value"  # noqa: S105 (test placeholder)
+        assert client.access_token == "test_access_token_value"  # noqa: S105 (test placeholder)
+        assert client.refresh_token == "test_refresh_token_value"  # noqa: S105 (test placeholder)
+        assert client._ctid_account_id == 46877902
+        assert client.trader_login == 5795523
+        # The store is held for re-reads during _auth.
+        assert client._credential_store is store
+
+    def test_credential_store_is_first_positional(self, stub_env):
+        """The credential_store parameter is the FIRST positional arg
+        so the preferred call site reads ``CTraderHistoricalClient(
+        credential_store=store)`` — matching the live adapter's
+        credential-driven call sites.
+        """
+        from adapters.ctrader.credential_store import CredentialStore
+        store = CredentialStore(env_path=stub_env)
+        client = CTraderHistoricalClient(store)
+        assert client.client_id == "test_client_id"
+        assert client._credential_store is store
+
+    def test_credential_store_type_check_rejects_other_types(self, stub_env):
+        """Only ``CredentialStore`` instances are accepted; anything
+        else raises ``TypeError`` with a clear message (the binding
+        makes this non-negotiable — production callers must go through
+        the live-maintained path)."""
+        with pytest.raises(TypeError, match="CredentialStore"):
+            CTraderHistoricalClient(credential_store={"client_id": "x"})
+
+        with pytest.raises(TypeError, match="CredentialStore"):
+            CTraderHistoricalClient(credential_store="not a store")
+
+        with pytest.raises(TypeError, match="CredentialStore"):
+            CTraderHistoricalClient(credential_store=42)
+
+    def test_missing_everything_raises(self):
+        """When neither ``credential_store`` nor any legacy kwargs are
+        supplied the constructor raises ``ValueError`` — there is no
+        silent fallback. Production callers must use ``credential_store``
+        per the Craig binding; the legacy kwargs path requires explicit
+        placeholders (tests-only).
+        """
+        with pytest.raises(ValueError, match="credential_store"):
+            CTraderHistoricalClient()
+
+    def test_legacy_kwargs_require_all_four(self):
+        """Partial legacy kwargs raise ValueError (no silent
+        fallbacks). The legacy path is DEPRECATED and tests-only.
+        """
+        # Missing refresh_token and access_token.
+        with pytest.raises(ValueError, match="Missing"):
+            CTraderHistoricalClient(
+                client_id="x",
+                client_secret="x",  # noqa: S106
+                account_id=1,
+            )
+
+    def test_legacy_kwargs_require_account_id_or_trader_login(self):
+        """Legacy kwargs path requires either ``account_id`` (ctid) or
+        ``trader_login`` (legacy human-readable) so the auth flow can
+        resolve which account to authenticate against.
+        """
+        with pytest.raises(ValueError, match="account_id"):
+            CTraderHistoricalClient(
+                client_id="x",
+                client_secret="x",  # noqa: S106
+                access_token="x",  # noqa: S106
+                refresh_token="x",  # noqa: S106
+            )
+
+    def test_legacy_kwargs_still_work_for_tests(self):
+        """The legacy kwargs path remains functional for unit tests
+        that need to inject placeholders without touching ``.env``.
+        """
+        client = CTraderHistoricalClient(
+            client_id="test_client",
+            client_secret="***",  # noqa: S106
+            access_token="***",  # noqa: S106
+            refresh_token="***",  # noqa: S106
+            account_id=46877902,
+        )
+        assert client.client_id == "test_client"
+        assert client._ctid_account_id == 46877902
+        # No store — we're on the legacy path.
+        assert client._credential_store is None
+
+
+# ---------------------------------------------------------------------------
+# 7. Refresh grant is REMOVED from the historical client (Craig binding)
+# ---------------------------------------------------------------------------
+
+
+class TestRefreshGrantRemoved:
+    """Card 377b2bab auth-follow-up (Craig binding 2026-10-04): the
+    historical client MUST NOT mint its own token via the OAuth refresh
+    grant. ``_refresh_oauth_token`` is REMOVED; the historical client
+    reads what the live path's ``token_lifecycle`` wrote to ``.env``.
+    """
+
+    def test_refresh_oauth_token_method_is_gone(self):
+        """The historical client must not expose ``_refresh_oauth_token``
+        — the binding explicitly forbids the wheel-reinvention.
+        """
+        from data import ctrader_client
+        assert not hasattr(ctrader_client.CTraderHistoricalClient, "_refresh_oauth_token")
+
+    def test_requests_module_not_imported_by_module(self):
+        """``requests`` is no longer needed for the refresh grant and
+        must not be imported at module level — keeps the data module
+        lightweight and prevents accidental drift back to refresh-grant
+        code.
+        """
+        from data import ctrader_client
+        # The module attribute holds the import; assert it's absent.
+        assert not hasattr(ctrader_client, "requests")
+
+
+# ---------------------------------------------------------------------------
+# 8. _auth re-reads access_token from credential_store before AccountAuth
+# ---------------------------------------------------------------------------
+
+
+class TestAuthRereadsAccessToken:
+    """Card 377b2bab auth-follow-up (Craig binding): the historical
+    client consumes the live-maintained access token via
+    ``CredentialStore``. Before sending ``AccountAuth`` it re-reads the
+    store so any refresh the live path's ``token_lifecycle`` wrote to
+    ``.env`` (since the client was constructed) is visible here.
+    """
+
+    @pytest.mark.asyncio
+    async def test_auth_picks_up_refreshed_access_token(self, stub_env):
+        """Simulate the live path refreshing the access token between
+        client construction and the ``AccountAuth`` send. The client
+        must re-read the store and use the new token.
+        """
+        from adapters.ctrader.credential_store import CredentialStore
+
+        store = CredentialStore(env_path=stub_env)
+        client = CTraderHistoricalClient(credential_store=store)
+        original_token = client.access_token
+        assert original_token == "test_access_token_value"  # noqa: S105 (test placeholder)
+
+        # Simulate live path updating the token (token_lifecycle calls
+        # store.update_tokens which writes to .env and updates the cache).
+        store.update_tokens(
+            access_token="refreshed_access_token_value",  # noqa: S106
+            refresh_token="refreshed_refresh_token_value",  # noqa: S106
+            expires_in=30 * 24 * 3600,
+        )
+
+        # Stub the network so we don't actually call the broker.
+        from ctrader_open_api.messages.OpenApiMessages_pb2 import (
+            ProtoOAAccountAuthRes,
+            ProtoOAApplicationAuthReq,
+        )
+        fake_client = MagicMock()
+        account_auth = ProtoOAAccountAuthRes()
+        account_auth.ctidTraderAccountId = 46877902
+        fake_client.send = AsyncMock(
+            side_effect=[
+                _make_proto_msg(2101, b""),                            # app auth ack
+                _make_proto_msg(2103, account_auth.SerializeToString()),  # acct auth ack
+            ]
+        )
+
+        await client._auth(fake_client)
+
+        # Second send is the AccountAuthReq — must carry the REFRESHED
+        # access token, not the one captured at construction.
+        second_call = fake_client.send.await_args_list[1]
+        from ctrader_open_api.messages.OpenApiMessages_pb2 import ProtoOAAccountAuthReq
+        assert isinstance(second_call.args[0], ProtoOAAccountAuthReq)
+        assert second_call.args[0].accessToken == "refreshed_access_token_value"  # noqa: S105 (test placeholder)
+        # And the in-memory attribute is updated for any subsequent use.
+        assert client.access_token == "refreshed_access_token_value"  # noqa: S105 (test placeholder)
+
+        # First send is the App auth — credentials are stable across
+        # token refresh (client_id, client_secret), still correct.
+        first_call = fake_client.send.await_args_list[0]
+        assert isinstance(first_call.args[0], ProtoOAApplicationAuthReq)
+        assert first_call.args[0].clientId == "test_client_id"
+
+    @pytest.mark.asyncio
+    async def test_auth_works_without_credential_store(self):
+        """Legacy kwargs path (no ``credential_store``) must still
+        work — the in-memory ``self.access_token`` is used directly.
+        No re-read happens because there is no store.
+        """
+        client = CTraderHistoricalClient(
+            client_id="test_client_id",
+            client_secret="***",  # noqa: S106
+            access_token="in_memory_token_value",  # noqa: S106
+            refresh_token="***",  # noqa: S106
+            account_id=46877902,
+        )
+        assert client._credential_store is None
+
+        from ctrader_open_api.messages.OpenApiMessages_pb2 import (
+            ProtoOAAccountAuthReq,
+            ProtoOAAccountAuthRes,
+        )
+        fake_client = MagicMock()
+        account_auth = ProtoOAAccountAuthRes()
+        account_auth.ctidTraderAccountId = 46877902
+        fake_client.send = AsyncMock(
+            side_effect=[
+                _make_proto_msg(2101, b""),
+                _make_proto_msg(2103, account_auth.SerializeToString()),
+            ]
+        )
+
+        await client._auth(fake_client)
+
+        second_call = fake_client.send.await_args_list[1]
+        assert isinstance(second_call.args[0], ProtoOAAccountAuthReq)
+        assert second_call.args[0].accessToken == "in_memory_token_value"
+
+
+# ---------------------------------------------------------------------------
+# 9. download_ctrader_data.py uses CredentialStore (Craig binding)
+# ---------------------------------------------------------------------------
+
+
+class TestDownloadScriptUsesCredentialStore:
+    """Card 377b2bab auth-follow-up (Craig binding): the download
+    script MUST go through the live-maintained ``CredentialStore`` —
+    it must NOT manage individual env vars or read .env by hand. This
+    matches the proven pattern the live adapter / forward test use.
+    """
+
+    def test_script_constructs_credential_store(
+        self, monkeypatch, tmp_path, stub_env
+    ):
+        """The script constructs ``CredentialStore(.env)`` and passes it
+        to ``CTraderHistoricalClient``. No manual env-var dict.
+        """
+        from scripts import download_ctrader_data
+
+        # Stub the env path so the script reads our stub .env.
+        monkeypatch.setattr(
+            download_ctrader_data, "PROJECT_ROOT", tmp_path
+        )
+        # Copy stub .env to tmp_path/.env so the script picks it up.
+        import shutil
+        shutil.copy(stub_env, tmp_path / ".env")
+
+        captured: dict = {}
+
+        class _FakeClient:
+            def __init__(self, **kwargs):
+                captured.update(kwargs)
+
+            def download_and_save(self, *a, **kw):
+                return None
+
+        monkeypatch.setattr(download_ctrader_data, "CTraderHistoricalClient", _FakeClient)
+
+        with patch.object(download_ctrader_data, "validate_request", lambda args: None):
+            rc = download_ctrader_data.main([
+                "--symbols", "XAUUSD",
+                "--timeframes", "H1",
+                "--start", "2026-09-01",
+                "--end", "2026-09-02",
+                "--csv-dir", str(tmp_path),
+            ])
+        assert rc == 0
+        # The script passed credential_store (not individual env vars).
+        assert "credential_store" in captured
+        assert captured["credential_store"] is not None
+        # The deprecated legacy kwargs are absent.
+        assert "client_id" not in captured
+        assert "access_token" not in captured
+        assert "trader_login" not in captured
+
+    def test_script_reports_missing_credentials_cleanly(
+        self, monkeypatch, tmp_path
+    ):
+        """If ``CredentialStore.load()`` raises ``RuntimeError`` (no
+        .env or missing keys), the script logs a clean error and
+        returns exit 1 — does NOT fall back to env-var parsing.
+        """
+        from scripts import download_ctrader_data
+
+        # No .env at tmp_path — CredentialStore.load() raises RuntimeError.
+        monkeypatch.setattr(download_ctrader_data, "PROJECT_ROOT", tmp_path)
+        # Remove any .env that the test infra may have written.
+        env_file = tmp_path / ".env"
+        if env_file.exists():
+            env_file.unlink()
+
+        captured: dict = {}
+
+        class _FakeClient:
+            def __init__(self, **kwargs):
+                captured.update(kwargs)
+
+            def download_and_save(self, *a, **kw):
+                return None
+
+        monkeypatch.setattr(download_ctrader_data, "CTraderHistoricalClient", _FakeClient)
+
+        with patch.object(download_ctrader_data, "validate_request", lambda args: None):
+            rc = download_ctrader_data.main([
+                "--symbols", "XAUUSD",
+                "--timeframes", "H1",
+                "--start", "2026-09-01",
+                "--end", "2026-09-02",
+                "--csv-dir", str(tmp_path),
+            ])
+        assert rc == 1
+        # Client was never constructed — error caught before construction.
+        assert captured == {}

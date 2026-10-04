@@ -250,101 +250,16 @@ class TestSymbolsPayloadRouting:
 
 
 # ---------------------------------------------------------------------------
-# 3. Env alias ladder for tokens
+# 3. Env alias ladder for tokens — REMOVED (Craig binding 2026-10-04)
 # ---------------------------------------------------------------------------
-
-
-class TestEnvAliasLadder:
-    def test_canonical_openapi_names_are_preferred(self, monkeypatch):
-        """CTRADER_OPENAPI_* must be read before legacy CTRADER_OAUTH_*
-        / CTRADER_* variants — mirrors credential_store._ENV_KEYS."""
-        from scripts.download_ctrader_data import read_env_with_aliases
-
-        # Provide BOTH the canonical and the legacy names; canonical wins.
-        monkeypatch.setenv("CTRADER_OPENAPI_ACCESS_TOKEN", "canonical_at")
-        monkeypatch.setenv("CTRADER_OPENAPI_REFRESH_TOKEN", "canonical_rt")
-        monkeypatch.setenv("CTRADER_OPENAPI_TRADER_LOGIN", "99999")
-        # Legacy fallbacks that should be ignored.
-        monkeypatch.setenv("CTRADER_OAUTH_ACCESS_TOKEN", "legacy_at")
-        monkeypatch.setenv("CTRADER_OAUTH_REFRESH_TOKEN", "legacy_rt")
-        monkeypatch.setenv("CTRADER_ACCESS_TOKEN", "older_at")
-        monkeypatch.setenv("CTRADER_REFRESH_TOKEN", "older_rt")
-        monkeypatch.setenv("CTRADER_TRADER_LOGIN", "11111")
-        monkeypatch.setenv("CTRADER_ACCOUNT", "22222")
-
-        assert read_env_with_aliases(
-            "CTRADER_OPENAPI_REFRESH_TOKEN",
-            "CTRADER_OAUTH_REFRESH_TOKEN",
-            "CTRADER_REFRESH_TOKEN",
-        ) == "canonical_rt"
-        assert read_env_with_aliases(
-            "CTRADER_OPENAPI_ACCESS_TOKEN",
-            "CTRADER_OAUTH_ACCESS_TOKEN",
-            "CTRADER_ACCESS_TOKEN",
-        ) == "canonical_at"
-        assert read_env_with_aliases(
-            "CTRADER_OPENAPI_TRADER_LOGIN",
-            "CTRADER_TRADER_LOGIN",
-            "CTRADER_ACCOUNT",
-        ) == "99999"
-
-    def test_legacy_alias_used_when_canonical_missing(self, monkeypatch):
-        """If CTRADER_OPENAPI_* names are absent, the helper must
-        fall back to the legacy CTRADER_OAUTH_* aliases."""
-        from scripts.download_ctrader_data import read_env_with_aliases
-
-        # Canonical names absent.
-        monkeypatch.delenv("CTRADER_OPENAPI_ACCESS_TOKEN", raising=False)
-        monkeypatch.delenv("CTRADER_OPENAPI_REFRESH_TOKEN", raising=False)
-        monkeypatch.delenv("CTRADER_OPENAPI_TRADER_LOGIN", raising=False)
-        # Legacy names only.
-        monkeypatch.setenv("CTRADER_OAUTH_ACCESS_TOKEN", "legacy_at")
-        monkeypatch.setenv("CTRADER_OAUTH_REFRESH_TOKEN", "legacy_rt")
-        monkeypatch.setenv("CTRADER_TRADER_LOGIN", "11111")
-
-        assert read_env_with_aliases(
-            "CTRADER_OPENAPI_ACCESS_TOKEN",
-            "CTRADER_OAUTH_ACCESS_TOKEN",
-            "CTRADER_ACCESS_TOKEN",
-        ) == "legacy_at"
-        assert read_env_with_aliases(
-            "CTRADER_OPENAPI_REFRESH_TOKEN",
-            "CTRADER_OAUTH_REFRESH_TOKEN",
-            "CTRADER_REFRESH_TOKEN",
-        ) == "legacy_rt"
-        assert read_env_with_aliases(
-            "CTRADER_OPENAPI_TRADER_LOGIN",
-            "CTRADER_TRADER_LOGIN",
-            "CTRADER_ACCOUNT",
-        ) == "11111"
-
-    def test_returns_none_when_no_alias_set(self, monkeypatch):
-        from scripts.download_ctrader_data import read_env_with_aliases
-
-        for n in ("CTRADER_OPENAPI_X", "CTRADER_OAUTH_X", "CTRADER_X"):
-            monkeypatch.delenv(n, raising=False)
-        assert read_env_with_aliases(
-            "CTRADER_OPENAPI_X", "CTRADER_OAUTH_X", "CTRADER_X"
-        ) is None
-
-    def test_first_non_empty_wins(self, monkeypatch):
-        from scripts.download_ctrader_data import read_env_with_aliases
-
-        monkeypatch.setenv("CTRADER_OPENAPI_T", "first_T")
-        monkeypatch.setenv("CTRADER_OAUTH_T", "second_T")
-        assert read_env_with_aliases(
-            "CTRADER_OPENAPI_T", "CTRADER_OAUTH_T"
-        ) == "first_T"
-
-    def test_empty_string_treated_as_missing(self, monkeypatch):
-        from scripts.download_ctrader_data import read_env_with_aliases
-
-        # Empty string must NOT win over a populated fallback.
-        monkeypatch.setenv("CTRADER_OPENAPI_T", "")
-        monkeypatch.setenv("CTRADER_OAUTH_T", "fallback_T")
-        assert read_env_with_aliases(
-            "CTRADER_OPENAPI_T", "CTRADER_OAUTH_T"
-        ) == "fallback_T"
+# The historical client no longer reads env vars directly. It consumes
+# the live-maintained CredentialStore (see
+# ``tests/unit/data/test_ctrader_client_auth_followup.py`` for the new
+# coverage). The prior ``read_env_with_aliases`` helper and its tests
+# have been superseded; the binding explicitly forbids wheel-reinvention
+# of credential/env handling on the historical path.
+#
+# (Class placeholder kept to document the removal — see git history.)
 
 
 # ---------------------------------------------------------------------------
