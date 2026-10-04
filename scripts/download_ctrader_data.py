@@ -360,7 +360,10 @@ def main(argv: list[str] | None = None) -> int:
 
     # Print summary
     print("=" * 100)
-    print(f"{'symbol':<8} {'tf':<5} {'mode':<8} {'staged':>8} {'inserted':>9} {'updated':>8} {'pre':>5} {'post':>5}  result")
+    print(
+        f"{'symbol':<8} {'tf':<5} {'mode':<8} {'staged':>8} {'inserted':>9} "
+        f"{'updated':>8} {'pre':>5} {'post':>5}  result"
+    )
     print("-" * 100)
     for r in summary:
         print(

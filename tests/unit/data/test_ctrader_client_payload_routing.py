@@ -24,7 +24,6 @@ All tests use mocks so no live broker call is made.
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -36,17 +35,16 @@ import pytest
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(_PROJECT_ROOT / "src" / "forex_bot"))
 
-from data.ctrader_client import (  # noqa: E402
-    CTraderHistoricalClient,
-    _extract_or_raise,
-)
 from ctrader_open_api.messages.OpenApiMessages_pb2 import (  # noqa: E402
     ProtoOAAccountAuthRes,
     ProtoOAErrorRes,
     ProtoOAGetAccountListByAccessTokenRes,
     ProtoOASymbolsListRes,
 )
-
+from data.ctrader_client import (  # noqa: E402
+    CTraderHistoricalClient,
+    _extract_or_raise,
+)
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -58,7 +56,7 @@ def client():
     """Bare CTraderHistoricalClient with dummy credentials."""
     return CTraderHistoricalClient(
         client_id="test_client_id",
-        client_secret="test_secret",
+        client_secret="test_secret",  # noqa: S106
         access_token="test_access_token",  # noqa: S106
         refresh_token="test_refresh_token",  # noqa: S106
         trader_login=17087404,
@@ -358,8 +356,6 @@ class TestExtractOrRaise:
     def test_extracts_calls_protobuf_extract(self):
         """_extract_or_raise must delegate to Protobuf.extract (not
         hard-parse) so payloadType dispatch happens."""
-        from data.ctrader_client import _extract_or_raise
-
         sym_bytes = _make_symbols_list_res_bytes("EUR/USD", 7)
         res = _make_proto_msg(0, sym_bytes)
 
@@ -373,8 +369,6 @@ class TestExtractOrRaise:
     def test_extracts_raises_runtime_error_on_error_res(self):
         """If Protobuf.extract returns a ProtoOAErrorRes, _extract_or_raise
         must raise RuntimeError with errorCode + description."""
-        from data.ctrader_client import _extract_or_raise
-
         err = ProtoOAErrorRes()
         err.errorCode = "BAD_TOKEN"
         err.description = "token revoked"
