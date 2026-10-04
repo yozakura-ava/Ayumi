@@ -4,19 +4,34 @@ Uses the official ctrader-open-api Python package (protobuf over TCP)
 to download OHLCV bars from cTrader's live servers.
 
 Usage:
+    # Preferred path — supply the internal ctidTraderAccountId directly,
+    # exactly like the live working adapter (``adapters/ctrader/
+    # open_api_client.py``). This skips the ``GetAccountListByAccessToken``
+    # round-trip that the broker rejects with ``UNSUPPORTED_MESSAGE``
+    # when the demo access token is presented at the live endpoint.
     client = CTraderHistoricalClient(
         client_id=CLIENT_ID,
         client_secret=CLIENT_SECRET,
         access_token=OAUTH_ACCESS_TOKEN,
         refresh_token=OAUTH_REFRESH_TOKEN,
-        trader_login=TRADER_LOGIN,  # e.g. 17087404
+        account_id=CTID_ACCOUNT_ID,  # e.g. 46877902
     )
     df = client.get_historical_bars("EURUSD", "M15", "2026-01-01", "2026-04-10")
+
+Legacy fallback — when only the human-readable account number is known:
+    client = CTraderHistoricalClient(
+        client_id=...,
+        client_secret=...,
+        access_token=...,
+        refresh_token=...,
+        trader_login=TRADER_LOGIN,  # e.g. 17087404
+    )
 """
 
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime, timezone
 from inspect import iscoroutinefunction
 from typing import Optional
@@ -24,6 +39,7 @@ from typing import Optional
 import pandas as pd
 import requests
 from ctrader_open_api import Client, Protobuf, TcpProtocol
+from ctrader_open_api.endpoints import EndPoints
 from ctrader_open_api.messages.OpenApiMessages_pb2 import (
     ProtoOAAccountAuthReq,
     ProtoOAApplicationAuthReq,
@@ -68,9 +84,30 @@ SYMBOL_NAME_MAP = {
 }
 
 OAUTH_TOKEN_URL = "https://openapi.ctrader.com/apps/token"  # noqa: S105
-_PROTOBUF_HOST = "live.ctraderapi.com"
+# Card 377b2bab auth-follow-up (2026-10-04): the historical client used to
+# hardcode ``_PROTOBUF_HOST = "live.ctraderapi.com"`` which is wrong on
+# every demo / paper / practice account — the broker rejects the demo
+# access token with ``UNSUPPORTED_MESSAGE / Trading account is not
+# authorized``. The live working adapter (``adapters/ctrader/open_api_client.py``)
+# defaults to ``EndPoints.PROTOBUF_DEMO_HOST`` and honours the
+# ``CTRADER_HOST`` env var. We mirror that contract here so the two paths
+# stay byte-equivalent on host selection.
 _PROTOBUF_PORT = 5035
 _MAX_BARS_PER_REQUEST = 1000
+
+
+def _resolve_host(explicit: Optional[str] = None) -> str:
+    """Return the protobuf host to connect to.
+
+    Precedence: explicit argument > ``CTRADER_HOST`` env var >
+    ``EndPoints.PROTOBUF_DEMO_HOST`` (matches the live adapter's pattern;
+    demo is the safe default for forward tests / backfills).
+    """
+    return (
+        explicit
+        or os.environ.get("CTRADER_HOST")
+        or EndPoints.PROTOBUF_DEMO_HOST
+    )
 
 # Canonical cTrader OpenAPI payloadType codes (the wire-format discriminator
 # each ProtoMessage carries). Used for explicit dispatch when the broker
@@ -139,12 +176,20 @@ class CTraderHistoricalClient:
         OAuth2 access token (from token refresh flow).
     refresh_token : str
         OAuth2 refresh token (used to auto-refresh when token expires).
-    trader_login : int
-        The trader's login/account number (e.g. 17087404).
-        This is the human-readable account ID, NOT the internal ctidTraderAccountId.
-        The client resolves this to the internal ID automatically.
+    account_id : int, optional
+        Internal ``ctidTraderAccountId`` (preferred — matches the live
+        adapter's auth flow). When supplied the client skips the
+        ``GetAccountListByAccessToken`` round-trip and goes straight to
+        ``AccountAuth``, identical to the working forward-test path.
+    trader_login : int, optional
+        Human-readable account number (e.g. 17087404). Legacy parameter
+        kept for backwards compatibility — only used when ``account_id``
+        is not provided. Resolution requires a successful
+        ``GetAccountListByAccessToken`` call which is rejected by the
+        broker on a host/scope mismatch.
     host : str, optional
-        Protobuf host. Defaults to live.ctraderapi.com.
+        Protobuf host. Defaults to ``CTRADER_HOST`` env var or
+        ``EndPoints.PROTOBUF_DEMO_HOST`` (matches the live adapter).
     port : int, optional
         Protobuf port. Defaults to 5035.
     """
@@ -155,18 +200,27 @@ class CTraderHistoricalClient:
         client_secret: str,
         access_token: str,
         refresh_token: str,
-        trader_login: int,
+        account_id: Optional[int] = None,
+        trader_login: Optional[int] = None,
         host: Optional[str] = None,
         port: int = 5035,
     ):
+        if account_id is None and trader_login is None:
+            raise ValueError(
+                "CTraderHistoricalClient requires either account_id "
+                "(ctidTraderAccountId, preferred) or trader_login "
+                "(legacy human-readable account number)."
+            )
         self.client_id = client_id
         self.client_secret = client_secret
         self.access_token = access_token
         self.refresh_token = refresh_token
-        self.trader_login = trader_login
-        self.host = host or _PROTOBUF_HOST
+        # Prefer account_id (ctid) — matches the live working adapter and
+        # skips the failing GetAccountListByAccessToken call.
+        self._ctid_account_id: Optional[int] = account_id
+        self.trader_login = trader_login  # legacy; only used for fallback resolve
+        self.host = _resolve_host(host)
         self.port = port
-        self._ctid_account_id: Optional[int] = None
         self._symbol_cache: dict[str, int] = {}
 
     def _refresh_oauth_token(self) -> str:
@@ -193,9 +247,25 @@ class CTraderHistoricalClient:
         return Client(self.host, self.port, TcpProtocol)
 
     async def _resolve_ctid_account_id(self, client: Client) -> int:
-        """Resolve trader_login to internal ctidTraderAccountId via protobuf."""
+        """Resolve trader_login to internal ctidTraderAccountId via protobuf.
+
+        Card 377b2bab auth-follow-up (2026-10-04): this call is the
+        round-trip the broker rejects with ``UNSUPPORTED_MESSAGE`` when
+        the demo access token is presented at the live endpoint (or vice
+        versa). When the constructor is given ``account_id`` (the
+        canonical ctidTraderAccountId, matching the live working
+        adapter) we short-circuit and never issue the failing call.
+        The legacy ``trader_login``-only path remains as a fallback for
+        callers without a pre-known ctid.
+        """
         if self._ctid_account_id is not None:
             return self._ctid_account_id
+
+        if self.trader_login is None:
+            raise RuntimeError(
+                "Cannot resolve ctidTraderAccountId: neither account_id "
+                "nor trader_login was supplied."
+            )
 
         req = ProtoOAGetAccountListByAccessTokenReq()
         req.accessToken = self.access_token
@@ -230,14 +300,18 @@ class CTraderHistoricalClient:
     async def _auth(self, client: Client) -> None:
         """Authenticate: app auth → account auth using OAuth2 access token.
 
-        Must be called AFTER ``_resolve_ctid_account_id`` because
-        ``ProtoOAAccountAuthReq.ctidTraderAccountId`` requires the internal
-        ctid (not the human-readable ``trader_login``). Resolving inline
-        here also guards against a stale ``self._ctid_account_id`` if the
-        caller mutated the underlying credentials between sessions.
+        Card 377b2bab auth-follow-up (2026-10-04): when ``account_id``
+        (ctidTraderAccountId) is known up-front we skip the
+        ``GetAccountListByAccessToken`` round-trip entirely and the auth
+        sequence becomes ``App auth 2101 → Account auth 2103`` — byte
+        identical to the working live adapter (``adapters/ctrader/
+        open_api_client.py``). Only the legacy ``trader_login`` path
+        falls back to the broker-side resolve.
         """
-        # Resolve first so account-auth has a non-None ctidTraderAccountId.
-        await self._resolve_ctid_account_id(client)
+        # Fast path: ctid known → no resolve round-trip; the call below is
+        # a no-op short-circuit when self._ctid_account_id is set.
+        if self._ctid_account_id is None:
+            await self._resolve_ctid_account_id(client)
 
         auth = ProtoOAApplicationAuthReq()
         auth.clientId = self.client_id
@@ -260,10 +334,12 @@ class CTraderHistoricalClient:
 
         # Defensive: ensure ctid is resolved before issuing a per-account
         # request. The async entry point (`fetch_all`) goes through
-        # `_auth -> _a_ensure_symbols`; `_auth` now guarantees this, but keep
-        # the resolve here too so it's idempotent if a caller hits symbols
-        # before auth.
-        await self._resolve_ctid_account_id(client)
+        # `_auth -> _a_ensure_symbols`; `_auth` now guarantees this, but
+        # keep the resolve here too so it's idempotent if a caller hits
+        # symbols before auth. Skipped entirely when ``account_id`` was
+        # supplied at construction (matches the live adapter pattern).
+        if self._ctid_account_id is None:
+            await self._resolve_ctid_account_id(client)
 
         req = ProtoOASymbolsListReq()
         req.ctidTraderAccountId = self._ctid_account_id

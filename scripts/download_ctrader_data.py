@@ -291,27 +291,55 @@ def main(argv: list[str] | None = None) -> int:
         "CTRADER_OAUTH_ACCESS_TOKEN",
         "CTRADER_ACCESS_TOKEN",
     )
-    account_login = read_env_with_aliases(
+    # card 377b2bab auth-follow-up (2026-10-04): prefer the canonical
+    # internal ctidTraderAccountId (``CTRADER_OPENAPI_ACCOUNT_ID``,
+    # mirrors the live adapter). The legacy human-readable account
+    # number (``CTRADER_OPENAPI_TRADER_LOGIN``) is only used when the
+    # canonical id is absent — that path requires a
+    # ``GetAccountListByAccessToken`` round-trip which the broker
+    # rejects on a host/scope mismatch.
+    account_id = read_env_with_aliases(
+        "CTRADER_OPENAPI_ACCOUNT_ID",
         "CTRADER_OPENAPI_TRADER_LOGIN",
         "CTRADER_TRADER_LOGIN",
         "CTRADER_ACCOUNT",
     )
 
-    if not all([client_id, client_secret, refresh_token, access_token, account_login]):
+    if not all([client_id, client_secret, refresh_token, access_token, account_id]):
         logger.error(
             "Missing cTrader credentials. Need CTRADER_OPENAPI_CLIENT_ID, "
             "CTRADER_OPENAPI_CLIENT_SECRET, CTRADER_OPENAPI_REFRESH_TOKEN, "
-            "CTRADER_OPENAPI_ACCESS_TOKEN, CTRADER_OPENAPI_TRADER_LOGIN in .env"
+            "CTRADER_OPENAPI_ACCESS_TOKEN, and either "
+            "CTRADER_OPENAPI_ACCOUNT_ID (preferred) or "
+            "CTRADER_OPENAPI_TRADER_LOGIN (legacy) in .env"
         )
         return 1
 
-    client = CTraderHistoricalClient(
+    # Card 377b2bab auth-follow-up: pass the canonical ctid directly to
+    # ``CTraderHistoricalClient`` so the auth sequence matches the
+    # working live adapter exactly (App auth 2101 → Account auth 2103).
+    # The constructor raises ValueError if both account_id and
+    # trader_login are missing; we resolve the ladder env above so
+    # exactly one of those is set when we get here.
+    client_kwargs = dict(
         client_id=client_id,
         client_secret=client_secret,
         access_token=access_token,
         refresh_token=refresh_token,
-        trader_login=int(account_login),
     )
+    try:
+        account_id_int = int(account_id)
+    except (TypeError, ValueError):
+        logger.error("Could not parse account_id/trader_login=%r as int", account_id)
+        return 1
+    # Canonical name → account_id (preferred, matches live adapter).
+    # Legacy name → trader_login (kept for back-compat with old .env).
+    if os.environ.get("CTRADER_OPENAPI_ACCOUNT_ID"):
+        client_kwargs["account_id"] = account_id_int
+    else:
+        client_kwargs["trader_login"] = account_id_int
+
+    client = CTraderHistoricalClient(**client_kwargs)
 
     total = len(args.symbols) * len(args.timeframes)
     done = 0
