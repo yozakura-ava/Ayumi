@@ -44,13 +44,20 @@ logger = logging.getLogger("ayumi.tournament.cli")
 
 
 def _default_smoke_window() -> tuple[str, str]:
-    """Resolve a deterministic 5-day smoke window anchored to dataset coverage.
+    """Resolve a deterministic smoke window anchored to dataset coverage.
 
-    Picks a hardcoded 2024-06-03 → 2024-06-09 range that matches the
-    DuckDB smoke slice (USDJPY H1, ~120 bars).  Hardcoded rather than
-    computed so re-runs are byte-identical.
+    Card 82d33f73 (smoke parity): the prior USDJPY H1 5-day window
+    (2024-06-03..09) is too short for SRMR+ warm-up, so every
+    smoke run produced 0 signals and either raised TournamentNoSignals
+    (host) or returned a silent `TOURNAMENT_OK rows=0` (node).  The
+    silent path is the failure mode; the loud path was a config conflict.
+
+    The XAUUSD H1 60-day window (2024-01-01..2024-03-01) gives 12 of
+    coverage AND enough bars for both default strategies to clear
+    warm-up and produce ≥1 signal on the harness's smoke slice.  Window
+    is hardcoded (not computed) so re-runs are byte-identical.
     """
-    return "2024-06-03", "2024-06-09"
+    return "2024-01-01", "2024-03-01"
 
 
 def _parse_window(arg: str) -> tuple[str, str]:
@@ -91,7 +98,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--symbol",
         default="USDJPY",
-        help="Bar symbol (default: USDJPY — the smoke slice is H1-only on USDJPY).",
+        help=(
+            "Bar symbol (default: USDJPY).  --smoke overrides to XAUUSD "
+            "(card 82d33f73: XAUUSD H1 has 2022→present coverage; the wider "
+            "smoke window produces ≥1 signal so smoke is byte-stable across "
+            "host + node surfaces)."
+        ),
     )
     parser.add_argument(
         "--timeframe",
@@ -129,9 +141,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--smoke",
         action="store_true",
         help=(
-            "Smoke mode — wires defaults: 2 default strategies, USDJPY H1, hardcoded 2024-06-03..09 "
-            "window (or any window that fits DuckDB coverage), output to data/tournament/scorecard_smoke.json. "
-            "Intended for CI + first-run sanity checks."
+            "Smoke mode — wires defaults: 2 default strategies, XAUUSD H1, "
+            "hardcoded 2024-01-01..2024-03-01 window (or any window that "
+            "fits XAUUSD H1 coverage), output to "
+            "data/tournament/scorecard_smoke.json.  Intended for CI + "
+            "first-run sanity checks (card 82d33f73 smoke-parity)."
         ),
     )
     parser.add_argument(
@@ -166,6 +180,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.smoke:
         if window is None:
             window = _default_smoke_window()
+        # Card 82d33f73: smoke now defaults to XAUUSD H1 (matches the
+        # card's `xauusd-only` label) so the silent-empty vs fail-loud
+        # divergence cannot manifest.  --smoke overrides BOTH symbol
+        # AND window together (overriding one without the other would
+        # break the smoke contract).
+        args.symbol = "XAUUSD"
         # Constrain to two strategies even if STRATEGY_CLASS_MAP grows.
         smoke_ids = [sid for sid in ("srmr_plus", "bb_rsi_reversion") if sid in STRATEGY_CLASS_MAP]
         if not smoke_ids:
@@ -201,6 +221,27 @@ def main(argv: list[str] | None = None) -> int:
     except FileNotFoundError as exc:
         logger.error("File not found: %s", exc)
         print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+
+    # Single source of truth for the silent-empty failure mode
+    # (card 82d33f73, council binding #1, Kaito 2026-10-04).
+    # The harness now skips strategies that produce 0 signals (rather
+    # than raising), so the scorecard can be empty without an
+    # exception.  When that happens the host's loud path AND the
+    # node's silent path both converge on `scorecard.rows == []`;
+    # this guard fails loud on BOTH by exiting non-zero with a FATAL
+    # message naming the symbol/window/strategies attempted.
+    if not scorecard.rows:
+        attempted = ",".join(args.strategies) or "(none)"
+        fatal = (
+            f"FATAL: scorecard is empty (rows=0) — silent-empty failure mode. "
+            f"symbol={args.symbol} timeframe={args.timeframe} "
+            f"window={start_date}..{end_date} strategies=[{attempted}]. "
+            f"Check run_meta for per-strategy skip reasons. "
+            f"Refusing to print TOURNAMENT_OK with 0 rows (host+node parity guard)."
+        )
+        logger.error(fatal)
+        print(fatal, file=sys.stderr)
         return 1
 
     # Console output
