@@ -11,12 +11,14 @@
 
 ---
 
-## Status (2026-10-04 — Craig-approved sprint split)
+## Status (2026-10-05 15:45 — Sprint C dispatched)
 
-- **Sprint A — Factory Phase 1 wiring: APPROVED AND IN FLIGHT.** Workboard parent `bc8439dd-c329-4fb1-8ecd-a22fbdfd045f`, children SFA-1/2/3 (Reina, builder lane). Spec §7 Phase 1, wiring only. Craig 2026-10-04: "Sprint A is vital. Let's get the machinery built."
-- **Sprint B — R&D hopper engine: DESIGNED-GATED.** Research card `ea42e6be-ed0f-4044-ab5d-3c8c5eb8baf6` (Satsuki) triggers when Sprint A exits. Autonomous hypothesis generation / confluence research / ML development — keeps the factory fed without handholding. Generate freely, promote with gate.
-- **Node asset (Craig 2026-10-04):** Tournament scripting ALREADY EXISTS on the node and may need rework — evaluate and evolve it to current standards rather than reinventing (folded into SFA-3). The node provides additional processing power + GPU for when GPU calculations become beneficial, and takes pressure off the main server. Route heavy sweeps there when factory wiring lands.
-- Forward test verified live 2026-10-04 (`ayumi-forward-test.service`, XAUUSD SRMR+ blend). Crypto lane (A1–A3 merged) runs parallel; forex remains primary; FTMO 1-Step still the target.
+- **Sprint A — Factory Phase 1 wiring: DONE & MERGED.** SFA-1 `2279b5e0`, SFA-2 `222b8809`, SFA-3 `5e11645e` all Rin-approved and merged 2026-10-04/05. Parent card `bc8439dd` done.
+- **Sprint B — R&D hopper engine: DESIGNED, trigger met 2026-10-05 00:47, build deferred to Sprint D.** Design: `docs/roadmaps/strategy-factory/rd-hopper-engine-design.md` (Satsuki). Card `ea42e6be` remains open.
+- **Sprint C — Crypto-First Factory Wave 0+1: CRAIG-APPROVED 2026-10-05, DISPATCHED.** Plan: `docs/plans/sprint-2026-10-05-crypto-first-factory.md`. Parent card `3ab0f857-1499-4507-9247-a81e4d777a9d`. Wave 0: tournament root unblock + hygiene. Wave 1a: crypto backtest core (adaptive funding, mark-price liquidation, venue costs, fail-loud integrity, point-in-time universe). Wave 1b: statistical repairs (real-trial PBO, CPCV, risk-adjusted ranking, provenance). Hard gate: no Tier A/B crypto verdict before 1a.1–1a.4 land. Audit: `docs/audits/ayumi-audit-2026-10-05.md`.
+- **Sprint D candidates (deferred, not dropped):** ML meta-labeling + calibration, vol-target/DD-ladder overlays, CUSUM decay monitor, research dashboard UI, LightGBM challenger, Sprint B hopper build-out. RL declined this cycle.
+- **Superseded:** the 20-item Current Queue below predates the Sprint A/B/C structure — treat it as historical reference only; live work is Sprint C cards on the workboard.
+- Forward test verified live 2026-10-04 (`ayumi-forward-test.service`, XAUUSD SRMR+ blend). Crypto lane (A1–A3 merged) runs parallel; crypto-first testing order per Craig 2026-10-05; FTMO 1-Step still the target.
 
 ---
 
