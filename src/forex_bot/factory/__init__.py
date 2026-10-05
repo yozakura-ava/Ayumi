@@ -1,7 +1,7 @@
-"""Strategy Factory package (SFA-2 — validation runner shipped).
+"""Strategy Factory package (SFA-3 — tournament front door landed).
 
 SFA-1 landed the wiring skeleton (template contract + bridge + pipeline
-config + spread costs).  SFA-2 layers on top:
+config + spread costs).  SFA-2 added:
 
 * :mod:`.validation_runner` — batch WF + DSR + spread-cost gate end-to-end
 * :mod:`.storage`           — ``research.duckdb`` persistence for verdicts
@@ -9,8 +9,15 @@ config + spread costs).  SFA-2 layers on top:
                                that resolve the SFA-1 deferred
                                ``usdjpy_d1_trend`` placeholder
 
-Re-exports from SFA-1 (template contract, bridge, pipeline config,
-spread costs, registry) remain available unchanged.
+SFA-3 layers on:
+
+* :mod:`.templates`         — registry-backed pass-through templates
+                               used by the tournament front door
+                               (``tournament.front_door``).
+
+Re-exports from SFA-1/SFA-2 (template contract, bridge, pipeline
+config, spread costs, registry, validation runner, storage) remain
+available unchanged.
 """
 
 from __future__ import annotations
@@ -41,6 +48,7 @@ from forex_bot.factory.spread_costs import (
 )
 from forex_bot.factory.storage import FactoryVerdictStore
 from forex_bot.factory.strategies import USDJPYD1TrendConfig, USDJPYD1TrendStrategy
+from forex_bot.factory.templates import RegistryBackedTemplate
 from forex_bot.factory.template import (
     ARCHETYPE_AFFINITY,
     ParamKind,
@@ -95,4 +103,6 @@ __all__ = [
     # SFA-2: deferred strategy implementation
     "USDJPYD1TrendConfig",
     "USDJPYD1TrendStrategy",
+    # SFA-3: registry-backed pass-through template
+    "RegistryBackedTemplate",
 ]
