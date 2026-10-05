@@ -197,16 +197,30 @@ class FundingRateSnapshot:
     mark_price: Optional[float] = None
 
 
+class _SnapshotLike(Protocol):
+    """Structural type for duck-typed funding snapshot inputs.
+
+    Matches ``FundingRateSnapshot`` (``backtest.types``),
+    ``data.crypto_adapter.FundingRateSnapshot``, and any other object
+    that exposes a settlement ``time`` + a signed ``funding_rate``.
+    """
+
+    time: datetime
+    funding_rate: float
+
+
 def _to_event_like(obj: object) -> tuple[datetime, float]:
     """Coerce FundingEvent / FundingRateSnapshot / duck-typed → (time, rate)."""
     if isinstance(obj, FundingEvent):
         return obj.time, obj.rate
     if isinstance(obj, FundingRateSnapshot):
         return obj.time, float(obj.funding_rate)
-    # Generic duck-typed object: read attributes by name.
-    t = getattr(obj, "time")
-    r = getattr(obj, "funding_rate")
-    return t, float(r)
+    # Generic duck-typed object: read attributes by name. Cast to the
+    # structural protocol so mypy understands the access; the runtime
+    # semantics rely on the caller passing an object that exposes
+    # ``time`` + ``funding_rate`` (e.g. ``data.crypto_adapter.FundingRateSnapshot``).
+    snap: _SnapshotLike = obj  # type: ignore[assignment]
+    return snap.time, float(snap.funding_rate)
 
 
 # ---------------------------------------------------------------------------
@@ -381,10 +395,16 @@ def compute_adaptive_schedule(
     if not lookup and start is None and end is None:
         return AdaptiveFundingSchedule(())
 
-    if start is None:
-        start = lookup[0][0] if lookup else end  # type: ignore[assignment]
-    if end is None:
-        end = lookup[-1][0] if lookup else start
+    # Resolve start/end to timezone-aware datetimes (never None past this point).
+    resolved_start = start if start is not None else (lookup[0][0] if lookup else end)
+    resolved_end = end if end is not None else (lookup[-1][0] if lookup else resolved_start)
+    if resolved_start is None or resolved_end is None:
+        # Unreachable: the early-return above handles inputs=[] when both
+        # bounds are None, and at least one of lookup or start/end is
+        # supplied. Defensive guard for mypy narrowing.
+        raise ValueError("start and end must be resolved to datetimes")
+    start = resolved_start
+    end = resolved_end
 
     if start.tzinfo is None:
         raise ValueError("start must be timezone-aware")
@@ -704,7 +724,7 @@ def run_backtest_with_funding(
         if 0 <= line.bar_index < len(bars):
             deltas[line.bar_index] += line.pnl
 
-    total_funding = sum(l.pnl for l in lines)
+    total_funding = sum(line.pnl for line in lines)
 
     return FundedBacktestMetrics(
         base=base_metrics,
