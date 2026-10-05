@@ -1,0 +1,129 @@
+{
+  "card_id": "1436039b-b372-4417-a3e2-5810fe395368",
+  "title": "[BUILD] Statistical repair: CPCV runner — purge + embargo, N=6-8 (Sprint C 1b.2)",
+  "tier": "full",
+  "tier_rationale": "New validation-stack module (CPCV) that becomes a sibling of CSCV for PBO. Two new files in src/forex_bot/backtest/ (cpcv.py + tests/backtest/test_cpcv.py) plus a 1-line bridge hook into src/forex_bot/factory/validation_runner.py. Touches statistical math (purge + embargo semantics) so equivalence/sanity gate + targeted tests are required.",
+  "scope": {
+    "in_scope": [
+      "src/forex_bot/backtest/cpcv.py (NEW)",
+      "tests/backtest/test_cpcv.py (NEW)",
+      "src/forex_bot/factory/validation_runner.py (small bridge hook: optional CPCV path on TrialReturnStore; default CSCV path unchanged)",
+      "src/forex_bot/backtest/__init__.py (export the new public API)",
+      "tests/backtest/__init__.py (if present) — only if package marker missing",
+      "data/build-checklists/1436039b-b372-4417-a3e2-5810fe395368.json (this file)"
+    ],
+    "out_of_scope": [
+      "src/forex_bot/srf/pbo.py (CSCV math stays as-is; CPCV math lives in cpcv.py; no duplicate CSCV code in the new module)",
+      "src/forex_bot/factory/pipeline_config.py (existing embargo_bars reused as-is; no new config fields)",
+      "src/forex_bot/factory/storage.py (no schema change)",
+      "src/forex_bot/backtest/walk_forward_runner.py (read-only — embargo semantics already correct)",
+      "All strategies, all templates, all live-trading code paths"
+    ]
+  },
+  "edge_cases": [
+    "T < N (insufficient bars to form N contiguous groups) → CPCVTooFewBars; CPCV runner returns phi=0",
+    "k > N or k <= 0 → CPCVConfig rejects at construction",
+    "label_horizon_bars=0, embargo_bars=0 → purge/embargo are no-ops (degenerate case; pass-through is correct)",
+    "Single strategy trial (N_trials=1) → CPCV requires N_trials >= 2; raise CPCVTooFewTrials (matches CSCV contract in compute_pbo)",
+    "All-zero matrix column (degenerate trial) → per-path Sharpe uses 1e-12 std floor (mirrors _sharpe_ratio in srf/pbo.py)",
+    "Matrix shorter than N*k minimum cell size → split degrades to floor(T/N) per group; documented",
+    "C(N, k) blows past MAX_CPCV_PATHS=65536 → cap by reducing k greedily until phi fits; log warning",
+    "Empty purged-train (every train obs got purged) → path returns is_sharpe=zeros and oos_sharpe=zeros; breach logic still defined (best-IS vs median-OOS)",
+    "test_min_idx = 0 (first group is test) → no train bars to the left; purge and embargo on the right side only"
+  ],
+  "test_plan": [
+    {
+      "name": "test_cpcv_config_validates",
+      "file": "tests/backtest/test_cpcv.py",
+      "covers": "CPCVConfig rejects k<=0, k>=N, label_horizon_bars<0, embargo_bars<0"
+    },
+    {
+      "name": "test_cpcv_paths_count_matches_combinatorics",
+      "file": "tests/backtest/test_cpcv.py",
+      "covers": "phi = C(N,k) for N=6,k=3 (20), N=8,k=4 (70), N=7,k=3 (35); exact binomial identity"
+    },
+    {
+      "name": "test_cpcv_splits_are_contiguous_and_disjoint",
+      "file": "tests/backtest/test_cpcv.py",
+      "covers": "Per-path test indices are a contiguous union of k group blocks; train = complement; train ∩ test = ∅; union = full range"
+    },
+    {
+      "name": "test_cpcv_purge_drops_label_overlap",
+      "file": "tests/backtest/test_cpcv.py",
+      "covers": "Train obs whose label horizon (i, i+horizon) reaches into test_min are dropped from purged_train"
+    },
+    {
+      "name": "test_cpcv_embargo_drops_after_test_set",
+      "file": "tests/backtest/test_cpcv.py",
+      "covers": "After purge, embargo_bars additional train obs adjacent to test edges are dropped"
+    },
+    {
+      "name": "test_cpcv_purge_embargo_disabled_passes_through",
+      "file": "tests/backtest/test_cpcv.py",
+      "covers": "label_horizon_bars=0 + embargo_bars=0 → purged_train == train (sanity / no-op)"
+    },
+    {
+      "name": "test_cpcv_pbo_aggregates_path_breaches",
+      "file": "tests/backtest/test_cpcv.py",
+      "covers": "compute_pbo_cpcv returns PBO in [0,1]; n_paths = phi; breaches = n_overfit paths; lower = better"
+    },
+    {
+      "name": "test_cpcv_dsr_in_path_distribution",
+      "file": "tests/backtest/test_cpcv.py",
+      "covers": "compute_dsr_cpcv uses per-path OOS Sharpe distribution; effective_n_trials = phi"
+    },
+    {
+      "name": "test_cpcv_integrates_with_trial_return_store",
+      "file": "tests/backtest/test_cpcv.py",
+      "covers": "TrialReturnStore.matrix() (the existing [T,N] CSCV source) feeds cpcv.run_cpcv without duplication"
+    },
+    {
+      "name": "test_cpcv_validates_input_matrix",
+      "file": "tests/backtest/test_cpcv.py",
+      "covers": "Matrix [T,N] with N<2 or T<4 raises CPCVTooFewTrials / CPCVTooFewBars (mirrors srf/pbo contract)"
+    },
+    {
+      "name": "test_cpcv_phi_fits_max_paths",
+      "file": "tests/backtest/test_cpcv.py",
+      "covers": "When C(N,k) > MAX_CPCV_PATHS, runner reduces k greedily and reports effective k"
+    }
+  ],
+  "api_verification": [
+    {
+      "api": "src/forex_bot/factory/validation_runner.py:TrialReturnStore.matrix",
+      "verified_by": "Read full file (707 lines); confirmed record/matrix/trial_count/reset/keys; matrix returns [T,N_trials] or None",
+      "result": "pass"
+    },
+    {
+      "api": "src/forex_bot/srf/pbo.py:compute_pbo",
+      "verified_by": "Read full file (246 lines); confirmed CSCV math contract; CPCV mirrors it but uses contiguous splits + purge + embargo",
+      "result": "pass"
+    },
+    {
+      "api": "src/forex_bot/factory/pipeline_config.py:WalkForwardWindowConfig.embargo_bars",
+      "verified_by": "Read pipeline_config.py:33-110; embargo_bars is wired per-TF (M5=288, M15=96, H1=24, H4=6, D1=1) — CPCV reuses these as the embargo_bars input",
+      "result": "pass"
+    },
+    {
+      "api": "backtest.engine:Bar",
+      "verified_by": "Confirmed Bar has .time/.close attributes; the matrix source is TrialReturnStore (returns matrix), not Bar objects directly",
+      "result": "pass"
+    }
+  ],
+  "risk": [
+    "Math correctness: purge + embargo must drop exactly the right indices or PBO silently shifts; mitigation: deterministic tiny tests on T=12, N=3 with explicit expected index sets before any statistical checks",
+    "Combinatorial blowup: C(N,k) for N=10,k=5 = 252 paths (fine); for N=20,k=10 = 184756 (over MAX_CPCV_PATHS); mitigation: greedy k reduction + warning + MAX_CPCV_PATHS cap matches CSCV pattern",
+    "Bridge stability: factory.ValidationRunner currently uses CSCV; switching default to CPCV would change PBO values mid-sprint; mitigation: CPCV is added as a parallel path (cpcv_run_cpcv) and the existing CSCV compute_pbo stays the default; no behavior change to existing verdicts",
+    "TrialReturnStore interface: matrix() truncates to min trial length so the [T,N] shape is rectangular; CPCV consumes this directly with no copy; verified against existing tests/factory/test_validation_runner.py",
+    "Worker-isolation on node: cpu_guard already caps at 1-2 CPUs; CPCV is combinatorial so wall time scales with phi*N_strategies; for N=8,k=4 (phi=70) and 17 strategies this is <1s on a single CPU; no risk",
+    "Embargo asymmetry: AFML defines embargo as post-test on the train side; CPCV applies it symmetrically (both sides of test set); documented in docstring to avoid future reader confusion"
+  ],
+  "confidence": "high",
+  "allowed_files": [
+    "src/forex_bot/backtest/cpcv.py",
+    "tests/backtest/test_cpcv.py",
+    "src/forex_bot/backtest/__init__.py",
+    "src/forex_bot/factory/validation_runner.py",
+    "data/build-checklists/1436039b-b372-4417-a3e2-5810fe395368.json"
+  ]
+}
