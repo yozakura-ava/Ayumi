@@ -4,6 +4,8 @@
 **Parent audit:** `docs/audits/ayumi-audit-2026-10-05.md` (YELLOW)
 **Research base:** `~/.openclaw/workspace/docs/research/2026-10-05-crypto-first-strategy-testing-recommendations.md` + 4 lanes (ML, hardening, quant-method, UI/headless-QC) in session 21636b66
 
+## Status: IN FLIGHT — Wave 0 complete, 1a.1 + 1b.1 + 1b.2 merged (2026-10-05). Hard gate active.
+
 ## Goal
 
 Make the strategy factory produce **trustworthy crypto-first verdicts**: a crypto backtest core that models the things that actually kill crypto P&L (funding, mark-price liquidation, real fees, survivorship), and statistical gates that stop the factory from promoting noise.
@@ -14,14 +16,14 @@ Make the strategy factory produce **trustworthy crypto-first verdicts**: a crypt
 
 | # | Card | SP | Lane |
 |---|---|---|---|
-| 0.1 | Tournament root fix: pytz dep + strategy-init compat (card `c38d59da` unblock; 17/17 → strategies score) | 1 | builder (Reina) |
+| 0.1 ✅ merged 6499e0f2 | Tournament root fix: pytz dep + strategy-init compat (card `c38d59da` unblock; 17/17 → strategies score) | 1 | builder (Reina) |
 | 0.2 | Hygiene batch: close 3 orphaned duplicate crypto cards, push 33 commits, prune 31 stale worktrees, commit rd-hopper design doc + tick_stall_state refresh | 1 | Ava + Tomoe |
 
 ## Wave 1a — Crypto backtest core (blocks all crypto candidates)
 
 | # | Card | SP | Source |
 |---|---|---|---|
-| 1a.1 | Funding model: adaptive intervals (8h/4h/1h), realized historical funding charged per interval | 2 | crypto R1 |
+| 1a.1 ✅ merged eadbb741 | Funding model: adaptive intervals (8h/4h/1h), realized historical funding charged per interval | 2 | crypto R1 |
 | 1a.2 | Mark-price liquidation mechanics in engine | 2 | crypto R1 |
 | 1a.3 | Venue/tier-aware cost model, maker/taker branching; pin fees from live account | 1.5 | crypto R2 |
 | 1a.4 | Fail-loud data-integrity gate (gaps, delistings) — run fails, never silently repairs | 1 | crypto R5 |
@@ -33,8 +35,8 @@ Make the strategy factory produce **trustworthy crypto-first verdicts**: a crypt
 
 | # | Card | SP | Source |
 |---|---|---|---|
-| 1b.1 | Real-trial PBO: persist per-trial return series, CSCV matrix [T, N_trials]; rename old metric cost_sensitivity | 1.5 | quant R1 |
-| 1b.2 | CPCV runner (purge + existing embargo; N=6–8 start; cpu_guard) | 2 | quant R2 |
+| 1b.1 ✅ merged cf8a7a64 | Real-trial PBO: persist per-trial return series, CSCV matrix [T, N_trials]; rename old metric cost_sensitivity | 1.5 | quant R1 |
+| 1b.2 ✅ merged 206da069 | CPCV runner (purge + existing embargo; N=6–8 start; cpu_guard) | 2 | quant R2 |
 | 1b.3 | Risk-adjusted tournament ranking (White RC or Benjamini-Hochberg; kill raw-return sort) | 1.5 | quant R3 |
 | 1b.4 | Provenance columns (git_commit, data_hash) in factory_verdicts; reuse srf compute_data_hash | 0.5 | UI lane #1 |
 

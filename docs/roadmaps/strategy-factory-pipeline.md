@@ -11,14 +11,20 @@
 
 ---
 
-## Status (2026-10-05 15:45 — Sprint C dispatched)
+## Status (2026-10-05 23:45 — Wave 0 + Wave 2 merged)
 
-- **Sprint A — Factory Phase 1 wiring: DONE & MERGED.** SFA-1 `2279b5e0`, SFA-2 `222b8809`, SFA-3 `5e11645e` all Rin-approved and merged 2026-10-04/05. Parent card `bc8439dd` done.
-- **Sprint B — R&D hopper engine: DESIGNED, trigger met 2026-10-05 00:47, build deferred to Sprint D.** Design: `docs/roadmaps/strategy-factory/rd-hopper-engine-design.md` (Satsuki). Card `ea42e6be` remains open.
-- **Sprint C — Crypto-First Factory Wave 0+1: CRAIG-APPROVED 2026-10-05, DISPATCHED.** Plan: `docs/plans/sprint-2026-10-05-crypto-first-factory.md`. Parent card `3ab0f857-1499-4507-9247-a81e4d777a9d`. Wave 0: tournament root unblock + hygiene. Wave 1a: crypto backtest core (adaptive funding, mark-price liquidation, venue costs, fail-loud integrity, point-in-time universe). Wave 1b: statistical repairs (real-trial PBO, CPCV, risk-adjusted ranking, provenance). Hard gate: no Tier A/B crypto verdict before 1a.1–1a.4 land. Audit: `docs/audits/ayumi-audit-2026-10-05.md`.
+- **Sprint A — Factory Phase 1 wiring: DONE & MERGED** (SFA-1/2/3, 2026-10-04/05).
+- **Sprint C — Crypto-First Factory: IN FLIGHT, 3 of 11 cards merged.** Plan: `docs/plans/sprint-2026-10-05-crypto-first-factory.md`. Parent card `3ab0f857` (hard-linked children gated by design; live work flows through soft-linked twins).
+  - ✅ **0.1 Tournament root fix** — merged `6499e0f2`: 17/17 strategies run, 11/17 score (6 zero-signal → debt card `7c8ffd17`)
+  - ✅ **1a.1 Adaptive funding model** — merged `eadbb741`: 8h/1h Binance cadence, perp P&L, FX path untouched
+  - ✅ **1b.1 Real-trial PBO** — merged `cf8a7a64`: [T,N_trials] CSCV matrix, cost_sensitivity renamed, schema v2
+  - ✅ **1b.2 CPCV runner** — merged `206da069`: purge+embargo, φ=C(N,k) paths, DSR deflation, TrialReturnStore bridge
+  - 🔲 Next: 1a.2 mark-price liquidation, 1a.3 venue costs, 1a.4 fail-loud integrity, 1a.5 point-in-time universe, 1b.3 risk-adjusted ranking, 1b.4 provenance columns
+  - **Hard gate stands: no Tier A/B crypto verdict before 1a.1–1a.4 land.**
+- **Sprint B — R&D hopper: DESIGNED, deferred to Sprint D.** Design tracked in git (`rd-hopper-engine-design.md`). Card `ea42e6be` open.
 - **Sprint D candidates (deferred, not dropped):** ML meta-labeling + calibration, vol-target/DD-ladder overlays, CUSUM decay monitor, research dashboard UI, LightGBM challenger, Sprint B hopper build-out. RL declined this cycle.
-- **Superseded:** the 20-item Current Queue below predates the Sprint A/B/C structure — treat it as historical reference only; live work is Sprint C cards on the workboard.
-- Forward test verified live 2026-10-04 (`ayumi-forward-test.service`, XAUUSD SRMR+ blend). Crypto lane (A1–A3 merged) runs parallel; crypto-first testing order per Craig 2026-10-05; FTMO 1-Step still the target.
+- **Debt cards open:** `7c8ffd17` (zero-signal strategies → 17/17), `706eab50` (AC2 base-pin re-pin + tick_stall refresh).
+- **Ops:** origin push fixed via gh token (yozakura-va write); forward test healthy, untouched per grilling decision; audit 2026-10-05 YELLOW → remediation on track.
 
 ---
 
@@ -119,6 +125,13 @@ Items in different branches can overlap IF compute allows. Same-branch items are
 | Jul 22 | FX regime profiles (EURUSD/GBPUSD) | ❌ No edge with current params | fx_regime_profiles_2026-07-22.md |
 | Jul 22 | Wire gated blend to forward test | ✅ Live, PID 2779285 | commit 282c1c1 |
 | Jul 22 | Council review of sprint plan | ✅ 4/4 REVISE → pipeline model | sprint-volume-expansion-v2.md (archive) |
+| Oct 5 | Sprint A closed (SFA-1/2/3 merged) | ✅ all Rin-approved | git 2279b5e0/222b8809/5e11645e |
+| Oct 5 | Audit 2026-10-05 (YELLOW) + 5-lane research swarm + Craig grilling | ✅ verdict + sprint C approved | docs/audits/ayumi-audit-2026-10-05.md |
+| Oct 5 | Wave 0.1 tournament root fix | ✅ 17/17 run, 11/17 score | merged 6499e0f2 |
+| Oct 5 | 1b.1 real-trial PBO (retire synthetic matrix) | ✅ 177/177 | merged cf8a7a64 |
+| Oct 5 | 1a.1 adaptive funding model (8h/1h) | ✅ 65/65 | merged eadbb741 |
+| Oct 5 | 1b.2 CPCV runner (purge+embargo, φ=C(N,k)) | ✅ 75/75 + Rin 51/51 | merged 206da069 |
+| Oct 5 | Debt carded: zero-signal strategies, AC2 re-pin | ✅ queued | cards 7c8ffd17, 706eab50 |
 
 ---
 
