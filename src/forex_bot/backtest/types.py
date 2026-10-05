@@ -1,5 +1,5 @@
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from typing import Any
 
@@ -118,6 +118,15 @@ class SimulatedTrade:
     partial_closed: bool = False
     partial_close_price: float = 0.0
     partial_close_pnl: float = 0.0
+    # Progressive-SL bookkeeping flags. The engine sets these on the
+    # trade instance in BacktestEngine._progressive_sl_update via
+    # ``hasattr`` + direct assignment; declaring them here keeps the
+    # dataclass + mypy in sync with that runtime contract. Card
+    # 9cf5f1c1 surfaced the cross-file mypy gap during the funding
+    # model's gate run (pre-existing error, made visible because the
+    # new funding_model.py triggers mypy's transitive analysis).
+    _sl_moved_to_be: bool = field(default=False, repr=False)
+    _sl_moved_to_tp1: bool = field(default=False, repr=False)
 
 
 PAIR_SPREAD_PIPS: dict[str, float] = {

@@ -83,7 +83,7 @@ class ScalperStrategy(ISignalStrategy):
     def name(self) -> str:
         return f"Scalper {self.symbol}"
 
-    def initialize(self, config: dict | None = None) -> None:
+    def initialize(self, config: dict | None = None) -> None:  # type: ignore[override]
         """Initialize the scalper strategy."""
         super().initialize(config)
         logger.info(

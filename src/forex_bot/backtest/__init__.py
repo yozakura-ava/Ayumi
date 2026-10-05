@@ -84,12 +84,12 @@ try:
         to_json,
     )
 except ImportError:
-    ParameterGrid = None
-    SweepResult = None
-    SweepRow = None
-    SweepRunner = None
-    to_csv = None
-    to_json = None
+    ParameterGrid = None  # type: ignore[misc, assignment]
+    SweepResult = None  # type: ignore[misc, assignment]
+    SweepRow = None  # type: ignore[misc, assignment]
+    SweepRunner = None  # type: ignore[misc, assignment]
+    to_csv = None  # type: ignore[misc, assignment]
+    to_json = None  # type: ignore[misc, assignment]
 try:
     from ml.mean_reversion import MLMeanReversionStrategy
 except ImportError:

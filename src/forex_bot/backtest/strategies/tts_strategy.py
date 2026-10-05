@@ -261,7 +261,7 @@ class TTSStrategy(ISignalStrategy):
     def name(self) -> str:
         return f"TTC/TBD {self.symbol}"
 
-    def initialize(self, config: dict | None = None) -> None:
+    def initialize(self, config: dict | None = None) -> None:  # type: ignore[override]
         """Initialize strategy components.
 
         Called once before the first bar. TTSStrategy sets up all

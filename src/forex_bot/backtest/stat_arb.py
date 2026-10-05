@@ -233,6 +233,6 @@ class StatArbBacktestResult:
             self.signals = []
 
     def add_signal(self, signal_type: str, z_score: float | None):
-        self.signals.append(signal_type)
+        self.signals.append(signal_type)  # type: ignore[union-attr]
         if z_score is not None:
-            self.z_scores.append(z_score)
+            self.z_scores.append(z_score)  # type: ignore[union-attr]

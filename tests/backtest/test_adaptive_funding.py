@@ -31,15 +31,12 @@ without price movement dominating the equity curve.
 from __future__ import annotations
 
 import sys
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
-
-import pytest
 
 # ---------------------------------------------------------------------------
 # Path setup: src/forex_bot on sys.path so ``backtest.funding_model`` and
 # ``engine.engine`` resolve. Mirrors the suite-level conftest.py setup.
+# This MUST run before any imports below.
 # ---------------------------------------------------------------------------
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _SRC_FX = _PROJECT_ROOT / "src" / "forex_bot"
@@ -49,25 +46,28 @@ for p in (_SRC_FX, _SRC_ROOT):
     if sp not in sys.path:
         sys.path.insert(0, sp)
 
+from datetime import datetime, timedelta, timezone
+from typing import Any
+
+import pytest
 from backtest.funding_model import (  # noqa: E402
-    AdaptiveFundingSchedule,
     BASELINE_8H_HOURS,
     CAP_RATE,
     DEFAULT_BASE_HOURS,
     FAST_HOURS,
+    SETTLEMENT_HOURS_UTC,
+    AdaptiveFundingSchedule,
     FundedBacktestMetrics,
     FundingCostLine,
     FundingEvent,
     FundingRateSnapshot,
     PositionSpec,
-    SETTLEMENT_HOURS_UTC,
     compute_adaptive_schedule,
     compute_funding_pnl,
     run_backtest_with_funding,
 )
-from backtest.strategies.isignal_strategy import ISignalStrategy  # noqa: E402
-from backtest.types import Bar, BacktestConfig, BacktestMetrics  # noqa: E402
-
+from backtest.strategies.isignal_strategy import ISignalStrategy
+from backtest.types import BacktestConfig, Bar
 
 # ──────────────────────────────────────────────────────────────────────
 # Helpers
@@ -625,7 +625,7 @@ class TestComputeFundingPnL:
         schedule = compute_adaptive_schedule(history)
         position = PositionSpec(notional_usd=50_000.0, direction="long")
         lines = compute_funding_pnl(schedule, position)
-        assert sum(l.pnl for l in lines) == pytest.approx(
+        assert sum(line.pnl for line in lines) == pytest.approx(
             schedule.total_dollar_charge(50_000.0, "long"), abs=1e-9
         )
 
@@ -744,7 +744,6 @@ class TestAdaptiveVsFixed8hDivergence:
         )
         # All 1h intervals → 24 events
         assert schedule.total_events == 24
-        position = PositionSpec(notional_usd=100_000.0, direction="long")
         total_long_cost = schedule.total_dollar_charge(100_000.0, "long")
         # Long pays 0.0035 * 100_000 * 24 = -8400
         assert total_long_cost == pytest.approx(-8400.0, abs=1e-6)
@@ -971,7 +970,7 @@ class TestFundedBacktestMetrics:
             bars, funding, position, config, [_NoFireStrategy()]
         )
         assert result.total_funding_cost == pytest.approx(
-            sum(l.pnl for l in result.funding_events), abs=1e-9
+            sum(line.pnl for line in result.funding_events), abs=1e-9
         )
 
     def test_funding_cost_line_dataclass(self):
@@ -1031,11 +1030,11 @@ class TestFundedBacktestMetrics:
         # event contributes to per-bar delta. The supplied past-window
         # event doesn't appear in ``funding_events`` because the schedule
         # only covers [start, end].
-        in_window_pnl = sum(l.pnl for l in result.funding_events if 0 <= l.bar_index < len(bars))
+        in_window_pnl = sum(line.pnl for line in result.funding_events if 0 <= line.bar_index < len(bars))
         assert sum(result.funded_equity_delta) == pytest.approx(
             in_window_pnl, abs=1e-9
         )
         # And the per-bar delta is the sum of all in-window events.
         assert result.total_funding_cost == pytest.approx(
-            sum(l.pnl for l in result.funding_events), abs=1e-9
+            sum(line.pnl for line in result.funding_events), abs=1e-9
         )
