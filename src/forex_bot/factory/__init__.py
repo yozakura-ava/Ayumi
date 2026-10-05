@@ -1,21 +1,16 @@
-"""Strategy Factory package (SFA-1 spine).
+"""Strategy Factory package (SFA-2 — validation runner shipped).
 
-This package provides the *plug-in* contract that lets new strategy archetypes
-be added without touching the rest of the pipeline.  It is intentionally narrow
-in SFA-1 — only the wiring skeleton lands here:
+SFA-1 landed the wiring skeleton (template contract + bridge + pipeline
+config + spread costs).  SFA-2 layers on top:
 
-* :mod:`.template`  — :class:`StrategyTemplate` ABC + :class:`ParamSpec`
-* :mod:`.bridge`    — Template → ``ISignalStrategy`` adapter (re-uses the
-                      existing ``strategies.registry`` strategies unchanged)
-* :mod:`.pipeline_config` — §4 validation-pipeline config (WF windows, DSR
-                            ``n_trials`` scaling, regime gating, min-trade
-                            counts, OOS isolation, PBO threshold)
-* :mod:`.spread_costs`    — mandatory spread/commission/slippage defaults
-* :mod:`.registry`   — :class:`FactoryRegistry` (template registration)
+* :mod:`.validation_runner` — batch WF + DSR + spread-cost gate end-to-end
+* :mod:`.storage`           — ``research.duckdb`` persistence for verdicts
+* :mod:`.strategies`        — concrete ``ISignalStrategy`` implementations
+                               that resolve the SFA-1 deferred
+                               ``usdjpy_d1_trend`` placeholder
 
-SFA-1 is **wiring-only**: no new strategies are created, no validation logic is
-re-implemented, and the existing ``src/forex_bot/strategies/registry.py``
-remains the single source of truth for concrete strategies.
+Re-exports from SFA-1 (template contract, bridge, pipeline config,
+spread costs, registry) remain available unchanged.
 """
 
 from __future__ import annotations
@@ -44,24 +39,33 @@ from forex_bot.factory.spread_costs import (
     SpreadCostTable,
     default_spread_costs,
 )
+from forex_bot.factory.storage import FactoryVerdictStore
+from forex_bot.factory.strategies import USDJPYD1TrendConfig, USDJPYD1TrendStrategy
 from forex_bot.factory.template import (
     ARCHETYPE_AFFINITY,
     ParamKind,
     ParamSpec,
     StrategyTemplate,
 )
+from forex_bot.factory.validation_runner import (
+    INSUFFICIENT_DATA_THRESHOLD,
+    CandidateSpec,
+    ValidationRunner,
+    ValidationVerdict,
+    run_validation_batch,
+)
 
 __all__ = [
-    # template contract
+    # SFA-1: template contract
     "ARCHETYPE_AFFINITY",
     "ParamKind",
     "ParamSpec",
     "StrategyTemplate",
-    # bridge
+    # SFA-1: bridge
     "BridgeError",
-    "build_strategy_from_template",
     "build_strategies_for_registry",
-    # pipeline config (§4)
+    "build_strategy_from_template",
+    # SFA-1: pipeline config (§4)
     "DSRConfig",
     "OOSConfig",
     "PBOConfig",
@@ -71,13 +75,24 @@ __all__ = [
     "WalkForwardWindowConfig",
     "compute_dsr_n_trials",
     "default_pipeline_config",
-    # registry
+    # SFA-1: registry
     "FactoryRegistry",
     "default_factory_registry",
-    # spread costs
+    # SFA-1: spread costs
     "COMMISSION_PER_LOT_USD",
     "PIP_SLIPPAGE",
     "SpreadCostTable",
     "SpreadCosts",
     "default_spread_costs",
+    # SFA-2: validation runner
+    "CandidateSpec",
+    "INSUFFICIENT_DATA_THRESHOLD",
+    "ValidationRunner",
+    "ValidationVerdict",
+    "run_validation_batch",
+    # SFA-2: storage
+    "FactoryVerdictStore",
+    # SFA-2: deferred strategy implementation
+    "USDJPYD1TrendConfig",
+    "USDJPYD1TrendStrategy",
 ]

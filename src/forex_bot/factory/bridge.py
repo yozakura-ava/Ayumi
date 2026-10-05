@@ -121,7 +121,16 @@ def build_strategy_from_template(
         raise BridgeError(
             f"template {template.archetype_id!r} rejected params {dict(params)!r}: {exc}"
         ) from exc
-    strategy = template.build_strategy(validated, pair)
+    try:
+        strategy = template.build_strategy(validated, pair)
+    except BridgeError:
+        # Already a BridgeError — propagate unchanged.
+        raise
+    except Exception as exc:  # noqa: BLE001 — bridge contract: ALL build failures wrap to BridgeError
+        raise BridgeError(
+            f"template {template.archetype_id!r} build_strategy raised "
+            f"{type(exc).__name__}: {exc}"
+        ) from exc
     if not _looks_like_strategy(strategy):
         raise BridgeError(
             f"template {template.archetype_id!r} build_strategy returned "
@@ -322,10 +331,7 @@ REGISTRY_STRATEGY_BUILDERS: dict[str, Callable[[str], ISignalStrategy]] = {
     "momentum": _make_default_builder(None),
     "mtf_filtered_momentum": _make_mtf_filtered_builder(),
     "session_range_mr_ict_filtered": _make_ict_filtered_builder(),
-    "usdjpy_d1_trend": _placeholder_builder(
-        "no concrete strategy class for strategy_id='usdjpy_d1_trend' "
-        "(registry-only entry; class lands in SFA-2)"
-    ),
+    "usdjpy_d1_trend": _make_default_builder(None),  # placeholder; patched below
     "session_range_mean_reversion": _make_default_builder(None),
     "volatility_squeeze": _make_default_builder(None),
     "session_breakout_london": _make_session_breakout_builder("london"),
@@ -360,6 +366,13 @@ _LAZY_STRATEGY_CLASSES: dict[str, tuple[str, str]] = {
     "dual_tf_squeeze_pro": (
         "forex_bot.strategies.dual_tf_squeeze_pro",
         "DualTFSqueezeProStrategy",
+    ),
+    # SFA-2: concrete class lands under forex_bot.factory.strategies (a
+    # thin module that re-exports the implementation so the registry
+    # builder can resolve it without coupling to a long-term strategy path).
+    "usdjpy_d1_trend": (
+        "forex_bot.factory.strategies.usdjpy_d1_trend",
+        "USDJPYD1TrendStrategy",
     ),
 }
 
