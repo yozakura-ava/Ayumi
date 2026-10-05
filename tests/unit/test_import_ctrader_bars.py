@@ -45,11 +45,14 @@ from import_ctrader_bars import (  # noqa: E402
     ImportGuardError,
     ImportResult,
     _candle_seconds_for,
+    _migrate_import_log,
+    ensure_schema,
     import_csv,
     normalise_csv_timestamp,
     to_epoch_seconds,
     validate_csv_header,
 )
+import import_ctrader_bars  # noqa: E402  full module reference for migration tests
 
 
 # ---------------------------------------------------------------------------
@@ -416,3 +419,152 @@ def test_importresult_dataclass():
     assert d["result"] == "ok"
     # Inserted/updated default to 0
     assert d["inserted_rows"] == 0
+
+
+# ---------------------------------------------------------------------------
+# G4 follow-up — _migrate_import_log (card 5ad1bfc3)
+# ---------------------------------------------------------------------------
+
+
+class TestMigrateImportLog:
+    """Pins the schema-migration contract for the legacy 4-col ``import_log``
+    table produced by ``scripts/init_tick_db.py``. Without this migration,
+    ``_write_import_log`` raises ``BinderException`` because the canonical
+    11-col INSERT references columns that the legacy table does not have.
+
+    Migration policy (chosen option (a) variant, card notes):
+        - Detect the legacy schema by the presence of the ``filename``
+          column (which is NOT NULL PRIMARY KEY in the legacy schema).
+        - Rename the legacy table to ``import_log_legacy_v4col`` to
+          preserve historical tick-aggregation audit rows (the tick
+          module currently queries by ``filename``).
+        - Let ``CREATE TABLE IF NOT EXISTS import_log`` in
+          ``ensure_schema`` mint the canonical 11-col table.
+
+    Trade-off: scripts/import_ticks.py and scripts/aggregate_ticks_to_bars.py
+    (NOT in this card's scope) still INSERT into ``import_log`` expecting
+    4-col. They will need a separate follow-up to switch to the canonical
+    schema (or to import_log_legacy_v4col). Documented in card notes.
+    """
+
+    def test_fresh_db_no_legacy_table(self):
+        # _migrate_import_log on a DB with no import_log is a no-op
+        con = duckdb.connect(":memory:")
+        _migrate_import_log(con)
+        # No tables at all yet (canonical CREATE happens in ensure_schema)
+        tables = {
+            r[0]
+            for r in con.execute(
+                "SELECT table_name FROM information_schema.tables"
+            ).fetchall()
+        }
+        assert "import_log" not in tables
+        assert "import_log_legacy_v4col" not in tables
+
+    def test_legacy_4col_renamed_to_legacy_v4col(self):
+        con = duckdb.connect(":memory:")
+        con.execute(
+            """
+            CREATE TABLE import_log (
+                filename VARCHAR NOT NULL PRIMARY KEY,
+                symbol   VARCHAR,
+                row_count BIGINT,
+                imported_at VARCHAR
+            )
+            """
+        )
+        con.execute(
+            "INSERT INTO import_log VALUES "
+            "('legacy1.csv', 'XAUUSD', 100, '2026-09-01T00:00:00Z'),"
+            "('legacy2.csv', 'USDJPY', 200, '2026-09-02T00:00:00Z')"
+        )
+        # Run the full pipeline (ensure_schema --import +
+        # _migrate_import_log + CREATE canonical)
+        ensure_schema(con)
+        cols = {
+            r[0]
+            for r in con.execute("DESCRIBE import_log").fetchall()
+        }
+        # Canonical 11-col schema
+        assert "source" in cols
+        assert "timeframe" in cols
+        assert "staged_rows" in cols
+        assert "result" in cols
+        assert "filename" not in cols
+        # Legacy preserved
+        legacy_rows = con.execute(
+            "SELECT COUNT(*) FROM import_log_legacy_v4col"
+        ).fetchone()[0]
+        assert legacy_rows == 2
+
+    def test_canonical_schema_write_succeeds(self):
+        # After migration, _write_import_log must succeed against the
+        # canonical 11-col table (no BinderException).
+        con = duckdb.connect(":memory:")
+        con.execute(
+            """
+            CREATE TABLE import_log (
+                filename VARCHAR NOT NULL PRIMARY KEY,
+                symbol   VARCHAR,
+                row_count BIGINT,
+                imported_at VARCHAR
+            )
+            """
+        )
+        ensure_schema(con)
+        log_id = import_ctrader_bars._write_import_log(
+            con,
+            source="ctrader_csv",
+            symbol="XAUUSD",
+            timeframe="M15",
+            dry_run=False,
+            staged_rows=10,
+            inserted_rows=10,
+            updated_rows=0,
+            result="ok",
+            error=None,
+        )
+        assert isinstance(log_id, int) and log_id > 0
+        n = con.execute("SELECT COUNT(*) FROM import_log").fetchone()[0]
+        assert n == 1
+        row = con.execute(
+            "SELECT source, symbol, timeframe, dry_run, "
+            "staged_rows, inserted_rows, result "
+            "FROM import_log"
+        ).fetchone()
+        assert row[0] == "ctrader_csv"
+        assert row[1] == "XAUUSD"
+        assert row[2] == "M15"
+        assert row[3] is False
+        assert row[4] == 10
+        assert row[5] == 10
+        assert row[6] == "ok"
+
+    def test_idempotent_double_migration(self):
+        # Running ensure_schema twice must not corrupt legacy preservation.
+        con = duckdb.connect(":memory:")
+        con.execute(
+            """
+            CREATE TABLE import_log (
+                filename VARCHAR NOT NULL PRIMARY KEY,
+                symbol   VARCHAR,
+                row_count BIGINT,
+                imported_at VARCHAR
+            )
+            """
+        )
+        con.execute(
+            "INSERT INTO import_log VALUES "
+            "('legacy1.csv', 'XAUUSD', 100, '2026-09-01T00:00:00Z')"
+        )
+        ensure_schema(con)
+        ensure_schema(con)
+        # Still preserved (only one legacy table, no churn)
+        legacy_count = con.execute(
+            "SELECT COUNT(*) FROM import_log_legacy_v4col"
+        ).fetchone()[0]
+        assert legacy_count == 1
+        canonical_count = con.execute(
+            "SELECT COUNT(*) FROM import_log"
+        ).fetchone()[0]
+        assert canonical_count == 0

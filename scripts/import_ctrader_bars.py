@@ -393,7 +393,9 @@ def ensure_schema(con: duckdb.DuckDBPyConnection) -> None:
         );
         """
     )
-    # G4 audit log
+    # G4 audit log — migrate any legacy 4-col import_log (init_tick_db.py
+    # historical) to the canonical 9-col schema, then ensure it exists.
+    _migrate_import_log(con)
     con.execute("CREATE SEQUENCE IF NOT EXISTS import_log_seq START 1")
     con.execute(
         """
@@ -634,6 +636,63 @@ def import_csv(
             ).as_dict()
     finally:
         con.close()
+
+
+def _migrate_import_log(con: duckdb.DuckDBPyConnection) -> None:
+    """Migrate ``import_log`` to the canonical 9-col G4 audit schema if it
+    is currently the legacy 4-col schema produced by ``init_tick_db.py``.
+
+    Legacy schema (init_tick_db.py):
+        filename VARCHAR NOT NULL PRIMARY KEY,
+        symbol VARCHAR, row_count BIGINT, imported_at VARCHAR
+
+    Canonical schema (G4 audit log):
+        id BIGINT (seq), imported_at TIMESTAMP, source TEXT, symbol TEXT,
+        timeframe TEXT, dry_run BOOLEAN, staged_rows INTEGER,
+        inserted_rows INTEGER, updated_rows INTEGER, result TEXT, error TEXT
+
+    The legacy schema is detected by checking for the ``filename`` column.
+    When found it is renamed to ``import_log_legacy_v4col`` so no historical
+    tick-aggregation rows are lost (the tick module still queries
+    ``filename``); the new empty canonical table is then created by the
+    subsequent ``CREATE TABLE IF NOT EXISTS`` in ``ensure_schema``.
+
+    Safe to call on a fresh DB: a no-op when the table does not yet exist
+    or already has the canonical schema.
+    """
+    # Does ``import_log`` exist at all?
+    table_exists = con.execute(
+        "SELECT COUNT(*) FROM information_schema.tables "
+        "WHERE table_name = 'import_log'"
+    ).fetchone()[0]
+    if not table_exists:
+        return  # ensure_schema's CREATE TABLE will mint the canonical one.
+
+    # Which columns does it currently have?
+    cols = {
+        row[0]
+        for row in con.execute(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = 'import_log'"
+        ).fetchall()
+    }
+
+    # Canonical schema fingerprint — the legacy schema has ``filename``
+    # as NOT NULL PRIMARY KEY, which would block the G4 9-col INSERT
+    # (it never supplies ``filename``). Anything without ``filename`` is
+    # canonical (or close enough; CREATE IF NOT EXISTS will be a no-op).
+    if "filename" not in cols:
+        return
+
+    # Legacy 4-col schema — preserve the historical rows (the tick
+    # module queries ``filename``) by renaming, then let
+    # ``CREATE TABLE IF NOT EXISTS`` below mint the canonical table.
+    if con.execute(
+        "SELECT COUNT(*) FROM information_schema.tables "
+        "WHERE table_name = 'import_log_legacy_v4col'"
+    ).fetchone()[0]:
+        con.execute("DROP TABLE import_log_legacy_v4col")
+    con.execute("ALTER TABLE import_log RENAME TO import_log_legacy_v4col")
 
 
 def _write_import_log(
