@@ -19,11 +19,9 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import datetime, timezone
-from typing import Any
-
-import pytest
 
 from backtest.engine import Bar
+from strategies.registry import default_registry
 
 from forex_bot.factory.bridge import (
     REGISTRY_STRATEGY_BUILDERS,
@@ -37,8 +35,6 @@ from forex_bot.factory.strategies import (
     USDJPYD1TrendStrategy,
 )
 from forex_bot.factory.template import TRENDING
-from strategies.registry import default_registry
-
 
 # ---------------------------------------------------------------------------
 # Concrete strategy class — direct unit tests
@@ -112,8 +108,14 @@ def test_strategy_generate_signal_none_until_enough_data() -> None:
 
 
 def test_strategy_shutdown_is_noop() -> None:
+    """``shutdown()`` is a noop — must not raise on a fresh instance.
+
+    The base class signature is ``-> None``; mypy's ``func-returns-value``
+    rule forbids accessing the return value, so we verify the noop
+    behaviour by simply invoking the method (no exception is success).
+    """
     s = USDJPYD1TrendStrategy()
-    assert s.shutdown() is None
+    s.shutdown()
 
 
 def test_strategy_evaluate_accepts_state_like_object() -> None:

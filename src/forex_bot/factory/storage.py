@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Iterable
 
 import duckdb
 
@@ -100,9 +100,7 @@ class FactoryVerdictStore:
         with duckdb.connect(str(self.db_path)) as conn:
             conn.execute(_FACTORY_VERDICTS_DDL)
             conn.execute(_FACTORY_VERDICTS_VERSION_DDL)
-            cur = conn.execute(
-                "SELECT MAX(version) FROM _factory_verdicts_schema_version"
-            ).fetchone()
+            cur = conn.execute("SELECT MAX(version) FROM _factory_verdicts_schema_version").fetchone()
             current = cur[0] if cur and cur[0] is not None else 0
             if current < SCHEMA_VERSION:
                 conn.execute(
@@ -147,16 +145,14 @@ class FactoryVerdictStore:
         self.ensure_schema()
         with duckdb.connect(str(self.db_path), read_only=True) as conn:
             if candidate_id is None:
-                rows = conn.execute(
-                    "SELECT * FROM factory_verdicts ORDER BY created_at"
-                ).fetchall()
+                rows = conn.execute("SELECT * FROM factory_verdicts ORDER BY created_at").fetchall()
             else:
                 rows = conn.execute(
                     "SELECT * FROM factory_verdicts WHERE candidate_id = ? ORDER BY created_at",
                     [candidate_id],
                 ).fetchall()
             col_names = [d[0] for d in conn.description]
-        return [dict(zip(col_names, r)) for r in rows]
+        return [dict(zip(col_names, r, strict=True)) for r in rows]
 
     # ── internals ───────────────────────────────────────────────────────
 

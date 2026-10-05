@@ -48,13 +48,12 @@ Design notes
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
-from typing import Any, Iterable, Mapping, Sequence
-import logging
+from typing import Any, Mapping, Sequence
 
 import numpy as np
-
 from backtest.engine import Bar
 from backtest.walk_forward_runner import run_strategy_walk_forward
 from quant.dsr_integration import (
@@ -65,9 +64,7 @@ from srf.pbo import PBOScore, compute_pbo
 
 from forex_bot.factory.bridge import BridgeError, build_strategy_from_template
 from forex_bot.factory.pipeline_config import (
-    DSRConfig,
     OOSConfig,
-    PBOConfig,
     PipelineConfig,
     compute_dsr_n_trials,
     default_pipeline_config,
@@ -75,8 +72,8 @@ from forex_bot.factory.pipeline_config import (
 from forex_bot.factory.spread_costs import (
     COMMISSION_PER_LOT_USD,
     PIP_SLIPPAGE,
-    SpreadCostTable,
     SpreadCosts,
+    SpreadCostTable,
     default_spread_costs,
 )
 from forex_bot.factory.template import StrategyTemplate
@@ -202,9 +199,7 @@ class ValidationRunner:
 
     # ── public ──────────────────────────────────────────────────────────
 
-    def run_batch(
-        self, candidates: Sequence[CandidateSpec]
-    ) -> list[ValidationVerdict]:
+    def run_batch(self, candidates: Sequence[CandidateSpec]) -> list[ValidationVerdict]:
         """Validate a batch of candidates; one :class:`ValidationVerdict` per input.
 
         The batch's ``cell_count`` defaults to ``len(candidates)`` (used
@@ -231,9 +226,7 @@ class ValidationRunner:
 
         # ── Bridge build ────────────────────────────────────────────────
         try:
-            strategy = build_strategy_from_template(
-                candidate.template, candidate.params, candidate.pair
-            )
+            strategy = build_strategy_from_template(candidate.template, candidate.params, candidate.pair)
         except BridgeError as exc:
             return self._reject(
                 candidate,
@@ -327,10 +320,7 @@ class ValidationRunner:
         # ── Insufficient-data guard (Liora ground rule) ────────────────
         if total_trades < INSUFFICIENT_DATA_THRESHOLD:
             tier = "INSUFFICIENT_DATA"
-            tier_reason = (
-                f"only {total_trades} trades "
-                f"(< {INSUFFICIENT_DATA_THRESHOLD} Liora threshold)"
-            )
+            tier_reason = f"only {total_trades} trades (< {INSUFFICIENT_DATA_THRESHOLD} Liora threshold)"
 
         # ── PBO ceiling (only for Optuna-derived params) ────────────────
         pbo_value: float | None = None
@@ -399,17 +389,13 @@ class ValidationRunner:
     def _compute_n_trials(self, *, len_candidates_hint: int) -> int:
         """Resolve DSR ``n_trials`` from explicit cell_count or batch size."""
         if self._explicit_cell_count is not None:
-            return compute_dsr_n_trials(
-                self._explicit_cell_count, self.pipeline_config.dsr
-            )
+            return compute_dsr_n_trials(self._explicit_cell_count, self.pipeline_config.dsr)
         # Batch hint is not used here — the runner is stateless; the
         # caller passes cell_count when batching.
         _ = len_candidates_hint
         return DEFAULT_N_INDEPENDENT_TRIALS
 
-    def _compute_pbo(
-        self, candidate: CandidateSpec, total_trades: int
-    ) -> tuple[PBOScore | None, str]:
+    def _compute_pbo(self, candidate: CandidateSpec, total_trades: int) -> tuple[PBOScore | None, str]:
         """Compute PBO for Optuna-derived params.
 
         The full CSCV needs ``N >= 2`` strategies and ``T >= 4`` periods.
@@ -421,9 +407,7 @@ class ValidationRunner:
         """
         if total_trades < 4 or len(candidate.bars) < 8:
             return None, "INSUFFICIENT"
-        closes = np.asarray(
-            [float(b.close) for b in candidate.bars], dtype=float
-        )
+        closes = np.asarray([float(b.close) for b in candidate.bars], dtype=float)
         if closes.size < 8:
             return None, "INSUFFICIENT"
         bar_returns = np.diff(closes) / closes[:-1]
@@ -457,9 +441,7 @@ class ValidationRunner:
             timeframe=candidate.timeframe,
             tier="REJECT",
             spread_pips=spread.spread_pips if spread else 0.0,
-            commission_per_lot_usd=(
-                spread.commission_per_lot_usd if spread else COMMISSION_PER_LOT_USD
-            ),
+            commission_per_lot_usd=(spread.commission_per_lot_usd if spread else COMMISSION_PER_LOT_USD),
             slippage_pips=spread.slippage_pips if spread else PIP_SLIPPAGE,
             reason=reason,
             ran_at=ran_at,

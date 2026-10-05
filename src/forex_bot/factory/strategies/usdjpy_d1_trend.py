@@ -33,11 +33,10 @@ are provided).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Mapping
 
 from backtest.strategies.isignal_strategy import ISignalStrategy
-
 
 # ---------------------------------------------------------------------------
 # Config
@@ -162,7 +161,6 @@ class USDJPYD1TrendStrategy(ISignalStrategy):
 
     def shutdown(self) -> None:
         """No resources to release."""
-        return None
 
     def on_bar(self, bar: Any) -> None:
         """Append the bar to internal buffers for ``generate_signal``."""
@@ -197,16 +195,12 @@ class USDJPYD1TrendStrategy(ISignalStrategy):
             return None
 
         close = self._closes[-1]
-        donchian_high = (
-            max(self._highs[-cfg.donchian_period :])
-            if len(self._highs) >= cfg.donchian_period
-            else None
-        )
+        donchian_high = max(self._highs[-cfg.donchian_period :]) if len(self._highs) >= cfg.donchian_period else None
 
         atr_val = _atr(
             [
-                type("_B", (), {"high": h, "low": l, "close": c})()
-                for h, l, c in zip(self._highs, self._lows, self._closes)
+                type("_B", (), {"high": h, "low": low, "close": c})()
+                for h, low, c in zip(self._highs, self._lows, self._closes, strict=True)
             ],
             cfg.atr_period,
         )
@@ -229,9 +223,7 @@ class USDJPYD1TrendStrategy(ISignalStrategy):
         # ── Entry logic ──────────────────────────────────────────────────
         trend_ok = close > sma
         rsi_ok = cfg.rsi_min <= rsi <= cfg.rsi_max
-        breakout_ok = (
-            donchian_high is not None and close >= donchian_high
-        )
+        breakout_ok = donchian_high is not None and close >= donchian_high
         if trend_ok and rsi_ok and breakout_ok:
             self._in_position = True
             self._entry_price = close

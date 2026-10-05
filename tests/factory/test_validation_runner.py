@@ -20,14 +20,13 @@ stay in the HR5-targeted-only envelope (``scripts/run_test_scope.sh``).
 
 from __future__ import annotations
 
+import tempfile
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
 import pytest
-import tempfile
-
 from backtest.engine import Bar
 
 from forex_bot.factory.pipeline_config import (
@@ -38,26 +37,22 @@ from forex_bot.factory.pipeline_config import (
     default_pipeline_config,
 )
 from forex_bot.factory.spread_costs import (
-    COMMISSION_PER_LOT_USD,
-    PIP_SLIPPAGE,
-    SpreadCostTable,
     default_spread_costs,
 )
 from forex_bot.factory.storage import FactoryVerdictStore
 from forex_bot.factory.template import (
+    TRENDING,
     ParamKind,
     ParamSpec,
     StrategyTemplate,
-    TRENDING,
 )
 from forex_bot.factory.validation_runner import (
-    CandidateSpec,
     INSUFFICIENT_DATA_THRESHOLD,
+    CandidateSpec,
     ValidationRunner,
     ValidationVerdict,
     run_validation_batch,
 )
-
 
 # ---------------------------------------------------------------------------
 # Test templates — minimal StrategyTemplate subclasses
@@ -82,14 +77,15 @@ class _GoodTemplate(StrategyTemplate):
 
     def __post_init__(self) -> None:  # pragma: no cover — frozen dataclass nuance
         super().__post_init__()
-        self._reset()
 
     def _reset(self) -> None:  # pragma: no cover — testing helper
         # Workaround for frozen dataclass: re-bind via object.__setattr__.
+        # try/except handles AttributeError on frozen fields; the pass is
+        # intentional — the field is only set if the dataclass permits.
         try:
             object.__setattr__(self, "_call_count", 0)
-        except Exception:
-            pass
+        except AttributeError:
+            pass  # frozen dataclass doesn't permit attribute writes
 
     @property
     def param_space(self) -> tuple[ParamSpec, ...]:
@@ -210,7 +206,7 @@ def _make_bars(
     """
     import random
 
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # noqa: S311 — test fixtures, not crypto
     start = start or datetime(2025, 1, 2, 0, 0, tzinfo=timezone.utc)
     bars: list[Bar] = []
     price = 1.1000
@@ -221,13 +217,16 @@ def _make_bars(
         high = max(price, new_close) * (1.0 + abs(rng.gauss(0, 0.0005)))
         low = min(price, new_close) * (1.0 - abs(rng.gauss(0, 0.0005)))
         # Hourly bars: ``i`` hours after ``start``.
-        bar_time = datetime(
-            start.year,
-            start.month,
-            start.day,
-            start.hour,
-            tzinfo=timezone.utc,
-        ) + _ONE_HOUR_TIMEDELTA * i
+        bar_time = (
+            datetime(
+                start.year,
+                start.month,
+                start.day,
+                start.hour,
+                tzinfo=timezone.utc,
+            )
+            + _ONE_HOUR_TIMEDELTA * i
+        )
         bars.append(
             Bar(
                 time=bar_time,
@@ -261,7 +260,6 @@ def _oos_bar() -> Bar:
 
 def test_oos_guard_refuses_locked_bars() -> None:
     """OOSConfig holdout Jan-Jul 2026 is locked by default → PermissionError."""
-    runner = ValidationRunner()
     template = _GoodTemplate()
     candidate = CandidateSpec(
         candidate_id="oos_locked",
@@ -337,7 +335,6 @@ def test_bridge_failure_surfaces_as_reject() -> None:
 
 def test_spread_costs_appear_on_verdict() -> None:
     """Every verdict carries the spread-cost snapshot (Liora ground rule)."""
-    runner = ValidationRunner()
     template = _GoodTemplate()
     candidate = CandidateSpec(
         candidate_id="costs_check",
@@ -349,15 +346,12 @@ def test_spread_costs_appear_on_verdict() -> None:
     verdict = RUNNER.run_one(candidate)
     spread = default_spread_costs().get("XAUUSD")
     assert verdict.spread_pips == pytest.approx(spread.spread_pips)
-    assert verdict.commission_per_lot_usd == pytest.approx(
-        spread.commission_per_lot_usd
-    )
+    assert verdict.commission_per_lot_usd == pytest.approx(spread.commission_per_lot_usd)
     assert verdict.slippage_pips == pytest.approx(spread.slippage_pips)
 
 
 def test_unknown_pair_surfaces_reject() -> None:
     """Pair outside the spread-cost table → REJECT with explicit reason."""
-    runner = ValidationRunner()
     template = _GoodTemplate()
     candidate = CandidateSpec(
         candidate_id="unknown_pair",
