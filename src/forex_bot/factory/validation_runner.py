@@ -696,6 +696,60 @@ def run_validation_batch(
     return runner.run_batch(candidates)
 
 
+# ---------------------------------------------------------------------------
+# CPCV bridge (Sprint C 1b.2, card 1436039b-b372-4417-a3e2-5810fe395368)
+# ---------------------------------------------------------------------------
+
+
+def run_cpcv_on_trial_store(
+    trial_return_store: TrialReturnStore,
+    cell_key: tuple[str, str, str],
+    *,
+    cpcv_config: Any = None,
+) -> Any | None:
+    """Run CPCV on the per-cell matrix already accumulated in :class:`TrialReturnStore`.
+
+    This is an *additive* bridge helper — the default PBO computation
+    in :meth:`ValidationRunner._compute_pbo` still uses CSCV
+    (:func:`forex_bot.srf.pbo.compute_pbo`).  Callers that want
+    CPCV-based PBO/DSR (Sprint C 1b.2) call this helper directly with
+    the cell's matrix; the helper imports :mod:`forex_bot.backtest.cpcv`
+    lazily to keep the factory runner's import surface lean.
+
+    Returns ``None`` when the cell has fewer than 2 trials (mirrors
+    the :attr:`TrialReturnStore.matrix` short-circuit).  Returns a
+    :class:`forex_bot.backtest.cpcv.CPCVResult` otherwise.
+
+    Parameters
+    ----------
+    trial_return_store
+        The :class:`TrialReturnStore` instance to draw the cell matrix
+        from.  In practice the caller passes
+        ``runner.trial_return_store`` from a live :class:`ValidationRunner`
+        so multiple batches contribute to the same cell.
+    cell_key
+        ``(archetype_id, pair, timeframe)`` tuple — the same shape
+        returned by :meth:`TrialReturnStore.cell_key`.
+    cpcv_config
+        Optional :class:`forex_bot.backtest.cpcv.CPCVConfig`.  When
+        omitted, the helper constructs a default with ``N=8, k=4``
+        (φ = 70 paths — the card's target grid) and pulls
+        ``label_horizon_bars=0, embargo_bars=0`` from the supplied
+        :class:`TrialReturnStore`.  Production callers should pass an
+        explicit config so per-TF embargo_bars from
+        :class:`PipelineConfig.wf_for` is honoured.
+    """
+    matrix = trial_return_store.matrix(cell_key)
+    if matrix is None:
+        return None
+    # Lazy import keeps ``forex_bot.factory.validation_runner`` free
+    # of a hard dep on the new CPCV module for callers that don't use it.
+    from forex_bot.backtest.cpcv import CPCVConfig, cpcv_from_trial_store
+
+    cfg = cpcv_config or CPCVConfig(n_groups=8, k_test_groups=4)
+    return cpcv_from_trial_store(matrix, cfg)
+
+
 __all__ = [
     "CandidateSpec",
     "INSUFFICIENT_DATA_THRESHOLD",
@@ -703,5 +757,6 @@ __all__ = [
     "TrialReturnStore",
     "ValidationRunner",
     "ValidationVerdict",
+    "run_cpcv_on_trial_store",
     "run_validation_batch",
 ]

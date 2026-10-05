@@ -27,6 +27,20 @@ from .pattern_detector import (
     MWPattern,
     MWPatternDetector,
 )
+from .cpcv import (
+    CPCVConfig,
+    CPCVDSRScore,
+    CPCVPBOScore,
+    CPCVResult,
+    CPCVSplit,
+    apply_purge_and_embargo,
+    compute_dsr_cpcv,
+    compute_pbo_cpcv,
+    cpcv_paths_count,
+    generate_cpcv_splits,
+    list_cpcv_splits,
+    run_cpcv,
+)
 from .stat_arb import StatArbBacktestResult, StatArbStrategy
 from .statistical_study import (
     CriterionResult,
@@ -159,4 +173,16 @@ __all__ = [
     "ConsolidationMetrics",
     "MWPattern",
     "MWPatternDetector",
+    "CPCVConfig",
+    "CPCVDSRScore",
+    "CPCVPBOScore",
+    "CPCVResult",
+    "CPCVSplit",
+    "apply_purge_and_embargo",
+    "compute_dsr_cpcv",
+    "compute_pbo_cpcv",
+    "cpcv_paths_count",
+    "generate_cpcv_splits",
+    "list_cpcv_splits",
+    "run_cpcv",
 ]
