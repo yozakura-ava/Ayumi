@@ -178,9 +178,12 @@ def aggregate_symbol_timeframe(
         [symbol, timeframe],
     ).fetchone()[0]
 
-    # Log to import_log
+    # Log to import_log_legacy_v4col (4-col legacy shape preserved by
+    # 5ad1bfc3; canonical 11-col import_log is owned by
+    # import_ctrader_bars.py and uses a different shape — see card
+    # 0721ec62 rationale in workboard notes).
     con.execute(
-        "INSERT INTO import_log (filename, symbol, row_count, imported_at) VALUES (?, ?, ?, ?)",
+        "INSERT INTO import_log_legacy_v4col (filename, symbol, row_count, imported_at) VALUES (?, ?, ?, ?)",
         [
             f"tick_aggregation:{symbol}:{timeframe}",
             symbol,

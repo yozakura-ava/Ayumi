@@ -42,7 +42,14 @@ def import_csv(con: duckdb.DuckDBPyConnection, csv_path: Path, keep_csv: bool) -
     filename = csv_path.name
 
     # Check if already imported
-    existing = con.execute("SELECT row_count FROM import_log WHERE filename = ?", [filename]).fetchone()
+    # NOTE: 5ad1bfc3 renamed the legacy 4-col `import_log` to
+    # `import_log_legacy_v4col` (canonical 11-col is owned by
+    # `import_ctrader_bars.py`). Tick imports stay on the legacy shape —
+    # dedup key is filename. Redirects here + the matching INSERT below.
+    existing = con.execute(
+        "SELECT row_count FROM import_log_legacy_v4col WHERE filename = ?",
+        [filename],
+    ).fetchone()
     if existing:
         print(f"  ⏭️  {filename} already imported ({existing[0]} rows), skipping")
         return 0
@@ -83,9 +90,11 @@ def import_csv(con: duckdb.DuckDBPyConnection, csv_path: Path, keep_csv: bool) -
 
     con.execute(f"DROP TABLE {temp_table}")
 
-    # Log the import
+    # Log the import (4-col legacy shape lives in import_log_legacy_v4col
+    # post-5ad1bfc3; canonical 11-col import_log is owned by
+    # import_ctrader_bars.py and uses a different shape).
     con.execute(
-        "INSERT INTO import_log (filename, symbol, row_count, imported_at) VALUES (?, ?, ?, ?)",
+        "INSERT INTO import_log_legacy_v4col (filename, symbol, row_count, imported_at) VALUES (?, ?, ?, ?)",
         [filename, symbol, count, datetime.now(timezone.utc).isoformat()],
     )
 
