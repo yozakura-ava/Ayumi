@@ -57,7 +57,9 @@ from forex_bot.factory.template import (
 )
 from forex_bot.factory.validation_runner import (
     INSUFFICIENT_DATA_THRESHOLD,
+    PBO_CEILING_NOT_APPLICABLE,
     CandidateSpec,
+    TrialReturnStore,
     ValidationRunner,
     ValidationVerdict,
     run_validation_batch,
@@ -95,6 +97,8 @@ __all__ = [
     # SFA-2: validation runner
     "CandidateSpec",
     "INSUFFICIENT_DATA_THRESHOLD",
+    "PBO_CEILING_NOT_APPLICABLE",
+    "TrialReturnStore",
     "ValidationRunner",
     "ValidationVerdict",
     "run_validation_batch",

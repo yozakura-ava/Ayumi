@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 # Schema
 # ---------------------------------------------------------------------------
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _FACTORY_VERDICTS_DDL = """
 CREATE TABLE IF NOT EXISTS factory_verdicts (
@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS factory_verdicts (
     n_trials_used         INTEGER NOT NULL DEFAULT 0,
     pbo_score             DOUBLE,
     pbo_tier_ceiling      VARCHAR,
+    cost_sensitivity      DOUBLE,
     spread_pips           DOUBLE,
     commission_per_lot_usd DOUBLE,
     slippage_pips         DOUBLE,
@@ -96,10 +97,22 @@ class FactoryVerdictStore:
     # ── schema management ───────────────────────────────────────────────
 
     def ensure_schema(self) -> None:
-        """Create the ``factory_verdicts`` table if missing (idempotent)."""
+        """Create / migrate the ``factory_verdicts`` table (idempotent).
+
+        v1 → v2 adds ``cost_sensitivity DOUBLE`` (card 4309d26b —
+        renamed from the old synthetic 2-column "PBO" which was
+        actually cost sensitivity in disguise).  The ``ADD COLUMN IF
+        NOT EXISTS`` migration runs before the version bump so an
+        existing v1 database upgrades cleanly.
+        """
         with duckdb.connect(str(self.db_path)) as conn:
             conn.execute(_FACTORY_VERDICTS_DDL)
             conn.execute(_FACTORY_VERDICTS_VERSION_DDL)
+            # Idempotent column-level migration: cost_sensitivity was
+            # added in v2.  Safe to re-run on a fresh or upgraded DB.
+            conn.execute(
+                "ALTER TABLE factory_verdicts ADD COLUMN IF NOT EXISTS cost_sensitivity DOUBLE"
+            )
             cur = conn.execute("SELECT MAX(version) FROM _factory_verdicts_schema_version").fetchone()
             current = cur[0] if cur and cur[0] is not None else 0
             if current < SCHEMA_VERSION:
@@ -131,9 +144,10 @@ class FactoryVerdictStore:
                     tier, windows_passed, windows_total, total_trades,
                     mean_sharpe, mean_profit_factor, mean_win_rate, max_drawdown,
                     dsr_pvalue, n_trials_used, pbo_score, pbo_tier_ceiling,
+                    cost_sensitivity,
                     spread_pips, commission_per_lot_usd, slippage_pips,
                     go_nogo, reason, ran_at, bridge_error
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 rows,
             )
         return len(rows)
@@ -177,6 +191,7 @@ class FactoryVerdictStore:
             int(v.n_trials_used),
             v.pbo_score,
             v.pbo_tier_ceiling,
+            v.cost_sensitivity,
             v.spread_pips,
             v.commission_per_lot_usd,
             v.slippage_pips,
