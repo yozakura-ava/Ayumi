@@ -144,16 +144,13 @@ research doc §1.4 of
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Iterable, Literal, Optional, Sequence
 
 from backtest.funding_model import (
-    FundingCostLine,
     FundingEvent,
-    FundingRateSnapshot,
     PositionSpec,
-    compute_funding_pnl,
     run_backtest_with_funding,
 )
 from backtest.types import Bar

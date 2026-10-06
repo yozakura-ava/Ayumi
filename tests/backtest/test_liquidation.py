@@ -66,8 +66,6 @@ from backtest.funding_model import (  # noqa: E402
     FundedBacktestMetrics,
     FundingEvent,
     PositionSpec,
-    compute_adaptive_schedule,
-    compute_funding_pnl,
     run_backtest_with_funding,
 )
 from backtest.liquidation import (  # noqa: E402
