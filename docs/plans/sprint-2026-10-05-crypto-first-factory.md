@@ -4,7 +4,7 @@
 **Parent audit:** `docs/audits/ayumi-audit-2026-10-05.md` (YELLOW)
 **Research base:** `~/.openclaw/workspace/docs/research/2026-10-05-crypto-first-strategy-testing-recommendations.md` + 4 lanes (ML, hardening, quant-method, UI/headless-QC) in session 21636b66
 
-## Status: IN FLIGHT — Wave 0 complete, 1a.1 + 1b.1 + 1b.2 merged (2026-10-05). Hard gate active.
+## Status: COMPLETE — Wave 0 + all of 1a (1a.1–1a.5) + all of 1b (1b.1–1b.4) merged (2026-10-06). Hard gate lifted.
 
 ## Goal
 
@@ -24,10 +24,10 @@ Make the strategy factory produce **trustworthy crypto-first verdicts**: a crypt
 | # | Card | SP | Source |
 |---|---|---|---|
 | 1a.1 ✅ merged eadbb741 | Funding model: adaptive intervals (8h/4h/1h), realized historical funding charged per interval | 2 | crypto R1 |
-| 1a.2 | Mark-price liquidation mechanics in engine | 2 | crypto R1 |
-| 1a.3 | Venue/tier-aware cost model, maker/taker branching; pin fees from live account | 1.5 | crypto R2 |
-| 1a.4 | Fail-loud data-integrity gate (gaps, delistings) — run fails, never silently repairs | 1 | crypto R5 |
-| 1a.5 | Point-in-time crypto universe with delisting records (BTC/ETH/SOL + breadth later) | 1.5 | crypto R4 |
+| 1a.2 ✅ merged afb0be36 | Mark-price liquidation mechanics in engine | 2 | crypto R1 |
+| 1a.3 ✅ merged d76ccfae | Venue/tier-aware cost model, maker/taker branching; pin fees from live account | 1.5 | crypto R2 |
+| 1a.4 ✅ merged de132dd5 | Fail-loud data-integrity gate (gaps, delistings) — run fails, never silently repairs | 1 | crypto R5 |
+| 1a.5 ✅ merged c93f415f | Point-in-time crypto universe with delisting records (BTC/ETH/SOL + breadth later) | 1.5 | crypto R4 |
 
 **Hard gate: no Tier A/B crypto verdict before 1a.1–1a.4 land.**
 
@@ -37,8 +37,8 @@ Make the strategy factory produce **trustworthy crypto-first verdicts**: a crypt
 |---|---|---|---|
 | 1b.1 ✅ merged cf8a7a64 | Real-trial PBO: persist per-trial return series, CSCV matrix [T, N_trials]; rename old metric cost_sensitivity | 1.5 | quant R1 |
 | 1b.2 ✅ merged 206da069 | CPCV runner (purge + existing embargo; N=6–8 start; cpu_guard) | 2 | quant R2 |
-| 1b.3 | Risk-adjusted tournament ranking (White RC or Benjamini-Hochberg; kill raw-return sort) | 1.5 | quant R3 |
-| 1b.4 | Provenance columns (git_commit, data_hash) in factory_verdicts; reuse srf compute_data_hash | 0.5 | UI lane #1 |
+| 1b.3 ✅ merged 4a8a64c2 | Risk-adjusted tournament ranking (White RC or Benjamini-Hochberg; kill raw-return sort) | 1.5 | quant R3 |
+| 1b.4 ✅ merged cf723589 | Provenance columns (git_commit, data_hash) in factory_verdicts; reuse srf compute_data_hash | 0.5 | UI lane #1 |
 
 ## Deferred by design (Sprint D candidates, not dropped)
 

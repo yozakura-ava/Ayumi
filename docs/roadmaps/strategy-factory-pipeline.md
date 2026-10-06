@@ -14,13 +14,18 @@
 ## Status (2026-10-05 23:45 — Wave 0 + Wave 2 merged)
 
 - **Sprint A — Factory Phase 1 wiring: DONE & MERGED** (SFA-1/2/3, 2026-10-04/05).
-- **Sprint C — Crypto-First Factory: IN FLIGHT, 3 of 11 cards merged.** Plan: `docs/plans/sprint-2026-10-05-crypto-first-factory.md`. Parent card `3ab0f857` (hard-linked children gated by design; live work flows through soft-linked twins).
+- **Sprint C — Crypto-First Factory: COMPLETE (all 6 wave cards merged 2026-10-06).** Plan: `docs/plans/sprint-2026-10-05-crypto-first-factory.md`. Parent card `3ab0f857` (hard-linked children gated by design; live work flows through soft-linked twins).
   - ✅ **0.1 Tournament root fix** — merged `6499e0f2`: 17/17 strategies run, 11/17 score (6 zero-signal → debt card `7c8ffd17`)
   - ✅ **1a.1 Adaptive funding model** — merged `eadbb741`: 8h/1h Binance cadence, perp P&L, FX path untouched
   - ✅ **1b.1 Real-trial PBO** — merged `cf8a7a64`: [T,N_trials] CSCV matrix, cost_sensitivity renamed, schema v2
   - ✅ **1b.2 CPCV runner** — merged `206da069`: purge+embargo, φ=C(N,k) paths, DSR deflation, TrialReturnStore bridge
-  - 🔲 Next: 1a.2 mark-price liquidation, 1a.3 venue costs, 1a.4 fail-loud integrity, 1a.5 point-in-time universe, 1b.3 risk-adjusted ranking, 1b.4 provenance columns
-  - **Hard gate stands: no Tier A/B crypto verdict before 1a.1–1a.4 land.**
+  - ✅ **1a.2 Mark-price liquidation** — merged `afb0be36`: tiered MM brackets, partial/full closed-form solver, liq fees, mark-not-last (Rin APPROVE, 180/180)
+  - ✅ **1a.3 Venue/tier cost model** — merged `d76ccfae`: maker/taker branching, Binance VIP tiers, fail-loud config, 3-way crypto overlay (Rin APPROVE, 303/303)
+  - ✅ **1a.4 Fail-loud integrity gate** — merged `de132dd5`: gaps/delistings/anomalies, no-repair contract, opt-in on all overlays (Rin APPROVE, 389/389)
+  - ✅ **1a.5 Point-in-time universe** — merged `c93f415f`: as-of resolution w/ delisting records, CRSP convention, integrity-gate wiring (Rin APPROVE, 494/494)
+  - ✅ **1b.3 Risk-adjusted ranking** — merged `4a8a64c2`: BH-FDR step-up on per-trial returns, raw-return sort killed (Rin APPROVE_WITH_NOTES, 220 passed)
+  - ✅ **1b.4 Provenance columns** — merged `cf723589`: git_commit + data_hash in factory_verdicts, srf hash reused (Rin APPROVE_WITH_NOTES, 41/41)
+  - **Hard gate LIFTED (2026-10-06): 1a.1–1a.4 landed — Tier A/B crypto verdicts unblocked.**
 - **Sprint B — R&D hopper: DESIGNED, deferred to Sprint D.** Design tracked in git (`rd-hopper-engine-design.md`). Card `ea42e6be` open.
 - **Sprint D candidates (deferred, not dropped):** ML meta-labeling + calibration, vol-target/DD-ladder overlays, CUSUM decay monitor, research dashboard UI, LightGBM challenger, Sprint B hopper build-out. RL declined this cycle.
 - **Debt cards open:** `7c8ffd17` (zero-signal strategies → 17/17), `706eab50` (AC2 base-pin re-pin + tick_stall refresh).
