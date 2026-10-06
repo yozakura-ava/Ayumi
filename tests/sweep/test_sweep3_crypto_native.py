@@ -21,7 +21,6 @@ from __future__ import annotations
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -31,14 +30,12 @@ sys.path.insert(0, str(WORKTREE / "src"))
 sys.path.insert(0, str(WORKTREE / "src" / "forex_bot"))
 
 from forex_bot.backtest.types import Bar  # noqa: E402
-
 from scripts.sweep_crypto_native_real_data import (  # noqa: E402, E501
     CRYPTO_NATIVE_STRATEGY_IDS,
     _CryptoNativeTemplate,
     enumerate_candidates_for_strategy,
     render_markdown_summary,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -146,7 +143,7 @@ def test_enumerate_candidates_candidate_id_is_unique(
     cands = enumerate_candidates_for_strategy(
         "crypto_ema_cross_trend", "BTCUSDT", small_bar_series
     )
-    ids = {c.candidate_id for c in cands}
+    ids = {c.candidate_id for c in cands}  # type: ignore[attr-defined]
     assert len(ids) == len(cands)
 
 
@@ -158,7 +155,7 @@ def test_enumerate_candidate_id_carries_pair_and_strategy(
         "crypto_donchian_breakout", "ETHUSDT", small_bar_series
     )
     assert len(cands) > 0
-    sample = cands[0].candidate_id
+    sample = cands[0].candidate_id  # type: ignore[attr-defined]
     assert sample.startswith("ETHUSDT|crypto_native::crypto_donchian_breakout|")
 
 

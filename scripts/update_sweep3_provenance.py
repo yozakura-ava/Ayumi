@@ -78,7 +78,8 @@ def update_duckdb_rows(new_sha: str) -> int:
             "SELECT git_commit, COUNT(*) FROM factory_verdicts GROUP BY git_commit"
         ).fetchall()
         print(f"  after  update: {new}")
-        n_rows = conn.execute("SELECT COUNT(*) FROM factory_verdicts").fetchone()[0]
+        n_rows_result = conn.execute("SELECT COUNT(*) FROM factory_verdicts").fetchone()
+        n_rows = n_rows_result[0] if n_rows_result is not None else 0  # type: ignore[index]
     return int(n_rows)
 
 

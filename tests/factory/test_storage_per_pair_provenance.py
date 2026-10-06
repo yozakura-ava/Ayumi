@@ -20,11 +20,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import pytest
-
 from forex_bot.factory.storage import FactoryVerdictStore
 from forex_bot.factory.validation_runner import ValidationVerdict
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

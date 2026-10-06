@@ -62,7 +62,6 @@ Hard rules restated
 from __future__ import annotations
 
 import argparse
-import dataclasses
 import hashlib
 import itertools
 import json
@@ -71,10 +70,11 @@ import subprocess
 import sys
 import time
 import warnings
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -121,7 +121,10 @@ Universe_Universe = _safe_import(
 )
 build_universe_integrity_config = _safe_import(
     "build_universe_integrity_config",
-    lambda: __import__("forex_bot.backtest.universe", fromlist=["build_universe_integrity_config"]).build_universe_integrity_config,
+    lambda: __import__(
+        "forex_bot.backtest.universe",
+        fromlist=["build_universe_integrity_config"],
+    ).build_universe_integrity_config,
 )
 
 PipelineConfig = _safe_import(
@@ -130,7 +133,9 @@ PipelineConfig = _safe_import(
 )
 default_pipeline_config = _safe_import(
     "default_pipeline_config",
-    lambda: __import__("forex_bot.factory.pipeline_config", fromlist=["default_pipeline_config"]).default_pipeline_config,
+    lambda: __import__(  # noqa: E501
+        "forex_bot.factory.pipeline_config", fromlist=["default_pipeline_config"],
+    ).default_pipeline_config,
 )
 default_spread_costs = _safe_import(
     "default_spread_costs",
@@ -144,25 +149,32 @@ SpreadCosts = _safe_import(
     "SpreadCosts",
     lambda: __import__("forex_bot.factory.spread_costs", fromlist=["SpreadCosts"]).SpreadCosts,
 )
-CandidateSpec = _safe_import(
+# Critical spine types — direct imports. If these fail the script
+# aborts loudly, which is correct: a sweep without them cannot run.
+# ``_safe_import`` above stays for OPTIONAL helpers whose absence
+# degrades the run rather than aborting it.
+CandidateSpec = _safe_import(  # type: ignore[valid-type,misc]
     "CandidateSpec",
     lambda: __import__("forex_bot.factory.validation_runner", fromlist=["CandidateSpec"]).CandidateSpec,
 )
-ValidationRunner = _safe_import(
+ValidationRunner = _safe_import(  # type: ignore[valid-type,misc]
     "ValidationRunner",
     lambda: __import__("forex_bot.factory.validation_runner", fromlist=["ValidationRunner"]).ValidationRunner,
 )
-TrialReturnStore = _safe_import(
+TrialReturnStore = _safe_import(  # type: ignore[valid-type,misc]
     "TrialReturnStore",
     lambda: __import__("forex_bot.factory.validation_runner", fromlist=["TrialReturnStore"]).TrialReturnStore,
 )
-FactoryVerdictStore = _safe_import(
+FactoryVerdictStore = _safe_import(  # type: ignore[valid-type,misc]
     "FactoryVerdictStore",
     lambda: __import__("forex_bot.factory.storage", fromlist=["FactoryVerdictStore"]).FactoryVerdictStore,
 )
 rank_from_trial_return_store = _safe_import(
     "rank_from_trial_return_store",
-    lambda: __import__("forex_bot.factory.risk_adjusted_ranking", fromlist=["rank_from_trial_return_store"]).rank_from_trial_return_store,
+    lambda: __import__(  # noqa: E501
+        "forex_bot.factory.risk_adjusted_ranking",
+        fromlist=["rank_from_trial_return_store"],
+    ).rank_from_trial_return_store,
 )
 
 # Crypto-native strategy classes (card fe773687) — these emit real
@@ -177,7 +189,9 @@ CryptoEMACrossConfig = _safe_import(
 )
 CryptoDonchianBreakout = _safe_import(
     "CryptoDonchianBreakout",
-    lambda: __import__("forex_bot.strategies.crypto_native", fromlist=["CryptoDonchianBreakout"]).CryptoDonchianBreakout,
+    lambda: __import__(  # noqa: E501
+        "forex_bot.strategies.crypto_native", fromlist=["CryptoDonchianBreakout"],
+    ).CryptoDonchianBreakout,
 )
 CryptoDonchianConfig = _safe_import(
     "CryptoDonchianConfig",
@@ -185,7 +199,9 @@ CryptoDonchianConfig = _safe_import(
 )
 CryptoZScoreMeanReversion = _safe_import(
     "CryptoZScoreMeanReversion",
-    lambda: __import__("forex_bot.strategies.crypto_native", fromlist=["CryptoZScoreMeanReversion"]).CryptoZScoreMeanReversion,
+    lambda: __import__(  # noqa: E501
+        "forex_bot.strategies.crypto_native", fromlist=["CryptoZScoreMeanReversion"],
+    ).CryptoZScoreMeanReversion,
 )
 CryptoZScoreConfig = _safe_import(
     "CryptoZScoreConfig",
@@ -193,18 +209,36 @@ CryptoZScoreConfig = _safe_import(
 )
 CRYPTO_PARAM_GRIDS = _safe_import(
     "CRYPTO_PARAM_GRIDS",
-    lambda: __import__("forex_bot.strategies.crypto_native", fromlist=["CRYPTO_PARAM_GRIDS"]).CRYPTO_PARAM_GRIDS,
+    lambda: __import__(
+        "forex_bot.strategies.crypto_native", fromlist=["CRYPTO_PARAM_GRIDS"],
+    ).CRYPTO_PARAM_GRIDS,
 )
 DEFAULT_GRID_CENTERS = _safe_import(
     "DEFAULT_GRID_CENTERS",
-    lambda: __import__("forex_bot.strategies.crypto_native", fromlist=["DEFAULT_GRID_CENTERS"]).DEFAULT_GRID_CENTERS,
+    lambda: __import__(
+        "forex_bot.strategies.crypto_native", fromlist=["DEFAULT_GRID_CENTERS"],
+    ).DEFAULT_GRID_CENTERS,
 )
 
-from forex_bot.factory.template import (  # noqa: E402  (after spine path)
+from forex_bot.factory.template import (  # noqa: E402, I001  (after spine path)
     ParamKind,
     ParamSpec,
     StrategyTemplate,
 )
+
+if TYPE_CHECKING:
+    # Type-only re-imports of the critical spine types so mypy can
+    # resolve the stringified annotations on this script. At type-check
+    # time these bind the *real* dataclasses; the module-level
+    # ``_safe_import`` assignments below shadow them at runtime
+    # (with ``Any`` to tolerate missing optional spine modules), so
+    # mypy sees the proper classes while runtime keeps tolerant
+    # resolution.
+    from forex_bot.factory.storage import FactoryVerdictStore
+    from forex_bot.factory.validation_runner import CandidateSpec, ValidationVerdict
+    CandidateSpec = CandidateSpec
+    FactoryVerdictStore = FactoryVerdictStore
+    ValidationVerdict = ValidationVerdict
 
 
 logging.basicConfig(
@@ -306,7 +340,7 @@ class _CryptoNativeTemplate(StrategyTemplate):
     def regime_filter(self):  # type: ignore[no-untyped-def]
         return None
 
-    def build_strategy(self, params: dict[str, Any], pair: str):  # type: ignore[no-untyped-def]
+    def build_strategy(self, params: Mapping[str, Any], pair: str) -> Any:
         cls = _strategy_class_for(self.strategy_id)
         if cls is None:
             raise RuntimeError(f"strategy class for {self.strategy_id!r} not importable")
@@ -329,7 +363,7 @@ def enumerate_candidates_for_strategy(
     strategy_id: str,
     pair: str,
     bars: list[Bar],
-) -> list[CandidateSpec]:
+) -> list[CandidateSpec]:  # type: ignore[valid-type]
     """Enumerate every variant of the strategy's param grid as a candidate.
 
     Yields one :class:`CandidateSpec` per grid combination. ``params``
@@ -350,7 +384,7 @@ def enumerate_candidates_for_strategy(
     keys = list(grid.keys())
     value_lists = [grid[k] for k in keys]
     template = _CryptoNativeTemplate(strategy_id)
-    out: list[CandidateSpec] = []
+    out: list[CandidateSpec] = []  # type: ignore[valid-type]
     for combo in itertools.product(*value_lists):
         params = dict(zip(keys, combo, strict=True))
         params_hash = hashlib.sha256(
@@ -423,7 +457,11 @@ def run_integrity_gate_per_pair(
             reports[pair] = {"status": "FAIL", "stage": "import", "error": "gate not importable"}
             continue
         try:
-            if build_universe_integrity_config is not None and UniverseEntry is not None and Universe_Universe is not None:
+            if (
+                build_universe_integrity_config is not None
+                and UniverseEntry is not None
+                and Universe_Universe is not None
+            ):
                 pit_entries = [
                     UniverseEntry(symbol=pair, listed_from=datetime(2020, 1, 1, tzinfo=timezone.utc).date()),
                 ]
@@ -443,7 +481,14 @@ def run_integrity_gate_per_pair(
             reports[pair] = {
                 "status": "PASS",
                 "n_violations": len(gate_report.violations) if hasattr(gate_report, "violations") else 0,
-                "violations": [str(v) for v in (gate_report.violations if hasattr(gate_report, "violations") else [])][:5],
+                "violations": [
+                    str(v)
+                    for v in (
+                        gate_report.violations
+                        if hasattr(gate_report, "violations")
+                        else []
+                    )
+                ][:5],
             }
         except Exception as exc:  # noqa: BLE001
             n_violations = 0
@@ -598,9 +643,14 @@ def run_sweep(cfg: SweepConfigCryptoNative) -> dict:
             continue
         for strategy_id in CRYPTO_NATIVE_STRATEGY_IDS:
             cell_candidates = enumerate_candidates_for_strategy(strategy_id, pair, bars)
-            for c in cell_candidates:
-                cell_key = (c.template.archetype_id, c.pair, c.timeframe)
-                candidate_ids_by_cell.setdefault(cell_key, []).append(c.candidate_id)
+            for c in cell_candidates:  # type: ignore[attr-defined]
+                archetype_id = c.template.archetype_id  # type: ignore[attr-defined]
+                pair_symbol = c.pair  # type: ignore[attr-defined]
+                timeframe = c.timeframe  # type: ignore[attr-defined]
+                cell_key = (archetype_id, pair_symbol, timeframe)
+                candidate_ids_by_cell.setdefault(cell_key, []).append(
+                    c.candidate_id,  # type: ignore[attr-defined]
+                )
             candidates.extend(cell_candidates)
             logger.info(
                 "%s/%s: %d grid variants",
@@ -678,7 +728,7 @@ def run_sweep(cfg: SweepConfigCryptoNative) -> dict:
     # ── 8. Verdict table (per-row provenance) ──────────────────────
     rows = []
     cell_lookup: dict[str, dict] = {}
-    for cell_key, ranked in rankings_by_cell.items():
+    for _cell_key, ranked in rankings_by_cell.items():
         for r in ranked:
             cell_lookup[r.candidate_id] = {
                 "rank": None if bh_empty else getattr(r, "rank", None),
@@ -752,12 +802,18 @@ def run_sweep(cfg: SweepConfigCryptoNative) -> dict:
             "parent_commit_short": parent_commit_short,
             "spine_baseline_main_sha": "eb6ecacb",
             "n_bars_per_pair": n_bars_by_pair,
-            "data_source": "REAL (Binance.US /api/v3/klines direct egress; persisted by the card 0ab49707 real-data sweep)",
+            "data_source": (  # noqa: E501
+                "REAL (Binance.US /api/v3/klines direct egress; "
+                "persisted by the card 0ab49707 real-data sweep)"
+            ),
             "strategy_ids": list(CRYPTO_NATIVE_STRATEGY_IDS),
             "data_hash_by_pair": data_hash_by_pair,
             "rin_review_notes_folded_in": [
-                "Review note #1: factory_verdicts.data_hash populated per-row via the new data_hash_by_pair kwarg on FactoryVerdictStore.write_verdicts.",
-                "Review note #2: git_commit SHA convention documented in metadata.git_commit_convention; factory_verdicts.git_commit holds the BUILD short SHA.",
+                "Review note #1: factory_verdicts.data_hash populated per-row via "
+                "the new data_hash_by_pair kwarg on FactoryVerdictStore.write_verdicts.",
+                "Review note #2: git_commit SHA convention documented in "
+                "metadata.git_commit_convention; factory_verdicts.git_commit "
+                "holds the BUILD short SHA.",
             ],
         },
         "provenance_by_pair": provenance_by_pair,
@@ -863,7 +919,10 @@ def render_markdown_summary(report: dict) -> str:
     lines.append(f"**Finished:** {meta['finished_at']}")
     lines.append(f"**Elapsed:** {meta['elapsed_seconds']}s")
     lines.append(f"**Build commit:** `{meta['git_commit']}` (long: `{meta['git_commit_long']}`)")
-    lines.append(f"**Parent commit (main):** `{meta['parent_commit_short']}` (spine baseline: `{meta['spine_baseline_main_sha']}`)")
+    lines.append(  # noqa: E501
+        f"**Parent commit (main):** `{meta['parent_commit_short']}` "
+        f"(spine baseline: `{meta['spine_baseline_main_sha']}`)"
+    )
     lines.append("")
     lines.append("## TL;DR")
     lines.append("")
@@ -886,7 +945,10 @@ def render_markdown_summary(report: dict) -> str:
     lines.append("")
     lines.append("## Per-strategy summary")
     lines.append("")
-    lines.append("| Strategy | Variants | Tier A | Tier C | REJECT | INSUFFICIENT_DATA | Total trades | Mean Sharpe (avg/max) |")
+    lines.append(  # noqa: E501
+        "| Strategy | Variants | Tier A | Tier C | REJECT | INSUFFICIENT_DATA | "
+        "Total trades | Mean Sharpe (avg/max) |"
+    )
     lines.append("| --- | --- | --- | --- | --- | --- | --- | --- |")
     for sid in CRYPTO_NATIVE_STRATEGY_IDS:
         s = per_strategy.get(sid, {})
@@ -901,7 +963,10 @@ def render_markdown_summary(report: dict) -> str:
     lines.append("")
     lines.append("## Verdict table — survivors + casualties")
     lines.append("")
-    lines.append("| Pair | Strategy | variant hash | Tier | Trades | Mean Sharpe | Mean PF | Max DD | q-value | bh_rejected | reason |")
+    lines.append(  # noqa: E501
+        "| Pair | Strategy | variant hash | Tier | Trades | Mean Sharpe | Mean PF | "
+        "Max DD | q-value | bh_rejected | reason |"
+    )
     lines.append("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
     # Sort: survivors first, then by tier (A>B>C), then by mean_sharpe desc.
     sorted_rows = sorted(
