@@ -170,6 +170,33 @@ def default_registry() -> StrategyRegistry:
             timeframes=["M15", "H1"],
             typical_confidence_range=(0.40, 0.85),
         ),
+        # Crypto-native templates (card fe773687) — ATR/σ-relative
+        # thresholds, no pip units, no session filters; declared grids in
+        # forex_bot.strategies.crypto_native.CRYPTO_PARAM_GRIDS.
+        StrategyConfig(
+            strategy_id="crypto_ema_cross_trend",
+            name="Crypto EMA-Cross Trend",
+            strategy_type="trend",
+            symbols=["BTCUSDT", "ETHUSDT", "SOLUSDT"],
+            timeframes=["H1"],
+            typical_confidence_range=(0.50, 0.65),
+        ),
+        StrategyConfig(
+            strategy_id="crypto_donchian_breakout",
+            name="Crypto Donchian Breakout",
+            strategy_type="breakout",
+            symbols=["BTCUSDT", "ETHUSDT", "SOLUSDT"],
+            timeframes=["H1"],
+            typical_confidence_range=(0.50, 0.65),
+        ),
+        StrategyConfig(
+            strategy_id="crypto_zscore_mean_reversion",
+            name="Crypto Z-Score Mean Reversion",
+            strategy_type="mean_reversion",
+            symbols=["BTCUSDT", "ETHUSDT", "SOLUSDT"],
+            timeframes=["H1"],
+            typical_confidence_range=(0.45, 0.60),
+        ),
     ]
 
     for s in strategies:
