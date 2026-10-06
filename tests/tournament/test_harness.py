@@ -46,7 +46,6 @@ from tournament.scorecard import (
     ScorecardRow,
     _daily_dd_breach_counts,
     build_scorecard_row,
-    rank_scorecard_rows,
     render_console_table,
     render_scorecard_json,
 )
@@ -503,33 +502,75 @@ def test_empty_window_cli_returns_nonzero(tmp_path: Path, monkeypatch: pytest.Mo
 
 
 def test_ranking_is_deterministic() -> None:
-    """Tied returns sort by trade_count DESC, then strategy_id ASC (edge case 6)."""
+    """Sprint C 1b.3 (card cc90a6b6): raw-return sort is removed.
+
+    The standalone :class:`TournamentHarness` no longer ranks its
+    scorecard (it doesn't have per-trial series to feed
+    :func:`forex_bot.factory.risk_adjusted_ranking.rank_candidates_by_trial_returns`).
+    Rows come back with ``rank=0`` (default) and the factory front door
+    is responsible for ranking via
+    :func:`forex_bot.factory.risk_adjusted_ranking.rank_from_trial_return_store`.
+    Tied returns no longer share a synthetic rank — they are simply
+    unranked and the downstream ranker applies the FDR-aware order.
+    """
     rows = [
         ScorecardRow("charlie", "USDJPY", "H1", 5.0, 1.0, 0, 0, 10, "src"),
-        ScorecardRow("alpha", "USDJPY", "H1", 5.0, 1.0, 0, 0, 20, "src"),  # more trades, top
-        # lex-first id wins among the tied-trade-count peers
+        ScorecardRow("alpha", "USDJPY", "H1", 5.0, 1.0, 0, 0, 20, "src"),
         ScorecardRow("bravo", "USDJPY", "H1", 5.0, 1.0, 0, 0, 10, "src"),
     ]
-    sc = rank_scorecard_rows(rows)
-    assert [r.strategy_id for r in sc.rows] == ["alpha", "bravo", "charlie"]
-    assert [r.rank for r in sc.rows] == [1, 2, 3]
+    sc = build_scorecard_row_unranked_harness_wrapper(rows)
+    assert all(r.rank == 0 for r in sc.rows), (
+        "Sprint C 1b.3: harness no longer assigns synthetic ranks; factory lanes rank via TrialReturnStore"
+    )
 
 
 def test_ranking_descends_by_return() -> None:
-    """Primary sort is ``return_pct`` DESC."""
+    """Sprint C 1b.3: the raw-return sort path raises loud (loud-failure shim).
+
+    Callers that invoke :func:`tournament.scorecard.rank_scorecard_rows`
+    must migrate to
+    :func:`forex_bot.factory.risk_adjusted_ranking.rank_candidates_by_trial_returns`.
+    The harness no longer reaches into this function; downstream
+    consumers that try to use the removed raw-return path must surface
+    a clear migration error.
+    """
     rows = [
         ScorecardRow("low", "USDJPY", "H1", 1.0, 1.0, 0, 0, 1, "src"),
-        ScorecardRow("high", "USDJPY", "H1", 10.0, 1.0, 0, 0, 1, "src"),
-        ScorecardRow("mid", "USDJPY", "H1", 5.0, 1.0, 0, 0, 1, "src"),
+        ScorecardRow("high", "USDJPY", "H1", 10.0, 1.0, 0, 0, 0, "src"),
+        ScorecardRow("mid", "USDJPY", "H1", 5.0, 1.0, 0, 0, 0, "src"),
     ]
-    sc = rank_scorecard_rows(rows)
-    assert [r.strategy_id for r in sc.rows] == ["high", "mid", "low"]
+    # The raw-return sort is now a loud-failure shim.
+    from forex_bot.factory.risk_adjusted_ranking import RawReturnSortRemoved
+    from tournament.scorecard import rank_scorecard_rows
+
+    with pytest.raises(RawReturnSortRemoved):
+        rank_scorecard_rows(rows)
 
 
 def test_ranking_empty_input() -> None:
-    """Edge case 1: 1 row → still ranks correctly (no IndexError on empty list)."""
-    sc = rank_scorecard_rows([])
-    assert len(sc.rows) == 0
+    """Sprint C 1b.3: the raw-return sort raises on empty input too (no early-return).
+
+    Empty input does NOT bypass the loud-failure shim — the function
+    must raise regardless of the input so silent use is impossible.
+    """
+    from forex_bot.factory.risk_adjusted_ranking import RawReturnSortRemoved
+    from tournament.scorecard import rank_scorecard_rows
+
+    with pytest.raises(RawReturnSortRemoved):
+        rank_scorecard_rows([])
+
+
+def build_scorecard_row_unranked_harness_wrapper(rows):
+    """Thin test helper: build a Scorecard without calling the deprecated ranker.
+
+    Mirrors what :meth:`TournamentHarness._scorecard_with_rank_or_unranked`
+    does in production — return an unranked scorecard so the ranker can
+    be applied by a downstream factory lane that actually has per-trial
+    series.
+    """
+    from tournament.scorecard import Scorecard
+
+    return Scorecard(rows=list(rows), meta={})
 
 
 # ── 7. Console rendering ─────────────────────────────────────────────────────

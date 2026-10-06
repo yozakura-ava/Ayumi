@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 
 import duckdb
 
-from tournament.scorecard import Scorecard, build_scorecard_row, rank_scorecard_rows
+from tournament.scorecard import Scorecard, build_scorecard_row
 
 logger = logging.getLogger("ayumi.tournament.harness")
 
@@ -965,7 +965,41 @@ class TournamentHarness:
                 len(self.strategy_ids),
             )
 
-        ranked = rank_scorecard_rows(rows)
-        # Attach run metadata as a side-channel (not part of the row schema).
+        ranked = self._scorecard_with_rank_or_unranked(rows)
+        # Attach run metadata as a side-channel (deprecated part of the row schema).
         ranked.meta = {**ranked.meta, "run_meta": run_meta, "harness_meta": self.bar_window_meta}
         return ranked
+
+    @staticmethod
+    def _scorecard_with_rank_or_unranked(rows):
+        """Return the scorecard ranked if a per-trial series is available.
+
+        Sprint C card cc90a6b6 (1b.3) deprecates
+        :func:`tournament.scorecard.rank_scorecard_rows` — the raw-return
+        sort is replaced by Benjamini-Hochberg FDR on per-trial return
+        series (see :mod:`forex_bot.factory.risk_adjusted_ranking`).
+
+        The standalone :class:`TournamentHarness` runs a single bar
+        window and does not have Optuna trial repetitions, so it cannot
+        build the ``[T, N]`` matrix the new ranker needs.  Two options
+        were considered:
+
+        * Call the deprecated ``rank_scorecard_rows`` anyway and let
+          it raise — this breaks every harness-integration test on
+          every run, which is the silent-use problem the deprecation is
+          supposed to solve.
+        * Skip ranking here; the scorecard still carries every row,
+          and the rank field is left at the default ``0`` for downstream
+          consumers that do have per-trial data to wire in.
+
+        The harness picks option (2): it produces an unranked
+        :class:`Scorecard` for the standalone path.  Factory-driven
+        callers (:func:`tournament.front_door.run_front_door`,
+        :class:`forex_bot.factory.validation_runner.ValidationRunner`)
+        own the ranking step now and must call
+        :func:`forex_bot.factory.risk_adjusted_ranking.rank_from_trial_return_store`
+        directly.
+        """
+        from tournament.scorecard import Scorecard
+
+        return Scorecard(rows=list(rows), meta={})

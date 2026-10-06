@@ -38,6 +38,19 @@ from forex_bot.factory.pipeline_config import (
     compute_dsr_n_trials,
     default_pipeline_config,
 )
+from forex_bot.factory.risk_adjusted_ranking import (
+    BHResult,
+    DEFAULT_FDR_ALPHA,
+    MIN_CELL_TRIALS,
+    MIN_TRIAL_BARS,
+    RankedCandidate,
+    RawReturnSortRemoved,
+    RiskAdjustedRankingError,
+    benjamini_hochberg,
+    one_sample_t_pvalue,
+    rank_candidates_by_trial_returns,
+    rank_from_trial_return_store,
+)
 from forex_bot.factory.registry import FactoryRegistry, default_factory_registry
 from forex_bot.factory.spread_costs import (
     COMMISSION_PER_LOT_USD,
@@ -109,4 +122,18 @@ __all__ = [
     "USDJPYD1TrendStrategy",
     # SFA-3: registry-backed pass-through template
     "RegistryBackedTemplate",
+    # Sprint C 1b.3 (card cc90a6b6): risk-adjusted ranking — BH-FDR
+    # primary, raw-return sort removed (loud-failure shim in
+    # ``tournament.scorecard.rank_scorecard_rows``).
+    "BHResult",
+    "DEFAULT_FDR_ALPHA",
+    "MIN_CELL_TRIALS",
+    "MIN_TRIAL_BARS",
+    "RankedCandidate",
+    "RawReturnSortRemoved",
+    "RiskAdjustedRankingError",
+    "benjamini_hochberg",
+    "one_sample_t_pvalue",
+    "rank_candidates_by_trial_returns",
+    "rank_from_trial_return_store",
 ]
