@@ -77,7 +77,7 @@ import logging
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Literal, Sequence
+from typing import Any, Literal, Sequence, cast
 
 import numpy as np
 
@@ -247,6 +247,24 @@ def build_lightgbm_device_flag(
         kwargs["timeout_s"] = float(timeout_s)
     gpu = probe_gpu(**kwargs) if kwargs else probe_gpu()
     return resolve_lightgbm_device_flag(gpu, default=default)
+
+
+def _coerce_device_flag(device_flag: str) -> Literal["cpu", "cuda"]:
+    """Validate a runtime-resolved device flag and cast to the Literal type.
+
+    ``LightGBMChallenger.__init__`` re-validates the flag in
+    ``__post_init__`` so a misuse raises :class:`LightGBMChallengerError`
+    with a clear message.  This helper exists so mypy strict mode is
+    satisfied at the construction site of the convenience functions
+    (``fit_lightgbm_challenger``, ``benchmark_lightgbm_vs_meta_labeler``)
+    where the flag arrives as a plain ``str`` from an external caller.
+    """
+    if device_flag not in VALID_DEVICE_FLAGS:
+        raise LightGBMChallengerError(
+            f"device_flag must be one of {VALID_DEVICE_FLAGS!r}; "
+            f"got {device_flag!r}"
+        )
+    return cast(Literal["cpu", "cuda"], device_flag)
 
 
 # ── Classifier wrapper ───────────────────────────────────────────────────
@@ -524,7 +542,7 @@ def fit_lightgbm_challenger(
     kwargs.pop("feature_names", None)
     kwargs.pop("device", None)
     clf = LightGBMChallenger(
-        device=device_flag,
+        device=_coerce_device_flag(device_flag),
         random_seed=random_seed,
         **kwargs,
     )
@@ -857,7 +875,7 @@ def benchmark_lightgbm_vs_meta_labeler(
 
         # Challenger: fit a fresh LightGBM with the canonical seed.
         challenger = LightGBMChallenger(
-            device=device_flag,
+            device=_coerce_device_flag(device_flag),
             random_seed=int(random_seed),
             feature_names=META_FEATURE_NAMES,
         )

@@ -78,7 +78,6 @@ from forex_bot.factory.lightgbm_challenger import (  # noqa: E402
 from forex_bot.factory.meta_labeling import (  # noqa: E402
     META_FEATURE_NAMES,
     MIN_META_TRADES,
-    CalibratedMetaClassifier,
     MetaLabeledTrade,
     MetaTradeContext,
     build_meta_features,
@@ -87,8 +86,6 @@ from forex_bot.factory.meta_labeling import (  # noqa: E402
 from forex_bot.factory.risk_adjusted_ranking import (  # noqa: E402
     DEFAULT_META_GATE_THRESHOLD,
     RankedCandidate,
-    rank_candidates_by_trial_returns,
-    rank_candidates_with_meta_gate,
 )
 from forex_bot.factory.validation_runner import TrialReturnStore  # noqa: E402
 
