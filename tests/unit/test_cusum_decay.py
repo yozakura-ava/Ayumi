@@ -20,11 +20,11 @@ never bare pytest on the repo root or ``tests/`` directory.
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from typing import Iterable
 
 import pytest
-
 from core.conviction import KillCriterion
 from monitoring.cusum_decay import (
     CusumAlert,
@@ -32,11 +32,9 @@ from monitoring.cusum_decay import (
     CusumConfigError,
     CusumDecayMonitor,
     CusumFeedMissingError,
-    CusumState,
     ForwardTestFeed,
     ResetPolicy,
 )
-
 
 # ── Helpers / stubs ────────────────────────────────────────────────────────
 
@@ -449,7 +447,7 @@ class TestAlertPayloadContract:
     def test_alert_is_frozen(self):
         """CusumAlert is immutable so audit records can't be tampered with."""
         alert = self._single_alert()
-        with pytest.raises(Exception):
+        with pytest.raises((AttributeError, dataclasses.FrozenInstanceError)):
             alert.strategy_id = "other"  # type: ignore[misc]
 
     def test_alert_appears_in_alerts_log(self):
@@ -532,7 +530,7 @@ class TestNoSilentRetrain:
     def test_config_is_frozen(self):
         """CusumConfig is a frozen dataclass — runtime mutation impossible."""
         cfg = _cfg()
-        with pytest.raises(Exception):
+        with pytest.raises((AttributeError, dataclasses.FrozenInstanceError)):
             cfg.baseline_mean = 999.0  # type: ignore[misc]
 
     def test_alerts_do_not_change_config(self):
@@ -821,5 +819,5 @@ class TestEndToEndScenarios:
         """CusumState snapshot is immutable."""
         mon = CusumDecayMonitor(_cfg())
         state = mon.current_state()
-        with pytest.raises(Exception):
+        with pytest.raises((AttributeError, dataclasses.FrozenInstanceError)):
             state.s_plus = 99.0  # type: ignore[misc]
