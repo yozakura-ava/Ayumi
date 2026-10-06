@@ -576,7 +576,7 @@ class TestRankWithLightGBMChallenger:
         # context values.
         train_trades: list[MetaLabeledTrade] = []
         rng = np.random.default_rng(91)
-        for i in range(60):
+        for _i in range(60):
             train_trades.append(
                 _labeled(
                     _context(
