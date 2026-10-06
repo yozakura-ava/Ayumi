@@ -1,0 +1,62 @@
+{
+  "BTCUSDT": {
+    "trimmed": true,
+    "n_bars": 17127,
+    "n_bars_pre_trim": 18000,
+    "gaps": [
+      {
+        "index_after_gap": 17127,
+        "delta_minutes": 600.0,
+        "gap_start_utc": "2026-08-31T03:00:00+00:00",
+        "gap_end_utc": "2026-08-31T13:00:00+00:00"
+      }
+    ],
+    "n_segments": 2,
+    "longest_segment_index": 0,
+    "longest_segment_start_idx": 0,
+    "longest_segment_end_idx": 17127,
+    "longest_segment_start_utc": "2024-09-16T13:00:00+00:00",
+    "longest_segment_end_utc": "2026-08-31T03:00:00+00:00",
+    "trim_reason": "Detected 1 cadence gap(s) > 90.0 min across 18000 bars (2 segments); kept the longest (segment 0, 17127 bars) per 2-year acquisition contract. Gaps are recorded verbatim in this dict for downstream audit; the integrity gate is NEVER loosened."
+  },
+  "ETHUSDT": {
+    "trimmed": true,
+    "n_bars": 17127,
+    "n_bars_pre_trim": 18000,
+    "gaps": [
+      {
+        "index_after_gap": 17127,
+        "delta_minutes": 600.0,
+        "gap_start_utc": "2026-08-31T03:00:00+00:00",
+        "gap_end_utc": "2026-08-31T13:00:00+00:00"
+      }
+    ],
+    "n_segments": 2,
+    "longest_segment_index": 0,
+    "longest_segment_start_idx": 0,
+    "longest_segment_end_idx": 17127,
+    "longest_segment_start_utc": "2024-09-16T13:00:00+00:00",
+    "longest_segment_end_utc": "2026-08-31T03:00:00+00:00",
+    "trim_reason": "Detected 1 cadence gap(s) > 90.0 min across 18000 bars (2 segments); kept the longest (segment 0, 17127 bars) per 2-year acquisition contract. Gaps are recorded verbatim in this dict for downstream audit; the integrity gate is NEVER loosened."
+  },
+  "SOLUSDT": {
+    "trimmed": true,
+    "n_bars": 17127,
+    "n_bars_pre_trim": 18000,
+    "gaps": [
+      {
+        "index_after_gap": 17127,
+        "delta_minutes": 600.0,
+        "gap_start_utc": "2026-08-31T03:00:00+00:00",
+        "gap_end_utc": "2026-08-31T13:00:00+00:00"
+      }
+    ],
+    "n_segments": 2,
+    "longest_segment_index": 0,
+    "longest_segment_start_idx": 0,
+    "longest_segment_end_idx": 17127,
+    "longest_segment_start_utc": "2024-09-16T13:00:00+00:00",
+    "longest_segment_end_utc": "2026-08-31T03:00:00+00:00",
+    "trim_reason": "Detected 1 cadence gap(s) > 90.0 min across 18000 bars (2 segments); kept the longest (segment 0, 17127 bars) per 2-year acquisition contract. Gaps are recorded verbatim in this dict for downstream audit; the integrity gate is NEVER loosened."
+  }
+}

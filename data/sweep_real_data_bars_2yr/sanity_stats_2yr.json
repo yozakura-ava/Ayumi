@@ -1,0 +1,49 @@
+{
+  "card_id": "3f9d1a4e-9c6e-4e63-9d3b-2d02ca8e15f8",
+  "started_iso": "2026-10-06T21:20:00.450050+00:00",
+  "finished_iso": "2026-10-06T21:20:09.022354+00:00",
+  "elapsed_sec": 8.57,
+  "git_commit": "eb6ecacb",
+  "per_symbol": {
+    "BTCUSDT": {
+      "n_bars_post_trim": 17127,
+      "earliest_utc": "2024-09-16T13:00:00+00:00",
+      "latest_utc": "2026-08-31T03:00:00+00:00",
+      "pages_fetched": 18,
+      "first_page_http_status": 200,
+      "data_hash_sha256": "6ad531760d2d216d108705c11f46e60153ceabe7ada647be26d25cf5616b9aed",
+      "trimmed": true,
+      "trim_first_gap_minutes": 600.0,
+      "trim_first_gap_at_utc": "2026-08-31T13:00:00+00:00",
+      "zero_volume_repaired": false,
+      "zero_volume_repaired_count": 0
+    },
+    "ETHUSDT": {
+      "n_bars_post_trim": 17127,
+      "earliest_utc": "2024-09-16T13:00:00+00:00",
+      "latest_utc": "2026-08-31T03:00:00+00:00",
+      "pages_fetched": 18,
+      "first_page_http_status": 200,
+      "data_hash_sha256": "c9390d868c48262a75f7ad7ebdc1c7f6db533fad5147259eddbb8267f1bac10b",
+      "trimmed": true,
+      "trim_first_gap_minutes": 600.0,
+      "trim_first_gap_at_utc": "2026-08-31T13:00:00+00:00",
+      "zero_volume_repaired": false,
+      "zero_volume_repaired_count": 0
+    },
+    "SOLUSDT": {
+      "n_bars_post_trim": 17127,
+      "earliest_utc": "2024-09-16T13:00:00+00:00",
+      "latest_utc": "2026-08-31T03:00:00+00:00",
+      "pages_fetched": 18,
+      "first_page_http_status": 200,
+      "data_hash_sha256": "1c2939c7cc9a65a79fa3d1f3483f61543fa4f98f4d05765bf4b717fc26a59c3a",
+      "trimmed": true,
+      "trim_first_gap_minutes": 600.0,
+      "trim_first_gap_at_utc": "2026-08-31T13:00:00+00:00",
+      "zero_volume_repaired": false,
+      "zero_volume_repaired_count": 0
+    }
+  },
+  "human_note": "# 2-year Binance.US H1 acquisition \u2014 sanity stats\n\n- card: `3f9d1a4e-9c6e-4e63-9d3b-2d02ca8e15f8`\n- started: 2026-10-06T21:20:00.450050+00:00\n- finished: 2026-10-06T21:20:09.022354+00:00\n- elapsed: 8.6s\n- git_commit: `eb6ecacb`\n\n## Per-symbol summary\n\n| Symbol | Bars (post-trim) | Earliest (UTC) | Latest (UTC) | Pages | Trimmed | First-gap \u0394 (min) |\n| --- | ---: | --- | --- | ---: | :--- | ---: |\n| BTCUSDT | 17,127 | 2024-09-16T13:00:00+00:00 | 2026-08-31T03:00:00+00:00 | 18 | yes | 600.0 |\n| ETHUSDT | 17,127 | 2024-09-16T13:00:00+00:00 | 2026-08-31T03:00:00+00:00 | 18 | yes | 600.0 |\n| SOLUSDT | 17,127 | 2024-09-16T13:00:00+00:00 | 2026-08-31T03:00:00+00:00 | 18 | yes | 600.0 |\n"
+}
