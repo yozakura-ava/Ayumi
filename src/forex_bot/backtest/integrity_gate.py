@@ -640,7 +640,13 @@ def detect_gaps(
         Detected gap violations, in detection order. Empty when
         no gap is detected or ``config.check_gaps`` is ``False``.
     """
-    if not isinstance(config, IntegrityConfig):
+    # see line-643 patch note above (defect #9 / card 0ab49707)
+    if not hasattr(config, "expected_cadence_minutes"):
+        raise TypeError(
+            f"config must be IntegrityConfig (got {type(config).__name__}); "
+            "missing expected_cadence_minutes"
+        )
+    if type(config).__name__ != "IntegrityConfig":
         raise TypeError(
             f"config must be IntegrityConfig (got {type(config).__name__})"
         )
@@ -743,7 +749,13 @@ def detect_delisting(
         detection order. Empty when no violation is detected or
         ``config.check_delistings`` is ``False``.
     """
-    if not isinstance(config, IntegrityConfig):
+    # see line-643 patch note above (defect #9 / card 0ab49707)
+    if not hasattr(config, "expected_cadence_minutes"):
+        raise TypeError(
+            f"config must be IntegrityConfig (got {type(config).__name__}); "
+            "missing expected_cadence_minutes"
+        )
+    if type(config).__name__ != "IntegrityConfig":
         raise TypeError(
             f"config must be IntegrityConfig (got {type(config).__name__})"
         )
@@ -854,7 +866,13 @@ def detect_anomalies(
     list[IntegrityViolation]
         Detected anomaly violations, in detection order.
     """
-    if not isinstance(config, IntegrityConfig):
+    # see line-643 patch note above (defect #9 / card 0ab49707)
+    if not hasattr(config, "expected_cadence_minutes"):
+        raise TypeError(
+            f"config must be IntegrityConfig (got {type(config).__name__}); "
+            "missing expected_cadence_minutes"
+        )
+    if type(config).__name__ != "IntegrityConfig":
         raise TypeError(
             f"config must be IntegrityConfig (got {type(config).__name__})"
         )
@@ -1106,7 +1124,13 @@ def validate_crypto_bars(
         Validation result. ``report.passed`` is ``True`` when
         no violation was detected.
     """
-    if not isinstance(config, IntegrityConfig):
+    # see line-643 patch note above (defect #9 / card 0ab49707)
+    if not hasattr(config, "expected_cadence_minutes"):
+        raise TypeError(
+            f"config must be IntegrityConfig (got {type(config).__name__}); "
+            "missing expected_cadence_minutes"
+        )
+    if type(config).__name__ != "IntegrityConfig":
         raise TypeError(
             f"config must be IntegrityConfig (got {type(config).__name__})"
         )
