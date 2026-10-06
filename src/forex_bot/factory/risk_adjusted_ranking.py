@@ -43,6 +43,13 @@ Public surface
   :class:`RankedCandidate` list sorted by adjusted significance.
 * :func:`rank_from_trial_return_store` — bridge helper that iterates
   every cell in a :class:`TrialReturnStore` and returns per-cell rankings.
+* :func:`rank_candidates_with_meta_gate` — consume per-trial returns
+  paired with calibrated meta-label confidences; drop trials below a
+  threshold before the BH-FDR step-up.  Sprint D 1 (card
+  ``64c6598f-895d-4866-b771-2f3aa894d09d``).
+* :func:`rank_from_trial_return_store_with_meta_gate` — same as
+  :func:`rank_from_trial_return_store`, but using per-trial meta
+  confidences stored alongside the trial-return matrix.
 * :exc:`RawReturnSortRemoved` — raised by the deprecated raw-return path.
 * :exc:`RiskAdjustedRankingError` — base error for this module.
 """
@@ -50,10 +57,18 @@ Public surface
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Sequence
 
 import numpy as np
+
+#: Default meta-confidence threshold below which a trial is dropped
+#: from the per-cell matrix before the BH-FDR procedure engages.
+#: A calibrated P(win) at or below this threshold is treated as "the
+#: primary model's signal is not trustworthy enough to act on" — see
+#: :func:`rank_candidates_with_meta_gate`.  Mirrors the Lopez de Prado
+#: (2018, *Advances in Financial ML*, Ch. 3) meta-label gate.
+DEFAULT_META_GATE_THRESHOLD: float = 0.5
 
 # ── Errors ────────────────────────────────────────────────────────────────
 
@@ -567,4 +582,332 @@ def rank_from_trial_return_store(
             cell_key=cell_key,
             alpha=alpha,
         )
+    return out
+
+
+# ── Meta-label gating (Sprint D 1, card 64c6598f) ────────────────────────
+
+
+def rank_candidates_with_meta_gate(
+    trial_returns_per_candidate: Sequence[tuple[str, np.ndarray]],
+    meta_confidence_per_candidate: Sequence[np.ndarray | None] | None,
+    *,
+    meta_threshold: float = DEFAULT_META_GATE_THRESHOLD,
+    cell_key: tuple[str, str, str] | None = None,
+    alpha: float = DEFAULT_FDR_ALPHA,
+) -> list[RankedCandidate]:
+    """Rank candidates after gating trials on a calibrated meta-confidence.
+
+    This is the Sprint D 1 (card 64c6598f) bridge between
+    :mod:`forex_bot.factory.meta_labeling` and Benjamini-Hochberg FDR.
+    Per Lopez de Prado (2018, *Advances in Financial ML*, Ch. 3), the
+    meta-classifier produces a calibrated probability that the
+    primary-model signal is correct.  Here we apply that probability
+    as a per-trial gate: any trial whose calibrated P(win) is at or
+    below ``meta_threshold`` is dropped from the per-strategy return
+    series BEFORE the t-statistic is computed.  The downstream
+    BH-FDR step-up then operates on the filtered set, which lets a
+    candidate whose meta-classifier is unconfident drop out (or get
+    marked ``bh_reject``) without poisoning the cell-level ranking.
+
+    Parameters
+    ----------
+    trial_returns_per_candidate
+        Sequence of ``(candidate_id, returns)`` pairs — same shape as
+        :func:`rank_candidates_by_trial_returns`.  Each ``returns`` is
+        a 1-D per-trial return series, e.g. one column of the
+        :class:`TrialReturnStore.matrix` output.
+    meta_confidence_per_candidate
+        Either ``None`` (the same identity behaviour as
+        :func:`rank_candidates_by_trial_returns`), or a sequence aligned
+        1-to-1 with ``trial_returns_per_candidate``.  Each element is
+        either ``None`` (no gate for that candidate — its trials
+        survive untouched) or a 1-D ``np.ndarray`` of calibrated
+        P(win) values in ``[0, 1]`` of the same length as the paired
+        ``returns`` array.  Mismatched lengths raise
+        :class:`RiskAdjustedRankingError`; non-finite values raise
+        the same.
+
+        Sprint D integration point: a caller that has fit
+        :class:`~forex_bot.factory.meta_labeling.CalibratedMetaClassifier`
+        on out-of-sample labelled trades can ``predict_proba`` against
+        the per-signal contexts recorded for each Optuna trial and feed
+        the result in here.
+    meta_threshold
+        Calibrated P(win) at or below which a trial is dropped.
+        ``0.5`` (default) is the standard "primary signal is at
+        least as likely correct as not" gate; tighten (e.g. ``0.6``)
+        to be more conservative, loosen (e.g. ``0.0``) for an
+        "always keep" pass.  Values outside ``[0, 1]`` raise
+        :class:`RiskAdjustedRankingError`.
+    cell_key
+        Cell tag recorded on each :class:`RankedCandidate` for
+        downstream auditing (same semantics as
+        :func:`rank_candidates_by_trial_returns`).
+    alpha
+        FDR level for BH.  See :data:`DEFAULT_FDR_ALPHA`.
+
+    Returns
+    -------
+    list[RankedCandidate]
+        Same shape and ordering as
+        :func:`rank_candidates_by_trial_returns`.  When a candidate's
+        filtered return series falls below :data:`MIN_TRIAL_BARS`,
+        its row carries ``bh_reject=True`` (the BH step-up cannot
+        evaluate it) and the ``notes`` field records both the
+        original and surviving trial counts so callers can audit how
+        aggressive the gate was.
+
+    Notes
+    -----
+    The function is **deterministic** modulo the
+    :func:`rank_candidates_by_trial_returns` sort (which is itself
+    deterministic).  Gates operate on a probability, NOT a random
+    coin flip — the same inputs produce the same filtered ranks.
+
+    The gate is applied per-trial rather than per-candidate: a
+    candidate whose trials span both high- and low-confidence
+    regimes will keep the high-confidence trials and lose the low.
+    This matches the Lopez de Prado scheme, where the meta-label is
+    a per-event classification rather than a strategy-level score.
+    """
+    if not 0.0 <= meta_threshold <= 1.0:
+        raise RiskAdjustedRankingError(
+            f"meta_threshold must be in [0, 1], got {meta_threshold!r}"
+        )
+
+    if meta_confidence_per_candidate is None:
+        # Identity pass-through — exactly the existing behaviour.
+        return rank_candidates_by_trial_returns(
+            trial_returns_per_candidate,
+            cell_key=cell_key,
+            alpha=alpha,
+        )
+
+    if len(meta_confidence_per_candidate) != len(trial_returns_per_candidate):
+        raise RiskAdjustedRankingError(
+            "meta_confidence_per_candidate must align 1-to-1 with "
+            f"trial_returns_per_candidate; got "
+            f"{len(meta_confidence_per_candidate)} confidences for "
+            f"{len(trial_returns_per_candidate)} candidates"
+        )
+
+    filtered: list[tuple[str, np.ndarray]] = []
+    kept_counts: list[int] = []
+    gated_cids: list[str] = []
+    for (cid, returns), meta in zip(
+        trial_returns_per_candidate, meta_confidence_per_candidate, strict=True
+    ):
+        if meta is None:
+            # Per-candidate "no gate" sentinel.  The trials survive
+            # untouched and the original trial count is recorded.
+            filtered.append((cid, np.asarray(returns, dtype=float)))
+            kept_counts.append(int(np.asarray(returns, dtype=float).size))
+            continue
+        gated_cids.append(str(cid))
+        arr_returns = np.asarray(returns, dtype=float)
+        arr_meta = np.asarray(meta, dtype=float)
+        if arr_returns.ndim != 1 or arr_meta.ndim != 1:
+            raise RiskAdjustedRankingError(
+                f"candidate {cid!r}: returns/meta must both be 1-D; "
+                f"got ndim={arr_returns.ndim}/{arr_meta.ndim}"
+            )
+        if arr_returns.shape != arr_meta.shape:
+            raise RiskAdjustedRankingError(
+                f"candidate {cid!r}: returns length "
+                f"{arr_returns.size} != meta length {arr_meta.size}"
+            )
+        if not np.all(np.isfinite(arr_meta)):
+            raise RiskAdjustedRankingError(
+                f"candidate {cid!r}: meta_confidence contains "
+                "non-finite values (NaN/inf); refuse to record"
+            )
+        keep_mask = arr_meta > meta_threshold
+        kept = arr_returns[keep_mask]
+        kept_counts.append(int(kept.size))
+        filtered.append((cid, kept))
+
+    # Build the per-candidate-id kept/original counts for the audit
+    # annotation.  Original counts come from the caller's input —
+    # kept counts come from the post-gate series above.
+    kept_by_id: dict[str, int] = {
+        cid: kept_counts[i] for i, (cid, _) in enumerate(filtered)
+    }
+    original_by_id: dict[str, int] = {
+        cid: int(np.asarray(returns, dtype=float).size)
+        for cid, returns in trial_returns_per_candidate
+    }
+
+    ranked = rank_candidates_by_trial_returns(
+        filtered,
+        cell_key=cell_key,
+        alpha=alpha,
+    )
+
+    # Attach a "kept N/M trials" annotation to each gated candidate so
+    # callers can audit how aggressive the gate was without re-deriving
+    # the mask.  Candidates whose ``meta_confidence_per_candidate``
+    # entry was ``None`` (per-candidate no-gate sentinel) pass through
+    # untouched — only candidates explicitly gated get the annotation.
+    # ``gated_cids`` records the candidates that were gated (so the
+    # caller can compare gated vs ungated siblings in the same call).
+    out: list[RankedCandidate] = []
+    for r in ranked:
+        if r.candidate_id not in gated_cids:
+            out.append(r)
+            continue
+        kept_count = kept_by_id[r.candidate_id]
+        original_count = original_by_id[r.candidate_id]
+        tag = (
+            f"meta_gate kept {kept_count}/{original_count} trials "
+            f"(threshold={meta_threshold:g})"
+        )
+        note = tag if not r.notes else f"{r.notes}; {tag}"
+        out.append(
+            replace(
+                r,
+                notes=note,
+            )
+        )
+    return out
+
+
+def rank_from_trial_return_store_with_meta_gate(
+    store: object,
+    *,
+    candidate_ids_per_cell: dict[tuple[str, str, str], Sequence[str]] | None = None,
+    meta_confidence_per_cell: dict[tuple[str, str, str], np.ndarray | None] | None = None,
+    meta_threshold: float = DEFAULT_META_GATE_THRESHOLD,
+    alpha: float = DEFAULT_FDR_ALPHA,
+) -> dict[tuple[str, str, str], list[RankedCandidate]]:
+    """Bridge helper: rank every cell in a :class:`TrialReturnStore` with a meta gate.
+
+    Parameters
+    ----------
+    store
+        A :class:`forex_bot.factory.validation_runner.TrialReturnStore`
+        (duck-typed; ``store.matrix(key)`` returns ``np.ndarray`` of
+        shape ``[T, N]``).
+    candidate_ids_per_cell
+        Same semantics as :func:`rank_from_trial_return_store`.
+    meta_confidence_per_cell
+        Optional mapping of cell key → ``np.ndarray`` of shape
+        ``[N_trials, N_signals_per_trial]``.  When supplied, column
+        ``j`` of ``meta_confidence_per_cell[key][:, j]`` is the
+        calibrated P(win) vector for column ``j`` of
+        ``store.matrix(key)`` (one value per signal that contributed
+        to that trial's return series).  When omitted the gate
+        reduces to :func:`rank_from_trial_return_store`.
+
+        Trials whose ALL signals are below the meta-threshold become
+        empty after gating and are passed through as such — the
+        underlying ranker marks them ``bh_reject=True``.
+
+        Trials whose SOME signals are above the threshold keep those
+        rows of the per-bar return matrix — i.e. the gate is applied
+        at the **signal level** (one P(win) per primary-model signal)
+        and the trial-level return series is reconstructed from the
+        kept signal rows.  This is the Lopez de Prado invariant: the
+        meta-label predicts "is THIS signal correct?" not "is this trial
+        correct?".
+    meta_threshold
+        Forwarded to :func:`rank_candidates_with_meta_gate`.
+    alpha
+        Forwarded to :func:`rank_candidates_with_meta_gate`.
+
+    Returns
+    -------
+    dict[(archetype, pair, timeframe), list[RankedCandidate]]
+        One entry per cell key currently in the store, ranked by
+        ascending q-value within each cell.  Every gated candidate
+        (one whose meta-confidence vector was supplied) carries a
+        ``meta_gate kept N/M trials (threshold=...)`` annotation so
+        callers can audit how aggressive the filter was.
+    """
+    out: dict[tuple[str, str, str], list[RankedCandidate]] = {}
+    for cell_key in store.keys():  # type: ignore[attr-defined]
+        matrix = store.matrix(cell_key)  # type: ignore[attr-defined]
+        if matrix is None or matrix.ndim != 2 or matrix.shape[1] == 0:
+            continue
+        if candidate_ids_per_cell is not None:
+            ids = list(candidate_ids_per_cell.get(cell_key, ()))
+        else:
+            ids = [f"trial_{i}" for i in range(matrix.shape[1])]
+        if len(ids) != matrix.shape[1]:
+            ids = [f"trial_{i}" for i in range(matrix.shape[1])]
+
+        cell_meta_raw = (
+            meta_confidence_per_cell.get(cell_key)
+            if meta_confidence_per_cell is not None
+            else None
+        )
+
+        # Build per-candidate (cid, returns) pairs and the kept/original
+        # audit-trail counts.  When no meta is supplied for the cell
+        # we delegate to the un-gated bridge; otherwise we apply the
+        # signal-level gate inline and call the ranker on the
+        # already-filtered series, then annotate the results with the
+        # ``meta_gate kept N/M`` audit trail.
+        pairs: list[tuple[str, np.ndarray]] = []
+        kept_by_id: dict[str, int] = {}
+        original_by_id: dict[str, int] = {}
+        if cell_meta_raw is None:
+            for i in range(matrix.shape[1]):
+                cid = ids[i]
+                trial_returns = matrix[:, i]
+                pairs.append((cid, trial_returns))
+                original_by_id[cid] = int(trial_returns.size)
+                kept_by_id[cid] = int(trial_returns.size)
+            ranked = rank_candidates_by_trial_returns(
+                pairs,
+                cell_key=cell_key,
+                alpha=alpha,
+            )
+            out[cell_key] = list(ranked)
+            continue
+
+        for i in range(matrix.shape[1]):
+            cid = ids[i]
+            trial_returns = matrix[:, i]
+            trial_meta = np.asarray(cell_meta_raw[:, i], dtype=float)
+            if trial_meta.shape != trial_returns.shape:
+                raise RiskAdjustedRankingError(
+                    f"cell {cell_key}: meta column {i} length "
+                    f"{trial_meta.size} != trial length "
+                    f"{trial_returns.size}"
+                )
+            if not np.all(np.isfinite(trial_meta)):
+                raise RiskAdjustedRankingError(
+                    f"cell {cell_key}: meta column {i} contains "
+                    "non-finite values; refuse to record"
+                )
+            keep_mask = trial_meta > meta_threshold
+            kept = trial_returns[keep_mask]
+            pairs.append((cid, kept))
+            original_by_id[cid] = int(trial_returns.size)
+            kept_by_id[cid] = int(kept.size)
+
+        ranked = rank_candidates_by_trial_returns(
+            pairs,
+            cell_key=cell_key,
+            alpha=alpha,
+        )
+
+        # Append ``meta_gate kept N/M trials`` annotation to every
+        # candidate in the gated cell so callers can audit the
+        # filter uniformly.  When the threshold keeps every trial
+        # (N == M), the annotation records ``M/M``; when the gate
+        # drops every trial, the annotation records ``0/M`` and the
+        # ranker has already marked the candidate ``bh_reject=True``.
+        annotated: list[RankedCandidate] = []
+        for r in ranked:
+            kept_count = kept_by_id.get(r.candidate_id, 0)
+            original_count = original_by_id.get(r.candidate_id, 0)
+            tag = (
+                f"meta_gate kept {kept_count}/{original_count} trials "
+                f"(threshold={meta_threshold:g})"
+            )
+            note = tag if not r.notes else f"{r.notes}; {tag}"
+            annotated.append(replace(r, notes=note))
+        out[cell_key] = annotated
     return out

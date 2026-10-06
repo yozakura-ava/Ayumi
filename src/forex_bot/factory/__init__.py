@@ -17,7 +17,10 @@ SFA-3 layers on:
 
 Re-exports from SFA-1/SFA-2 (template contract, bridge, pipeline
 config, spread costs, registry, validation runner, storage) remain
-available unchanged.
+available unchanged.  Sprint D 1 (card 64c6598f) layers on
+:mod:`.meta_labeling` (per-trade features + calibrated meta-classifier)
+plus the :func:`rank_candidates_with_meta_gate` extension to the
+risk-adjusted ranker.
 """
 
 from __future__ import annotations
@@ -50,6 +53,24 @@ from forex_bot.factory.risk_adjusted_ranking import (
     one_sample_t_pvalue,
     rank_candidates_by_trial_returns,
     rank_from_trial_return_store,
+    # Sprint D 1 (card 64c6598f): per-trial meta-label gating.
+    DEFAULT_META_GATE_THRESHOLD,
+    rank_candidates_with_meta_gate,
+    rank_from_trial_return_store_with_meta_gate,
+)
+from forex_bot.factory.meta_labeling import (
+    CalibratedMetaClassifier,
+    META_FEATURE_NAMES,
+    MIN_META_TRADES,
+    MetaLabeledTrade,
+    MetaLabelingError,
+    MetaLabelingShapeError,
+    MetaTradeContext,
+    build_meta_features,
+    consume_meta_confidence_per_trial,
+    evaluate_meta_label_calibration,
+    fit_meta_classifier,
+    predict_meta_probability,
 )
 from forex_bot.factory.registry import FactoryRegistry, default_factory_registry
 from forex_bot.factory.spread_costs import (
@@ -136,4 +157,22 @@ __all__ = [
     "one_sample_t_pvalue",
     "rank_candidates_by_trial_returns",
     "rank_from_trial_return_store",
+    # Sprint D 1 (card 64c6598f): per-trial meta-label gating.
+    "DEFAULT_META_GATE_THRESHOLD",
+    "rank_candidates_with_meta_gate",
+    "rank_from_trial_return_store_with_meta_gate",
+    # Sprint D 1 (card 64c6598f): per-trade features + calibrated
+    # meta-classifier.
+    "CalibratedMetaClassifier",
+    "META_FEATURE_NAMES",
+    "MIN_META_TRADES",
+    "MetaLabeledTrade",
+    "MetaLabelingError",
+    "MetaLabelingShapeError",
+    "MetaTradeContext",
+    "build_meta_features",
+    "consume_meta_confidence_per_trial",
+    "evaluate_meta_label_calibration",
+    "fit_meta_classifier",
+    "predict_meta_probability",
 ]
