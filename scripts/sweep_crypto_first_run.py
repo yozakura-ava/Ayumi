@@ -42,11 +42,10 @@ import hashlib
 import json
 import logging
 import math
-import os
 import random
 import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -91,7 +90,7 @@ try:
     from forex_bot.backtest.types import Bar  # noqa: E402
 except Exception as exc:  # noqa: BLE001
     SPINE_IMPORT_ERRORS["Bar"] = f"{type(exc).__name__}: {exc}"
-    Bar = None  # type: ignore[assignment]
+    Bar = None  # type: ignore[misc,assignment]
 
 IntegrityConfig = _safe_import(
     "IntegrityConfig",
@@ -127,7 +126,11 @@ DEFAULT_CRYPTO_UNIVERSE = _safe_import(
 )
 build_universe_integrity_config = _safe_import(
     "build_universe_integrity_config",
-    lambda: __import__("forex_bot.backtest.universe", fromlist=["build_universe_integrity_config"]).build_universe_integrity_config,
+    lambda: (
+        __import__(
+            "forex_bot.backtest.universe", fromlist=["build_universe_integrity_config"]
+        ).build_universe_integrity_config
+    ),
 )
 
 PipelineConfig = _safe_import(
@@ -136,7 +139,9 @@ PipelineConfig = _safe_import(
 )
 default_pipeline_config = _safe_import(
     "default_pipeline_config",
-    lambda: __import__("forex_bot.factory.pipeline_config", fromlist=["default_pipeline_config"]).default_pipeline_config,
+    lambda: (
+        __import__("forex_bot.factory.pipeline_config", fromlist=["default_pipeline_config"]).default_pipeline_config
+    ),
 )
 default_spread_costs = _safe_import(
     "default_spread_costs",
@@ -164,21 +169,27 @@ FactoryVerdictStore = _safe_import(
 )
 rank_candidates_by_trial_returns = _safe_import(
     "rank_candidates_by_trial_returns",
-    lambda: __import__(
-        "forex_bot.factory.risk_adjusted_ranking", fromlist=["rank_candidates_by_trial_returns"]
-    ).rank_candidates_by_trial_returns,
+    lambda: (
+        __import__(
+            "forex_bot.factory.risk_adjusted_ranking", fromlist=["rank_candidates_by_trial_returns"]
+        ).rank_candidates_by_trial_returns
+    ),
 )
 rank_candidates_with_meta_gate = _safe_import(
     "rank_candidates_with_meta_gate",
-    lambda: __import__(
-        "forex_bot.factory.risk_adjusted_ranking", fromlist=["rank_candidates_with_meta_gate"]
-    ).rank_candidates_with_meta_gate,
+    lambda: (
+        __import__(
+            "forex_bot.factory.risk_adjusted_ranking", fromlist=["rank_candidates_with_meta_gate"]
+        ).rank_candidates_with_meta_gate
+    ),
 )
 rank_from_trial_return_store = _safe_import(
     "rank_from_trial_return_store",
-    lambda: __import__(
-        "forex_bot.factory.risk_adjusted_ranking", fromlist=["rank_from_trial_return_store"]
-    ).rank_from_trial_return_store,
+    lambda: (
+        __import__(
+            "forex_bot.factory.risk_adjusted_ranking", fromlist=["rank_from_trial_return_store"]
+        ).rank_from_trial_return_store
+    ),
 )
 
 MetaTradeContext = _safe_import(
@@ -199,9 +210,9 @@ fit_meta_classifier = _safe_import(
 )
 predict_meta_probability = _safe_import(
     "predict_meta_probability",
-    lambda: __import__(
-        "forex_bot.factory.meta_labeling", fromlist=["predict_meta_probability"]
-    ).predict_meta_probability,
+    lambda: (
+        __import__("forex_bot.factory.meta_labeling", fromlist=["predict_meta_probability"]).predict_meta_probability
+    ),
 )
 
 CPCVConfig = _safe_import(
@@ -224,19 +235,33 @@ compute_dsr_cpcv = _safe_import(
 # Full crypto overlay wrappers
 run_backtest_with_funding = _safe_import(
     "run_backtest_with_funding",
-    lambda: __import__("forex_bot.backtest.funding_model", fromlist=["run_backtest_with_funding"]).run_backtest_with_funding,
+    lambda: (
+        __import__("forex_bot.backtest.funding_model", fromlist=["run_backtest_with_funding"]).run_backtest_with_funding
+    ),
 )
 run_backtest_with_liquidation = _safe_import(
     "run_backtest_with_liquidation",
-    lambda: __import__("forex_bot.backtest.liquidation", fromlist=["run_backtest_with_liquidation"]).run_backtest_with_liquidation,
+    lambda: (
+        __import__(
+            "forex_bot.backtest.liquidation", fromlist=["run_backtest_with_liquidation"]
+        ).run_backtest_with_liquidation
+    ),
 )
 run_backtest_with_full_crypto_overlay = _safe_import(
     "run_backtest_with_full_crypto_overlay",
-    lambda: __import__("forex_bot.backtest.venue_costs", fromlist=["run_backtest_with_full_crypto_overlay"]).run_backtest_with_full_crypto_overlay,
+    lambda: (
+        __import__(
+            "forex_bot.backtest.venue_costs", fromlist=["run_backtest_with_full_crypto_overlay"]
+        ).run_backtest_with_full_crypto_overlay
+    ),
 )
 run_backtest_with_vol_target = _safe_import(
     "run_backtest_with_vol_target",
-    lambda: __import__("forex_bot.backtest.vol_target", fromlist=["run_backtest_with_vol_target"]).run_backtest_with_vol_target,
+    lambda: (
+        __import__(
+            "forex_bot.backtest.vol_target", fromlist=["run_backtest_with_vol_target"]
+        ).run_backtest_with_vol_target
+    ),
 )
 # Spec dataclasses for the overlay wrappers.
 PositionSpec = _safe_import(
@@ -253,7 +278,9 @@ VenueFeeConfig = _safe_import(
 )
 DEFAULT_BINANCE_USDM_TIERS = _safe_import(
     "DEFAULT_BINANCE_USDM_TIERS",
-    lambda: __import__("forex_bot.backtest.venue_costs", fromlist=["DEFAULT_BINANCE_USDM_TIERS"]).DEFAULT_BINANCE_USDM_TIERS,
+    lambda: (
+        __import__("forex_bot.backtest.venue_costs", fromlist=["DEFAULT_BINANCE_USDM_TIERS"]).DEFAULT_BINANCE_USDM_TIERS
+    ),
 )
 VenueOrderFill = _safe_import(
     "VenueOrderFill",
@@ -275,25 +302,36 @@ compute_data_hash = _safe_import(
 # srf only re-exports compute_data_hash + SRFDatabase + generate_run_id;
 # git_commit is NOT in the public surface — we shell out via subprocess.
 import subprocess as _sp
+
+
 def _get_git_commit_local():
     try:
-        return _sp.check_output(
-            ["git", "rev-parse", "--short", "HEAD"],
-            cwd=str(WORKTREE),
-            stderr=_sp.DEVNULL,
-        ).decode().strip() or None
+        return (
+            _sp.check_output(  # noqa: S607
+                ["/usr/bin/git", "rev-parse", "--short", "HEAD"],
+                cwd=str(WORKTREE),
+                stderr=_sp.DEVNULL,
+            )
+            .decode()
+            .strip()
+            or None
+        )
     except (OSError, _sp.CalledProcessError):
         return None
-get_git_commit = _get_git_commit_local
+
+
+get_git_commit = _get_git_commit_local  # noqa: E305
 
 # LightGBM challenger (lazy import — module ships import-safe even
 # without lightgbm installed; we have it pinned in b634ed32 + installed
 # in this venv, so the import should succeed).
 benchmark_lightgbm_vs_meta_labeler = _safe_import(
     "benchmark_lightgbm_vs_meta_labeler",
-    lambda: __import__(
-        "forex_bot.factory.lightgbm_challenger", fromlist=["benchmark_lightgbm_vs_meta_labeler"]
-    ).benchmark_lightgbm_vs_meta_labeler,
+    lambda: (
+        __import__(
+            "forex_bot.factory.lightgbm_challenger", fromlist=["benchmark_lightgbm_vs_meta_labeler"]
+        ).benchmark_lightgbm_vs_meta_labeler
+    ),
 )
 
 logging.basicConfig(
@@ -312,17 +350,17 @@ logger = logging.getLogger("sweep_crypto_first_run")
 #: but DO NOT pretend to be sourced from a live exchange.
 PAIR_ANCHORS: dict[str, dict[str, float]] = {
     "BTCUSDT": {"anchor_close": 85_000.0, "daily_vol": 0.022, "hourly_vol": 0.022 / math.sqrt(24)},
-    "ETHUSDT": {"anchor_close":  2_700.0, "daily_vol": 0.030, "hourly_vol": 0.030 / math.sqrt(24)},
-    "SOLUSDT": {"anchor_close":    140.0, "daily_vol": 0.040, "hourly_vol": 0.040 / math.sqrt(24)},
+    "ETHUSDT": {"anchor_close": 2_700.0, "daily_vol": 0.030, "hourly_vol": 0.030 / math.sqrt(24)},
+    "SOLUSDT": {"anchor_close": 140.0, "daily_vol": 0.040, "hourly_vol": 0.040 / math.sqrt(24)},
 }
 
 #: Drift regimes (annualized) — small positive bias for crypto majors,
 #: but small enough that the random walk dominates any candidate
 #: signal we extract.
 PAIR_DRIFT_ANNUAL: dict[str, float] = {
-    "BTCUSDT":  0.10,
-    "ETHUSDT":  0.12,
-    "SOLUSDT":  0.15,
+    "BTCUSDT": 0.10,
+    "ETHUSDT": 0.12,
+    "SOLUSDT": 0.15,
 }
 
 HOURS_PER_YEAR = 24 * 365
@@ -364,7 +402,7 @@ def make_synthetic_bars(
     annual_drift = float(PAIR_DRIFT_ANNUAL[pair])
     hourly_drift = (annual_drift - 0.5 * hv * hv) / HOURS_PER_YEAR
 
-    rng = random.Random(seed + abs(hash(pair)) % 9973)
+    rng = random.Random(seed + abs(hash(pair)) % 9973)  # noqa: S311 (synthetic bars, not crypto)
     bars = []
     close = p0
     for i in range(n_bars):
@@ -415,7 +453,7 @@ def make_synthetic_bars(
 #: cell matrix has non-degenerate columns (per the
 #: ``ValidationRunner._trial_returns_for`` placeholder contract).
 PARAM_GRID: list[tuple[int, int]] = [
-    (8,  21),
+    (8, 21),
     (10, 30),
     (12, 26),
     (14, 30),
@@ -447,8 +485,8 @@ class CryptoStrategy:
         closes = [b.close for b in market_state.bars]
         if len(closes) < max(self.fast, self.slow) + 1:
             return None
-        fast = sum(closes[-self.fast:]) / self.fast
-        slow = sum(closes[-self.slow:]) / self.slow
+        fast = sum(closes[-self.fast :]) / self.fast
+        slow = sum(closes[-self.slow :]) / self.slow
         if fast <= slow:
             return None
         last = closes[-1]
@@ -530,7 +568,7 @@ def run_sweep(cfg: SweepConfig) -> dict:
     # orchestrator can decide whether to fix-forward or file a card.
     spine_health = dict(SPINE_IMPORT_ERRORS)
 
-    git_commit = get_git_commit() if get_git_commit else None
+    git_commit = get_git_commit() if callable(get_git_commit) else None
 
     # ── 1. integrity gate (per-pair) ─────────────────────────────────
     integrity_reports: dict[str, dict] = {}
@@ -566,15 +604,19 @@ def run_sweep(cfg: SweepConfig) -> dict:
         # Resolve the as-of universe as of the first bar's date.
         from forex_bot.backtest.universe import Universe  # local import; cheap
 
-        pit = Universe(pit_entries)  # Universe takes entries as positional list
+        pit = Universe(tuple(pit_entries))  # Universe takes a tuple[UniverseEntry, ...]
         as_of_date = bars[0].time.date() if hasattr(bars[0].time, "date") else bars[0].time
-        live_symbols = tuple(resolve_universe(pit, as_of_date))
-        ic = build_universe_integrity_config(
-            pit,
-            as_of=as_of_date,
-            expected_cadence_minutes=60,
-            expected_window_end=bars[-1].time,  # expected_window_end is datetime
-        ) if build_universe_integrity_config else IntegrityConfig(expected_cadence_minutes=60)
+        tuple(resolve_universe(pit, as_of_date))
+        ic = (
+            build_universe_integrity_config(
+                pit,
+                as_of=as_of_date,
+                expected_cadence_minutes=60,
+                expected_window_end=bars[-1].time,  # expected_window_end is datetime
+            )
+            if build_universe_integrity_config
+            else IntegrityConfig(expected_cadence_minutes=60)
+        )
 
         try:
             report = enforce_integrity_gate(symbol=pair, bars=bars, config=ic)
@@ -590,8 +632,8 @@ def run_sweep(cfg: SweepConfig) -> dict:
             try:
                 if hasattr(exc, "report") and exc.report is not None:
                     n_violations = len(exc.report.violations)
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as exc2:  # noqa: BLE001
+                logger.debug("integrity report extraction failed: %s", exc2)
             integrity_reports[pair] = {
                 "status": "FAIL",
                 "stage": "enforce_integrity_gate",
@@ -603,9 +645,7 @@ def run_sweep(cfg: SweepConfig) -> dict:
     pit_summary = {
         "n_entries": 3,
         "live_symbols": list(cfg.pairs),
-        "as_of": str(bars_by_pair[cfg.pairs[0]][0].time.date())
-        if cfg.pairs and cfg.pairs[0] in bars_by_pair
-        else None,
+        "as_of": str(bars_by_pair[cfg.pairs[0]][0].time.date()) if cfg.pairs and cfg.pairs[0] in bars_by_pair else None,
     }
 
     # ── 3+4. Full crypto overlay (funding + liquidation + venue + vol-target)
@@ -625,11 +665,15 @@ def run_sweep(cfg: SweepConfig) -> dict:
             # identical base metrics; the OVERLAYS are what differ).
             bt_config = _build_backtest_config(pair)
             position = PositionSpec(notional_usd=10_000.0, direction="long") if PositionSpec else None
-            liq_spec = LiquidationSpec(
-                entry_price=float(bars[-1].close),
-                leverage=3.0,
-                maintenance_margin_rate=0.005,
-            ) if LiquidationSpec else None
+            liq_spec = (
+                LiquidationSpec(
+                    entry_price=float(bars[-1].close),
+                    leverage=3.0,
+                    maintenance_margin_rate=0.005,
+                )
+                if LiquidationSpec
+                else None
+            )
             venue_config = (
                 VenueFeeConfig(
                     name="binance_usdm_default",
@@ -681,7 +725,12 @@ def run_sweep(cfg: SweepConfig) -> dict:
                 except Exception as exc:  # noqa: BLE001
                     overlay_row["liquidation_error"] = f"{type(exc).__name__}: {str(exc)[:120]}"
 
-            if run_backtest_with_full_crypto_overlay and venue_config is not None and liq_spec is not None and position is not None:
+            if (
+                run_backtest_with_full_crypto_overlay
+                and venue_config is not None
+                and liq_spec is not None
+                and position is not None
+            ):
                 try:
                     venue, funded, liquidated = run_backtest_with_full_crypto_overlay(
                         bars=bars,
@@ -696,7 +745,8 @@ def run_sweep(cfg: SweepConfig) -> dict:
                         strategy_name="crypto_momentum_v1",
                     )
                     overlay_row["venue"] = {
-                        "venue_ending_balance": getattr(venue, "ending_balance_after_fees", None) or getattr(venue, "ending_balance", None),
+                        "venue_ending_balance": getattr(venue, "ending_balance_after_fees", None)
+                        or getattr(venue, "ending_balance", None),
                         "venue_total_fee": getattr(venue, "total_fee_usd", None),
                         "funded_total": getattr(funded, "total_funding_cost", None),
                         "liq_total": getattr(liquidated, "n_liquidation_events", None),
@@ -714,7 +764,9 @@ def run_sweep(cfg: SweepConfig) -> dict:
                         strategy_name="crypto_momentum_v1",
                     )
                     overlay_row["vol_target"] = {
-                        "risk_scale_mean": float(np.mean(vt.risk_scale)) if hasattr(vt, "risk_scale") and vt.risk_scale is not None else None,
+                        "risk_scale_mean": float(np.mean(vt.risk_scale))
+                        if hasattr(vt, "risk_scale") and vt.risk_scale is not None
+                        else None,
                     }
                 except Exception as exc:  # noqa: BLE001
                     overlay_row["vol_target_error"] = f"{type(exc).__name__}: {str(exc)[:120]}"
@@ -734,7 +786,7 @@ def run_sweep(cfg: SweepConfig) -> dict:
     )
     store = TrialReturnStore() if TrialReturnStore else None
 
-    candidates: list[CandidateSpec] = []
+    candidates: list = []
     candidate_ids: list[str] = []
     for pair in cfg.pairs:
         if pair not in bars_by_pair:
@@ -771,7 +823,11 @@ def run_sweep(cfg: SweepConfig) -> dict:
             for pair in cfg.pairs:
                 if pair in bars_by_pair:
                     for bar in bars_by_pair[pair]:
-                        data_bytes += f"{pair}|{bar.time.isoformat()}|{bar.open}|{bar.high}|{bar.low}|{bar.close}|{bar.volume}\n".encode()
+                            data_bytes += (
+                                f"{pair}|{bar.time.isoformat()}|{bar.open}|"
+                                f"{bar.high}|{bar.low}|{bar.close}|"
+                                f"{bar.volume}\n"
+                            ).encode()
             data_hash = hashlib.sha256(data_bytes).hexdigest()
             n_persisted = store_obj.write_verdicts(
                 verdicts,
@@ -805,7 +861,9 @@ def run_sweep(cfg: SweepConfig) -> dict:
                         pbo_cpcv_by_cell[cell_key] = {"skipped": "insufficient_trials", "shape": None}
                         continue
                     try:
-                        paths = run_cpcv(mat, CPCVConfig(n_groups=6, k_test_groups=3, label_horizon_bars=1, embargo_bars=1))
+                        paths = run_cpcv(
+                            mat, CPCVConfig(n_groups=6, k_test_groups=3, label_horizon_bars=1, embargo_bars=1)
+                        )
                         pbo = compute_pbo_cpcv(paths)
                         pbo_cpcv_by_cell[cell_key] = {
                             "shape": list(mat.shape),
@@ -849,20 +907,22 @@ def run_sweep(cfg: SweepConfig) -> dict:
                 # Label = primary_confidence signal + noise.
                 score = ctx.primary_confidence * 1.5 + rng.normal(0, 0.4)
                 labels.append(1 if score > 0.7 else 0)
-            labeled = [
-                MetaLabeledTrade(context=c, outcome=lab) for c, lab in zip(contexts, labels, strict=True)
-            ]
+            labeled = [MetaLabeledTrade(context=c, outcome=lab) for c, lab in zip(contexts, labels, strict=True)]
             artifact = benchmark_lightgbm_vs_meta_labeler(labeled, n_folds=5, seed=cfg.seed)
-            benchmark_artifact = dataclasses.asdict(artifact) if hasattr(artifact, "__dataclass_fields__") else {
-                "summary": str(artifact),
-            }
+            benchmark_artifact = (
+                dataclasses.asdict(artifact)
+                if hasattr(artifact, "__dataclass_fields__")
+                else {
+                    "summary": str(artifact),
+                }
+            )
         except Exception as exc:  # noqa: BLE001
             benchmark_artifact = {"error": f"{type(exc).__name__}: {exc}"}
 
     # ── 9. Assemble the report payload ─────────────────────────────
     rows: list[dict] = []
     cell_lookup: dict[str, dict] = {}
-    for cell_key, ranked in rankings_by_cell.items():
+    for _cell_key, ranked in rankings_by_cell.items():
         for r in ranked:
             cell_lookup[r.candidate_id] = {
                 "rank": r.rank,
@@ -1082,7 +1142,7 @@ def _build_backtest_config(pair: str):
     )
 
 
-def _build_funding_events(bars: list) -> None:
+def _build_funding_events(bars: list) -> list:
     """Synthesize 8-h funding events (one per 8-bar stride) for the bars.
 
     The funding_model module accepts duck-typed objects exposing
@@ -1091,7 +1151,7 @@ def _build_funding_events(bars: list) -> None:
     """
     from types import SimpleNamespace
 
-    events = []
+    events: list = []
     n = len(bars)
     # 8-hour cadence on Binance USD-M perps.
     for i in range(0, n, 8):
