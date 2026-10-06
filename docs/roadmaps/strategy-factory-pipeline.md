@@ -27,7 +27,13 @@
   - ✅ **1b.4 Provenance columns** — merged `cf723589`: git_commit + data_hash in factory_verdicts, srf hash reused (Rin APPROVE_WITH_NOTES, 41/41)
   - **Hard gate LIFTED (2026-10-06): 1a.1–1a.4 landed — Tier A/B crypto verdicts unblocked.**
 - **Sprint B — R&D hopper: DESIGNED, deferred to Sprint D.** Design tracked in git (`rd-hopper-engine-design.md`). Card `ea42e6be` open.
-- **Sprint D candidates (deferred, not dropped):** ML meta-labeling + calibration, vol-target/DD-ladder overlays, CUSUM decay monitor, research dashboard UI, LightGBM challenger, Sprint B hopper build-out. RL declined this cycle.
+- **Sprint D — ML Intelligence + Compute: COMPLETE (all 5 cards merged 2026-10-06 AGENT-OWNED).** Plan: `docs/plans/sprint-2026-10-06-ayumi-sprint-d.md`.
+  - ✅ **D1 ML meta-labeling** — merged `9d678291`: signal-time features (anti-lookahead structural), calibrated P(win), meta-gated BH-FDR ranking (Rin APPROVE_WITH_NOTES, 272/272)
+  - ✅ **D2 Node offload executor** — merged `96bed9c7`: GPU/CPU sweep runner on ava-worker-local, load-aware (yields to Ollama), fail-loud reconciliation (Rin APPROVE_WITH_NOTES, 51/51)
+  - ✅ **D3 LightGBM challenger** — merged `86225291`: same feature path, cuda/cpu device flag, judged through the same ranking (Rin APPROVE, 91+18 gated skips; lightgbm pin awaits Craig)
+  - ✅ **D4 Vol-target + DD ladder** — merged `265d2afe`: scale overlays, four-way composition byte-equal (Rin APPROVE, 458/458)
+  - ✅ **D5 CUSUM decay monitor** — merged `dcdf8080`: two-sided Page drift detection wired to kill criteria (Rin APPROVE, 66/66)
+  - Remaining from old deferred list: research dashboard UI, Sprint B hopper build-out. RL declined.
 - **Debt cards open:** `7c8ffd17` (zero-signal strategies → 17/17), `706eab50` (AC2 base-pin re-pin + tick_stall refresh).
 - **Ops:** origin push fixed via gh token (yozakura-va write); forward test healthy, untouched per grilling decision; audit 2026-10-05 YELLOW → remediation on track.
 
