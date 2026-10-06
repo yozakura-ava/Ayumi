@@ -153,6 +153,7 @@ class FactoryVerdictStore:
         git_commit: str | None = None,
         data_path: str | Path | None = None,
         data_hash: str | None = None,
+        data_hash_by_pair: dict[str, str] | None = None,
     ) -> int:
         """Insert one row per verdict.  Returns the row count written.
 
@@ -161,8 +162,8 @@ class FactoryVerdictStore:
         (``candidate_id`` + ``pair`` + ``timeframe`` + ``ran_at``) so
         reruns of the same batch are idempotent.
 
-        Provenance kwargs (card 32ff09e3)
-        ----------------------------------
+        Provenance kwargs (card 32ff09e3, per-pair extension card 68fb28f5)
+        -------------------------------------------------------------------
         * ``git_commit`` — short SHA of the commit the verdict was
           produced under.  ``None`` (default) auto-fetches via
           :func:`_get_git_commit`; pass an explicit value to override
@@ -174,14 +175,30 @@ class FactoryVerdictStore:
           ``None`` leaves the column ``NULL``.
         * ``data_hash`` — pre-computed hash; wins over ``data_path``
           when both are supplied (useful for callers that already
-          have the bytes hashed).
+          have the bytes hashed). Used as the fallback when
+          ``data_hash_by_pair`` does not contain ``v.pair``.
+        * ``data_hash_by_pair`` — per-pair ``{pair: hash}`` mapping
+          (card 68fb28f5 fix #1). When provided, each row's
+          ``data_hash`` column is set from
+          ``data_hash_by_pair[v.pair]``; if the pair is not in the
+          map the writer falls back to ``data_hash``. This lets
+          multi-pair sweeps (e.g. BTC/ETH/SOL) record per-pair data
+          provenance instead of one run-level hash that hides which
+          symbol's bytes produced each verdict.
         """
         commit = git_commit if git_commit is not None else _get_git_commit()
         if data_hash is None and data_path is not None:
             data_hash = compute_data_hash(data_path)
         rows: list[tuple] = []
         for v in verdicts:
-            rows.append(self._row_for(v, git_commit=commit, data_hash=data_hash))
+            # Per-pair row data_hash; fall back to the run-level hash
+            # when the per-pair map is absent or lacks this pair.
+            row_hash: str | None = None
+            if data_hash_by_pair:
+                row_hash = data_hash_by_pair.get(v.pair, data_hash)
+            else:
+                row_hash = data_hash
+            rows.append(self._row_for(v, git_commit=commit, data_hash=row_hash))
         if not rows:
             return 0
         self.ensure_schema()
