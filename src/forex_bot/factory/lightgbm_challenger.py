@@ -770,6 +770,7 @@ def benchmark_lightgbm_vs_meta_labeler(
     n_folds: int = DEFAULT_BENCHMARK_N_FOLDS,
     device_flag: str = "cpu",
     random_seed: int = DEFAULT_BENCHMARK_SEED,
+    seed: int | None = None,
     meta_classifier: CalibratedMetaClassifier | None = None,
     emit_artifact_path: str | Path | None = None,
     timestamp_utc: str | None = None,
@@ -827,6 +828,12 @@ def benchmark_lightgbm_vs_meta_labeler(
         raise LightGBMChallengerShapeError(
             "benchmark_lightgbm_vs_meta_labeler requires at least one labelled trade"
         )
+    # Defect #10 patch (card 0ab49707): the canonical kwarg is
+    # ``random_seed``; callers historically passed ``seed=`` which the
+    # surface rejects with TypeError. Accept ``seed`` as a backward-
+    # compatible alias that overrides it when supplied.
+    if seed is not None:
+        random_seed = int(seed)
 
     contexts = [t.context for t in trades]
     X = build_meta_features(contexts)

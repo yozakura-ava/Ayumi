@@ -303,7 +303,7 @@ class LiquidationSpec:
 
     entry_price: float
     leverage: float
-    direction: Literal["long", "short"]
+    direction: Literal["long", "short"] = "long"
     liquidation_fee_rate: float = DEFAULT_LIQUIDATION_FEE_RATE
     maintenance_margin_rate: Optional[float] = None
     tiers: tuple[LiquidationTier, ...] = DEFAULT_MAINTENANCE_TIERS
