@@ -17,7 +17,6 @@ path and is intentionally left alone.
 """
 
 from __future__ import annotations
-import pytest
 
 from unittest.mock import MagicMock
 
@@ -37,12 +36,21 @@ from adapters.ctrader.models import TradeDirection
 def _load_launcher_module():
     """Load scripts/launch_blend_forward_test.py without running main()."""
     import importlib.util
+    import sys
 
     from _project_root import PROJECT_ROOT
 
     path = str(PROJECT_ROOT / "scripts" / "launch_blend_forward_test.py")
     spec = importlib.util.spec_from_file_location("launch_blend_forward_test", path)
     mod = importlib.util.module_from_spec(spec)
+    # Register in sys.modules BEFORE exec_module. The launcher uses
+    # ``from __future__ import annotations``, so its frozen dataclasses defer
+    # type resolution and later ask sys.modules for their defining module's
+    # namespace (dataclasses ``_is_type``). Unregistered, that lookup yields
+    # None and the class body raises
+    # ``AttributeError: 'NoneType' object has no attribute '__dict__'``
+    # at import time on Python 3.12.
+    sys.modules[spec.name] = mod
     spec.loader.exec_module(mod)
     return mod
 
@@ -76,7 +84,6 @@ def _build_blend_engine_with_route_signal_mock():
 
 
 class TestSignalsTradedCounter:
-    @pytest.mark.xfail(reason="DEBT 6ea40384-35ba-4c41-99a6-87d843ca7f75: mock call signature mismatch (state-restore, pre-existing)", strict=False)
     def test_signals_traded_does_not_increment_when_live_execution_returns_none(self):
         """If _execute_signal_live returns None, signals_traded stays put."""
         engine = _build_blend_engine_with_route_signal_mock()
@@ -100,9 +107,18 @@ class TestSignalsTradedCounter:
         engine._route_signal(sig, "TestStrat")
 
         assert engine._health.signals_traded == baseline_traded
-        # Blend runner should have its risk released + correlation gate released
-        engine._blend_runner.cancel_risk.assert_called_once_with(1.0)
-        engine._correlation_gate.release.assert_called_once_with("EURUSD", "long")
+        # Blend runner should have its risk released + correlation gate released.
+        # Production uses the two-arg cancel_risk(signal_id, risk_amount)
+        # contract (see scripts/launch_blend_forward_test.py) and releases the
+        # gate via release_pending(symbol, strategy_id) -- strategy_id resolves
+        # through _strategy_id_map, so "TestStrat" maps to "test_strat".
+        engine._blend_runner.cancel_risk.assert_called_once_with(
+            engine._blend_runner.make_signal_id.return_value,
+            engine._blend_runner.on_signal.return_value.risk_amount,
+        )
+        engine._correlation_gate.release_pending.assert_called_once_with(
+            "EURUSD", "test_strat"
+        )
 
     def test_signals_traded_increments_on_filled_outcome(self):
         """If _execute_signal_live returns FILLED, signals_traded += 1."""
@@ -171,7 +187,6 @@ class TestSignalsTradedCounter:
         assert getattr(engine, "_live_fill_count", 0) == 0
         # SENT does not yet release correlation gate (the broker has the order)
         engine._correlation_gate.release.assert_not_called()
-    @pytest.mark.xfail(reason="DEBT 6ea40384-35ba-4c41-99a6-87d843ca7f75: mock call signature mismatch (state-restore, pre-existing)", strict=False)
 
     def test_signals_traded_does_not_increment_on_rejected_or_timeout(self):
         """FILTERED fail states don't bump the success counter; signals_failed_live += 1."""
@@ -206,9 +221,16 @@ class TestSignalsTradedCounter:
 
         assert engine._health.signals_traded == baseline_traded
         assert engine._health.signals_failed_live == baseline_failed + 1
-        # Risk should be cancelled, correlation gate released
-        engine._blend_runner.cancel_risk.assert_called_once_with(1.0)
-        engine._correlation_gate.release.assert_called_once_with("EURUSD", "long")
+        # Risk should be cancelled, correlation gate released -- same two-arg
+        # cancel_risk(signal_id, risk_amount) + release_pending(symbol,
+        # strategy_id) production contract as the None-outcome case above.
+        engine._blend_runner.cancel_risk.assert_called_once_with(
+            engine._blend_runner.make_signal_id.return_value,
+            engine._blend_runner.on_signal.return_value.risk_amount,
+        )
+        engine._correlation_gate.release_pending.assert_called_once_with(
+            "EURUSD", "test_strat"
+        )
 
     def test_paper_path_still_increments_signals_traded_on_success(self):
         """In paper mode, signals_traded increments only when exec_result.success is True."""
