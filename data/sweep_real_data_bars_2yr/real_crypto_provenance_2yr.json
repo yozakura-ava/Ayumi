@@ -1,0 +1,44 @@
+{
+  "BTCUSDT": {
+    "symbol": "BTCUSDT",
+    "source": "https://api.binance.us/api/v3/klines (direct, spot market data) \u2014 2yr acquisition",
+    "interval": "1h",
+    "fetch_window_start_utc": "2024-09-16T13:00:00+00:00",
+    "fetch_window_end_utc": "2026-08-31T03:00:00+00:00",
+    "retrieval_timestamp_utc": "2026-10-06T21:20:00.486036+00:00",
+    "n_bars": 17127,
+    "earliest_bar_utc": "2024-09-16T13:00:00+00:00",
+    "latest_bar_utc": "2026-08-31T03:00:00+00:00",
+    "data_hash_sha256": "6ad531760d2d216d108705c11f46e60153ceabe7ada647be26d25cf5616b9aed",
+    "first_page_http_status": 200,
+    "pages_fetched": 18
+  },
+  "ETHUSDT": {
+    "symbol": "ETHUSDT",
+    "source": "https://api.binance.us/api/v3/klines (direct, spot market data) \u2014 2yr acquisition",
+    "interval": "1h",
+    "fetch_window_start_utc": "2024-09-16T13:00:00+00:00",
+    "fetch_window_end_utc": "2026-08-31T03:00:00+00:00",
+    "retrieval_timestamp_utc": "2026-10-06T21:20:02.689344+00:00",
+    "n_bars": 17127,
+    "earliest_bar_utc": "2024-09-16T13:00:00+00:00",
+    "latest_bar_utc": "2026-08-31T03:00:00+00:00",
+    "data_hash_sha256": "c9390d868c48262a75f7ad7ebdc1c7f6db533fad5147259eddbb8267f1bac10b",
+    "first_page_http_status": 200,
+    "pages_fetched": 18
+  },
+  "SOLUSDT": {
+    "symbol": "SOLUSDT",
+    "source": "https://api.binance.us/api/v3/klines (direct, spot market data) \u2014 2yr acquisition",
+    "interval": "1h",
+    "fetch_window_start_utc": "2024-09-16T13:00:00+00:00",
+    "fetch_window_end_utc": "2026-08-31T03:00:00+00:00",
+    "retrieval_timestamp_utc": "2026-10-06T21:20:04.652341+00:00",
+    "n_bars": 17127,
+    "earliest_bar_utc": "2024-09-16T13:00:00+00:00",
+    "latest_bar_utc": "2026-08-31T03:00:00+00:00",
+    "data_hash_sha256": "1c2939c7cc9a65a79fa3d1f3483f61543fa4f98f4d05765bf4b717fc26a59c3a",
+    "first_page_http_status": 200,
+    "pages_fetched": 18
+  }
+}

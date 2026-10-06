@@ -1,0 +1,17 @@
+{
+  "BTCUSDT": {
+    "status": "PASS",
+    "n_violations": 0,
+    "violations": []
+  },
+  "ETHUSDT": {
+    "status": "PASS",
+    "n_violations": 0,
+    "violations": []
+  },
+  "SOLUSDT": {
+    "status": "PASS",
+    "n_violations": 0,
+    "violations": []
+  }
+}
