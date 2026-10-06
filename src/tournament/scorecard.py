@@ -16,7 +16,6 @@ DESC, strategy_id ASC) so re-runs produce identical ordering.
 from __future__ import annotations
 
 import json
-import math
 from dataclasses import asdict, dataclass, field
 from datetime import date
 from typing import Iterable
@@ -277,26 +276,40 @@ def build_scorecard_row(
 def rank_scorecard_rows(rows: list[ScorecardRow]) -> Scorecard:
     """Sort and assign 1-based rank.  Deterministic tie-breaking.
 
-    Sort keys (descending unless marked):
+    .. deprecated::
+        Sprint C 1b.3 (card cc90a6b6) removed this raw-return sort in
+        favour of Benjamini-Hochberg FDR on per-trial return series.
+        See :mod:`forex_bot.factory.risk_adjusted_ranking`.  This
+        function is now a loud-failure shim that raises
+        :exc:`forex_bot.factory.risk_adjusted_ranking.RawReturnSortRemoved`
+        so silent regressions are caught.  Callers must migrate to
+        :func:`forex_bot.factory.risk_adjusted_ranking.rank_candidates_by_trial_returns`
+        or the ``TrialReturnStore`` bridge
+        :func:`forex_bot.factory.risk_adjusted_ranking.rank_from_trial_return_store`.
+
+    The previous sort keys (return_pct DESC, trade_count DESC,
+    strategy_id ASC) implemented *selection-on-the-maximum* under
+    multiple testing — a procedure that, under the crypto factory's
+    10k+ Optuna trials per sweep, silently promoted the best noise
+    sample.  BH-FDR on per-trial return series is the correct
+    replacement.
+
+    Sort keys that **were** used (descending unless marked):
         1. ``return_pct`` (DESC) — primary quality metric
         2. ``trade_count`` (DESC) — more trades = higher confidence
         3. ``strategy_id`` (ASC) — final, deterministic by name
     """
-    if not rows:
-        return Scorecard(rows=[])
-
-    # NaN-safe: treat NaN as the lowest value (sorts to bottom).
-    def _safe_return(row: ScorecardRow) -> float:
-        v = row.return_pct
-        return -math.inf if math.isnan(v) else v
-
-    sorted_rows = sorted(
-        rows,
-        key=lambda r: (-_safe_return(r), -r.trade_count, r.strategy_id),
+    # Sprint C 1b.3 (card cc90a6b6): raw-return sort is removed.
+    # Raise loud so the existing tournament harness / CLI cannot
+    # silently keep using a metric the BH-FDR ranker replaced.
+    from forex_bot.factory.risk_adjusted_ranking import (  # late-import to avoid cycle
+        RawReturnSortRemoved,
     )
-    for rank, row in enumerate(sorted_rows, start=1):
-        row.rank = rank
-    return Scorecard(rows=sorted_rows, meta={})
+
+    raise RawReturnSortRemoved(
+        "rank_scorecard_rows is removed (Sprint C 1b.3 / card cc90a6b6). "
+        "Migrate to forex_bot.factory.risk_adjusted_ranking."
+    )
 
 
 # ── Renderers ────────────────────────────────────────────────────────────────
