@@ -15,17 +15,24 @@ Design
 * Migration is idempotent (``CREATE TABLE IF NOT EXISTS``) so the store
   can be instantiated by tests using ``tmp_path`` without polluting the
   canonical DB.
+* Provenance columns (``git_commit``, ``data_hash``) — card 32ff09e3
+  — are populated from caller-supplied ``git_commit`` / ``data_path``
+  kwargs; the SHA256 hash is computed via
+  :func:`forex_bot.srf.compute_data_hash` (single source of truth for
+  the project's data-hash algorithm).
 """
 
 from __future__ import annotations
 
 import logging
+import subprocess
 from pathlib import Path
 from typing import Iterable
 
 import duckdb
 
 from forex_bot.factory.validation_runner import ValidationVerdict
+from forex_bot.srf import compute_data_hash
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +41,7 @@ logger = logging.getLogger(__name__)
 # Schema
 # ---------------------------------------------------------------------------
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _FACTORY_VERDICTS_DDL = """
 CREATE TABLE IF NOT EXISTS factory_verdicts (
@@ -63,6 +70,8 @@ CREATE TABLE IF NOT EXISTS factory_verdicts (
     reason                VARCHAR,
     ran_at                VARCHAR,
     bridge_error          VARCHAR,
+    git_commit            VARCHAR,
+    data_hash             VARCHAR,
     created_at            TIMESTAMPTZ DEFAULT now()
 )
 """
@@ -99,19 +108,33 @@ class FactoryVerdictStore:
     def ensure_schema(self) -> None:
         """Create / migrate the ``factory_verdicts`` table (idempotent).
 
-        v1 → v2 adds ``cost_sensitivity DOUBLE`` (card 4309d26b —
-        renamed from the old synthetic 2-column "PBO" which was
-        actually cost sensitivity in disguise).  The ``ADD COLUMN IF
-        NOT EXISTS`` migration runs before the version bump so an
-        existing v1 database upgrades cleanly.
+        Migration history (additive only — ``ADD COLUMN IF NOT EXISTS``):
+
+        * v1 → v2 adds ``cost_sensitivity DOUBLE`` (card 4309d26b —
+          renamed from the old synthetic 2-column "PBO" which was
+          actually cost sensitivity in disguise).
+        * v2 → v3 adds ``git_commit VARCHAR`` and ``data_hash VARCHAR``
+          (card 32ff09e3 — provenance columns).
+
+        The ``ADD COLUMN IF NOT EXISTS`` migrations run before the
+        version bump so an existing v1 or v2 database upgrades
+        cleanly.  Records written before a column was added carry
+        ``NULL`` in that column after migration, which readers tolerate
+        (the dict shape just exposes ``None`` for those keys).
         """
         with duckdb.connect(str(self.db_path)) as conn:
             conn.execute(_FACTORY_VERDICTS_DDL)
             conn.execute(_FACTORY_VERDICTS_VERSION_DDL)
-            # Idempotent column-level migration: cost_sensitivity was
-            # added in v2.  Safe to re-run on a fresh or upgraded DB.
+            # Idempotent column-level migrations.  Safe to re-run on a
+            # fresh or upgraded DB.
             conn.execute(
                 "ALTER TABLE factory_verdicts ADD COLUMN IF NOT EXISTS cost_sensitivity DOUBLE"
+            )
+            conn.execute(
+                "ALTER TABLE factory_verdicts ADD COLUMN IF NOT EXISTS git_commit VARCHAR"
+            )
+            conn.execute(
+                "ALTER TABLE factory_verdicts ADD COLUMN IF NOT EXISTS data_hash VARCHAR"
             )
             cur = conn.execute("SELECT MAX(version) FROM _factory_verdicts_schema_version").fetchone()
             current = cur[0] if cur and cur[0] is not None else 0
@@ -123,17 +146,42 @@ class FactoryVerdictStore:
 
     # ── write ───────────────────────────────────────────────────────────
 
-    def write_verdicts(self, verdicts: Iterable[ValidationVerdict]) -> int:
+    def write_verdicts(
+        self,
+        verdicts: Iterable[ValidationVerdict],
+        *,
+        git_commit: str | None = None,
+        data_path: str | Path | None = None,
+        data_hash: str | None = None,
+    ) -> int:
         """Insert one row per verdict.  Returns the row count written.
 
         A deterministic :attr:`ValidationVerdict.verdict_id` is
         synthesised from the verdict's natural-key fields
         (``candidate_id`` + ``pair`` + ``timeframe`` + ``ran_at``) so
         reruns of the same batch are idempotent.
+
+        Provenance kwargs (card 32ff09e3)
+        ----------------------------------
+        * ``git_commit`` — short SHA of the commit the verdict was
+          produced under.  ``None`` (default) auto-fetches via
+          :func:`_get_git_commit`; pass an explicit value to override
+          (e.g. in tests).
+        * ``data_path`` — filesystem path to the input data file the
+          verdicts were derived from.  When provided, ``data_hash`` is
+          computed via :func:`forex_bot.srf.compute_data_hash` (single
+          source of truth for the project's data-hash algorithm).
+          ``None`` leaves the column ``NULL``.
+        * ``data_hash`` — pre-computed hash; wins over ``data_path``
+          when both are supplied (useful for callers that already
+          have the bytes hashed).
         """
+        commit = git_commit if git_commit is not None else _get_git_commit()
+        if data_hash is None and data_path is not None:
+            data_hash = compute_data_hash(data_path)
         rows: list[tuple] = []
         for v in verdicts:
-            rows.append(self._row_for(v))
+            rows.append(self._row_for(v, git_commit=commit, data_hash=data_hash))
         if not rows:
             return 0
         self.ensure_schema()
@@ -146,8 +194,9 @@ class FactoryVerdictStore:
                     dsr_pvalue, n_trials_used, pbo_score, pbo_tier_ceiling,
                     cost_sensitivity,
                     spread_pips, commission_per_lot_usd, slippage_pips,
-                    go_nogo, reason, ran_at, bridge_error
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    go_nogo, reason, ran_at, bridge_error,
+                    git_commit, data_hash
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 rows,
             )
         return len(rows)
@@ -155,7 +204,12 @@ class FactoryVerdictStore:
     # ── read (useful for tests + CLI) ───────────────────────────────────
 
     def fetch_verdicts(self, candidate_id: str | None = None) -> list[dict]:
-        """Return verdicts as dicts; optional filter by ``candidate_id``."""
+        """Return verdicts as dicts; optional filter by ``candidate_id``.
+
+        Tolerates legacy records written before the v3 provenance
+        columns were added — those rows surface with ``None`` in
+        ``git_commit`` / ``data_hash`` (DuckDB ``NULL`` semantics).
+        """
         self.ensure_schema()
         with duckdb.connect(str(self.db_path), read_only=True) as conn:
             if candidate_id is None:
@@ -171,7 +225,12 @@ class FactoryVerdictStore:
     # ── internals ───────────────────────────────────────────────────────
 
     @staticmethod
-    def _row_for(v: ValidationVerdict) -> tuple:
+    def _row_for(
+        v: ValidationVerdict,
+        *,
+        git_commit: str | None,
+        data_hash: str | None,
+    ) -> tuple:
         verdict_id = f"{v.candidate_id}|{v.pair}|{v.timeframe}|{v.ran_at}"
         return (
             verdict_id,
@@ -199,7 +258,32 @@ class FactoryVerdictStore:
             v.reason,
             v.ran_at,
             v.bridge_error,
+            git_commit,
+            data_hash,
         )
+
+
+def _get_git_commit() -> str | None:
+    """Return ``git rev-parse --short HEAD`` of the current tree.
+
+    Tolerant variant — unlike :meth:`SRFRunner._get_git_commit` we do
+    NOT require a clean tree, because factory verdicts may be written
+    from a worktree mid-build.  Returns ``None`` only when ``git`` is
+    unavailable or the call fails (so the column surfaces as ``NULL``
+    rather than crashing the writer).
+    """
+    try:
+        commit = (
+            subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"],  # noqa: S607
+                stderr=subprocess.DEVNULL,
+            )
+            .decode()
+            .strip()
+        )
+        return commit or None
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        return None
 
 
 __all__ = ["FactoryVerdictStore", "SCHEMA_VERSION"]
