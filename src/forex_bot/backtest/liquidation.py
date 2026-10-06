@@ -149,7 +149,6 @@ from datetime import datetime, timezone
 from typing import Iterable, Literal, Optional, Sequence
 
 from backtest.funding_model import (
-    FundingEvent,
     PositionSpec,
     run_backtest_with_funding,
 )

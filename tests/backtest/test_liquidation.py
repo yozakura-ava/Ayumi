@@ -195,7 +195,7 @@ class TestModuleConstants:
         0.5% / 1.0% / 2.5% / 5.0% / 10.0% by notional bracket."""
         assert len(DEFAULT_MAINTENANCE_TIERS) == 5
         expected_rates = [0.005, 0.010, 0.025, 0.050, 0.100]
-        for tier, expected in zip(DEFAULT_MAINTENANCE_TIERS, expected_rates):
+        for tier, expected in zip(DEFAULT_MAINTENANCE_TIERS, expected_rates, strict=True):
             assert tier.maintenance_margin_rate == pytest.approx(expected, abs=1e-12)
 
     def test_default_tiers_have_open_ended_top_bracket(self):
@@ -933,7 +933,8 @@ class TestMarkVsLastDivergence:
         trigger; mark-price model catches it."""
         threshold = 100.5
         mark = 101.0  # above threshold → triggers for short
-        last = 98.0  # wick down on a single print
+        # (Hypothetical wick-down last print at 98.0 is documented in
+        # the docstring; the assertion exercises the mark-side only.)
         crossed = check_liquidation_threshold_crossed(
             mark_price=mark, threshold_price=threshold, direction="short",
         )
@@ -945,7 +946,8 @@ class TestMarkVsLastDivergence:
         model does not."""
         threshold = 100.5
         mark = 100.0  # below threshold → no trigger
-        last = 105.0  # wick up
+        # (Hypothetical wick-up last print at 105.0 documented in the
+        # docstring; the assertion exercises the mark-side only.)
         crossed = check_liquidation_threshold_crossed(
             mark_price=mark, threshold_price=threshold, direction="short",
         )
