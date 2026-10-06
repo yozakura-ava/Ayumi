@@ -340,6 +340,11 @@ REGISTRY_STRATEGY_BUILDERS: dict[str, Callable[[str], ISignalStrategy]] = {
     "ttc_xauusd": _make_default_builder(None),
     "donchian_atr_trend_v2": _make_default_builder(None),
     "dual_tf_squeeze_pro": _make_default_builder(None),
+    # Crypto-native templates (card fe773687) — default grid-center build
+    # via the standard lazy-class path (constructors are zero-arg).
+    "crypto_ema_cross_trend": _make_default_builder(None),
+    "crypto_donchian_breakout": _make_default_builder(None),
+    "crypto_zscore_mean_reversion": _make_default_builder(None),
 }
 
 
@@ -373,6 +378,19 @@ _LAZY_STRATEGY_CLASSES: dict[str, tuple[str, str]] = {
     "usdjpy_d1_trend": (
         "forex_bot.factory.strategies.usdjpy_d1_trend",
         "USDJPYD1TrendStrategy",
+    ),
+    # Crypto-native templates (card fe773687).
+    "crypto_ema_cross_trend": (
+        "forex_bot.strategies.crypto_native",
+        "CryptoEMACrossTrend",
+    ),
+    "crypto_donchian_breakout": (
+        "forex_bot.strategies.crypto_native",
+        "CryptoDonchianBreakout",
+    ),
+    "crypto_zscore_mean_reversion": (
+        "forex_bot.strategies.crypto_native",
+        "CryptoZScoreMeanReversion",
     ),
 }
 
