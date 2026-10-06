@@ -93,16 +93,14 @@ import dataclasses
 import hashlib
 import json
 import logging
-import math
-import os
 import subprocess
 import sys
 import time
 import warnings
-from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
+from dataclasses import dataclass
+from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -173,7 +171,12 @@ resolve_universe = _safe_import(
 )
 build_universe_integrity_config = _safe_import(
     "build_universe_integrity_config",
-    lambda: __import__("forex_bot.backtest.universe", fromlist=["build_universe_integrity_config"]).build_universe_integrity_config,
+    lambda: (
+        __import__(
+            "forex_bot.backtest.universe",
+            fromlist=["build_universe_integrity_config"],
+        ).build_universe_integrity_config
+    ),
 )
 Universe = _safe_import(
     "Universe",
@@ -186,7 +189,12 @@ PipelineConfig = _safe_import(
 )
 default_pipeline_config = _safe_import(
     "default_pipeline_config",
-    lambda: __import__("forex_bot.factory.pipeline_config", fromlist=["default_pipeline_config"]).default_pipeline_config,
+    lambda: (
+        __import__(
+            "forex_bot.factory.pipeline_config",
+            fromlist=["default_pipeline_config"],
+        ).default_pipeline_config
+    )
 )
 default_spread_costs = _safe_import(
     "default_spread_costs",
@@ -214,7 +222,12 @@ FactoryVerdictStore = _safe_import(
 )
 rank_from_trial_return_store = _safe_import(
     "rank_from_trial_return_store",
-    lambda: __import__("forex_bot.factory.risk_adjusted_ranking", fromlist=["rank_from_trial_return_store"]).rank_from_trial_return_store,
+    lambda: (
+        __import__(
+            "forex_bot.factory.risk_adjusted_ranking",
+            fromlist=["rank_from_trial_return_store"],
+        ).rank_from_trial_return_store
+    )
 )
 
 MetaTradeContext = _safe_import(
@@ -246,19 +259,39 @@ compute_pbo_cpcv = _safe_import(
 # Full crypto overlay wrappers
 run_backtest_with_funding = _safe_import(
     "run_backtest_with_funding",
-    lambda: __import__("forex_bot.backtest.funding_model", fromlist=["run_backtest_with_funding"]).run_backtest_with_funding,
+    lambda: (
+        __import__(
+            "forex_bot.backtest.funding_model",
+            fromlist=["run_backtest_with_funding"],
+        ).run_backtest_with_funding
+    )
 )
 run_backtest_with_liquidation = _safe_import(
     "run_backtest_with_liquidation",
-    lambda: __import__("forex_bot.backtest.liquidation", fromlist=["run_backtest_with_liquidation"]).run_backtest_with_liquidation,
+    lambda: (
+        __import__(
+            "forex_bot.backtest.liquidation",
+            fromlist=["run_backtest_with_liquidation"],
+        ).run_backtest_with_liquidation
+    )
 )
 run_backtest_with_full_crypto_overlay = _safe_import(
     "run_backtest_with_full_crypto_overlay",
-    lambda: __import__("forex_bot.backtest.venue_costs", fromlist=["run_backtest_with_full_crypto_overlay"]).run_backtest_with_full_crypto_overlay,
+    lambda: (
+        __import__(
+            "forex_bot.backtest.venue_costs",
+            fromlist=["run_backtest_with_full_crypto_overlay"],
+        ).run_backtest_with_full_crypto_overlay
+    )
 )
 run_backtest_with_vol_target = _safe_import(
     "run_backtest_with_vol_target",
-    lambda: __import__("forex_bot.backtest.vol_target", fromlist=["run_backtest_with_vol_target"]).run_backtest_with_vol_target,
+    lambda: (
+        __import__(
+            "forex_bot.backtest.vol_target",
+            fromlist=["run_backtest_with_vol_target"],
+        ).run_backtest_with_vol_target
+    )
 )
 
 # Spec dataclasses for the overlay wrappers
@@ -276,7 +309,12 @@ VenueFeeConfig = _safe_import(
 )
 DEFAULT_BINANCE_USDM_TIERS = _safe_import(
     "DEFAULT_BINANCE_USDM_TIERS",
-    lambda: __import__("forex_bot.backtest.venue_costs", fromlist=["DEFAULT_BINANCE_USDM_TIERS"]).DEFAULT_BINANCE_USDM_TIERS,
+    lambda: (
+        __import__(
+            "forex_bot.backtest.venue_costs",
+            fromlist=["DEFAULT_BINANCE_USDM_TIERS"],
+        ).DEFAULT_BINANCE_USDM_TIERS
+    )
 )
 VenueOrderFill = _safe_import(
     "VenueOrderFill",
@@ -300,7 +338,12 @@ compute_data_hash = _safe_import(
 # in here rather than the inline stub from the first run).
 build_strategy_from_template = _safe_import(
     "build_strategy_from_template",
-    lambda: __import__("forex_bot.factory.bridge", fromlist=["build_strategy_from_template"]).build_strategy_from_template,
+    lambda: (
+        __import__(
+            "forex_bot.factory.bridge",
+            fromlist=["build_strategy_from_template"],
+        ).build_strategy_from_template
+    )
 )
 RegistryStrategyTemplate = _safe_import(
     "RegistryStrategyTemplate",
@@ -321,7 +364,12 @@ default_registry = _safe_import(
 
 benchmark_lightgbm_vs_meta_labeler = _safe_import(
     "benchmark_lightgbm_vs_meta_labeler",
-    lambda: __import__("forex_bot.factory.lightgbm_challenger", fromlist=["benchmark_lightgbm_vs_meta_labeler"]).benchmark_lightgbm_vs_meta_labeler,
+    lambda: (
+        __import__(
+            "forex_bot.factory.lightgbm_challenger",
+            fromlist=["benchmark_lightgbm_vs_meta_labeler"],
+        ).benchmark_lightgbm_vs_meta_labeler
+    )
 )
 
 
@@ -529,13 +577,21 @@ def trim_around_first_gap(
             break
     if first_gap_idx is None:
         return bars, {"trimmed": False, "n_bars": len(bars)}
+    # After the loop, first_gap_idx/first_gap_delta_sec/first_gap_at
+    # are all set (the loop sets them in lockstep). The asserts
+    # narrow the Optional types so mypy can verify the subsequent
+    # arithmetic and method calls.
+    assert first_gap_delta_sec is not None
+    assert first_gap_at is not None
+    delta_sec_nn = first_gap_delta_sec
+    at_utc_nn = first_gap_at
     trimmed = bars[first_gap_idx:]
     return trimmed, {
         "trimmed": True,
         "n_bars": len(trimmed),
         "first_gap_index": first_gap_idx,
-        "first_gap_delta_minutes": round(first_gap_delta_sec / 60.0, 1),
-        "first_gap_at_utc": first_gap_at.isoformat(),
+        "first_gap_delta_minutes": round(delta_sec_nn / 60.0, 1),
+        "first_gap_at_utc": at_utc_nn.isoformat(),
         "trim_reason": "Binance.US H1 bar gap exceeded cadence tolerance; "
                         "trimmed pre-gap prefix to keep post-gap contiguous segment",
     }
@@ -624,7 +680,7 @@ class SweepConfigReal:
 # ---------------------------------------------------------------------------
 
 
-def _build_template_for_strategy(strategy_id: str) -> RegistryStrategyTemplate | None:
+def _build_template_for_strategy(strategy_id: str):  # type: ignore[no-untyped-def]
     """Wrap a registry entry's StrategyConfig in the bridge entrypoint.
 
     Returns ``None`` if the strategy has no entry in the canonical
@@ -668,7 +724,7 @@ def _build_strategy_template(pair: str, strategy_id: str):
     entry may ignore it (RegistryStrategyTemplate.build_strategy
     ignores pair per SFA-1 contract).
     """
-    from forex_bot.factory.template import ParamSpec, StrategyTemplate
+    from forex_bot.factory.template import StrategyTemplate
 
     class _Template(StrategyTemplate):
         def __init__(self) -> None:  # type: ignore[no-untyped-def]
@@ -970,7 +1026,11 @@ def run_sweep(cfg: SweepConfigReal, *, skip_data_fetch: bool = False) -> dict:
                 )
             )
         except Exception as exc:  # noqa: BLE001
-            integrity_reports[pair] = {"status": "FAIL", "stage": "build_config", "error": f"{type(exc).__name__}: {exc}"}
+            integrity_reports[pair] = {
+                "status": "FAIL",
+                "stage": "build_config",
+                "error": f"{type(exc).__name__}: {exc}",
+            }
             continue
 
         try:
@@ -985,8 +1045,8 @@ def run_sweep(cfg: SweepConfigReal, *, skip_data_fetch: bool = False) -> dict:
             try:
                 if hasattr(exc, "report") and exc.report is not None:
                     n_violations = len(exc.report.violations)
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as exc2:  # noqa: BLE001
+                logger.debug("integrity report extraction failed: %s", exc2)
             # Real-data acquisition fix: if the gate catches a data quirk,
             # we fix the data acquisition (re-fetch with more pages) — we
             # NEVER loosen the gate.
@@ -1142,9 +1202,12 @@ def run_sweep(cfg: SweepConfigReal, *, skip_data_fetch: bool = False) -> dict:
                 logger.info("bridge OK: %s → %s", cid, type(built).__name__)
             except Exception as exc:  # noqa: BLE001
                 logger.warning("bridge failure for %s/%s: %s", pair, sid, exc)
-                overlay_row = next((r for r in overlay_results if r.get("pair") == pair), None)
-                if overlay_row is not None:
-                    overlay_row.setdefault("bridge_errors", []).append(
+                overlay_row_match: dict | None = next(
+                    (r for r in overlay_results if r.get("pair") == pair),
+                    cast(dict, None),
+                )
+                if overlay_row_match is not None:
+                    overlay_row_match.setdefault("bridge_errors", []).append(
                         {"strategy_id": sid, "error": f"{type(exc).__name__}: {exc}"}
                     )
 
@@ -1203,7 +1266,7 @@ def run_sweep(cfg: SweepConfigReal, *, skip_data_fetch: bool = False) -> dict:
                 alpha=cfg.alpha,
             )
             bh_empty = not any(
-                (not getattr(r, "bh_rejected", False) is False)
+                (getattr(r, "bh_rejected", False) is not False)
                 or (getattr(r, "p_value", 1.0) < cfg.alpha)
                 for ranked in rankings_by_cell.values()
                 for r in ranked
@@ -1217,10 +1280,21 @@ def run_sweep(cfg: SweepConfigReal, *, skip_data_fetch: bool = False) -> dict:
                         pbo_cpcv_by_cell[cell_key] = {"skipped": "matrix_unavailable"}
                         continue
                     if mat is None or mat.shape[1] < 2:
-                        pbo_cpcv_by_cell[cell_key] = {"skipped": "insufficient_trials", "shape": list(mat.shape) if mat is not None else None}
+                        pbo_cpcv_by_cell[cell_key] = {
+                            "skipped": "insufficient_trials",
+                            "shape": list(mat.shape) if mat is not None else None,
+                        }
                         continue
                     try:
-                        paths = run_cpcv(mat, CPCVConfig(n_groups=6, k_test_groups=3, label_horizon_bars=1, embargo_bars=1))
+                        paths = run_cpcv(
+                            mat,
+                            CPCVConfig(
+                                n_groups=6,
+                                k_test_groups=3,
+                                label_horizon_bars=1,
+                                embargo_bars=1,
+                            ),
+                        )
                         pbo = compute_pbo_cpcv(paths)
                         pbo_cpcv_by_cell[cell_key] = {
                             "shape": list(mat.shape),
@@ -1267,14 +1341,18 @@ def run_sweep(cfg: SweepConfigReal, *, skip_data_fetch: bool = False) -> dict:
             # Canonical kwarg (Rin note N3).
             artifact = benchmark_lightgbm_vs_meta_labeler(labeled, n_folds=5, random_seed=cfg.seed)
             benchmark_artifact = (
-                dataclasses.asdict(artifact) if hasattr(artifact, "__dataclass_fields__") else {"summary": str(artifact)}
+                dataclasses.asdict(artifact)
+                if hasattr(artifact, "__dataclass_fields__")
+                else {"summary": str(artifact)}
             )
 
             # Backward-compat alias (Rin note N3): the same call with
             # ``seed=`` must succeed and produce a comparable artifact.
             artifact_alias = benchmark_lightgbm_vs_meta_labeler(labeled, n_folds=5, seed=cfg.seed)
             benchmark_artifact_alias = (
-                dataclasses.asdict(artifact_alias) if hasattr(artifact_alias, "__dataclass_fields__") else {"summary": str(artifact_alias)}
+                dataclasses.asdict(artifact_alias)
+                if hasattr(artifact_alias, "__dataclass_fields__")
+                else {"summary": str(artifact_alias)}
             )
         except Exception as exc:  # noqa: BLE001
             benchmark_artifact = {"error": f"{type(exc).__name__}: {exc}"}
