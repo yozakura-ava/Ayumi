@@ -131,6 +131,11 @@ from backtest.liquidation import (
 )
 from backtest.types import Bar
 
+# IntegrityConfig is referenced as a type annotation only; the runtime
+# import is deferred to ``run_backtest_with_venue_costs`` to keep the
+# module-level import graph free of cross-crypto-overlay coupling.
+from backtest.integrity_gate import IntegrityConfig  # noqa: E402
+
 __all__ = [
     "VenueTier",
     "VenueFeeConfig",
@@ -915,6 +920,7 @@ def run_backtest_with_venue_costs(
     config: object,
     strategies: Sequence[object],
     strategy_name: Optional[str] = None,
+    integrity_config: Optional[IntegrityConfig] = None,
 ) -> VenueCostBacktestMetrics:
     """Run :class:`BacktestEngine` and overlay venue/tier-aware fees.
 
@@ -953,10 +959,29 @@ def run_backtest_with_venue_costs(
             f"venue_config must be VenueFeeConfig (got "
             f"{type(venue_config).__name__})"
         )
+    if integrity_config is not None and not isinstance(integrity_config, IntegrityConfig):
+        raise TypeError(
+            f"integrity_config must be IntegrityConfig or None "
+            f"(got {type(integrity_config).__name__})"
+        )
     if not bars:
         raise ValueError("bars must be non-empty")
     if not strategies:
         raise ValueError("strategies must be non-empty")
+
+    # Opt-in data-integrity gate (R5 — Satsuki). When integrity_config
+    # is supplied, validate bars BEFORE invoking the engine. The gate
+    # is fail-loud: on any violation it raises DataIntegrityError and
+    # the engine is never reached. When integrity_config is None
+    # (default), no validation runs and the existing behavior is
+    # preserved.
+    if integrity_config is not None:
+        from backtest.integrity_gate import apply_integrity_gate as _apply_gate
+        _apply_gate(
+            symbol=getattr(config, "pair", "") or "",
+            bars=bars,
+            config=integrity_config,
+        )
 
     # Lazy import: same pattern as funding_model / liquidation.
     from engine.engine import BacktestEngine

@@ -66,6 +66,11 @@ from typing import Iterable, Literal, Optional, Protocol, Sequence, Union
 
 from backtest.types import BacktestConfig, BacktestMetrics, Bar
 
+# IntegrityConfig is referenced as a type annotation only; the runtime
+# import is deferred to ``run_backtest_with_funding`` to keep the
+# module-level import graph free of cross-crypto-overlay coupling.
+from backtest.integrity_gate import IntegrityConfig  # noqa: E402
+
 __all__ = [
     "FundingEvent",
     "AdaptiveFundingSchedule",
@@ -631,6 +636,7 @@ def run_backtest_with_funding(
     config: BacktestConfig,
     strategies: Sequence[_IStrategyLike],
     strategy_name: Optional[str] = None,
+    integrity_config: Optional[IntegrityConfig] = None,
 ) -> FundedBacktestMetrics:
     """Run :class:`BacktestEngine` and overlay adaptive funding P&L.
 
@@ -656,6 +662,14 @@ def run_backtest_with_funding(
     strategy_name : str, optional
         Which strategy's metrics to wrap. Defaults to the first
         strategy in the list.
+    integrity_config : IntegrityConfig, optional
+        When supplied, :func:`backtest.integrity_gate.apply_integrity_gate`
+        is called on ``bars`` before the engine runs. The gate fails
+        loud on gaps / delistings / anomalous candles (R5); ``None``
+        (default) preserves the existing behavior with no validation.
+        The symbol used by the gate is ``config.pair`` when non-empty,
+        otherwise an empty string (the gate accepts empty symbols but
+        cannot detect ``missing_symbol`` violations).
 
     Returns
     -------
@@ -685,6 +699,11 @@ def run_backtest_with_funding(
         raise TypeError(
             f"config must be BacktestConfig (got {type(config).__name__})"
         )
+    if integrity_config is not None and not isinstance(integrity_config, IntegrityConfig):
+        raise TypeError(
+            f"integrity_config must be IntegrityConfig or None "
+            f"(got {type(integrity_config).__name__})"
+        )
     if not bars:
         raise ValueError("bars must be non-empty")
     if not strategies:
@@ -693,6 +712,20 @@ def run_backtest_with_funding(
     # Lazy import: the engine imports heavy deps; we don't want to
     # import them just to validate args.
     from engine.engine import BacktestEngine
+
+    # Opt-in data-integrity gate (R5 — Satsuki). When integrity_config
+    # is supplied, validate bars BEFORE invoking the engine. The gate
+    # is fail-loud: on any violation it raises DataIntegrityError and
+    # the engine is never reached. When integrity_config is None
+    # (default), no validation runs and the existing behavior is
+    # preserved.
+    if integrity_config is not None:
+        from backtest.integrity_gate import apply_integrity_gate as _apply_gate
+        _apply_gate(
+            symbol=getattr(config, "pair", "") or "",
+            bars=bars,
+            config=integrity_config,
+        )
 
     name = strategy_name if strategy_name is not None else getattr(strategies[0], "name", None)
     engine = BacktestEngine(config, list(strategies))

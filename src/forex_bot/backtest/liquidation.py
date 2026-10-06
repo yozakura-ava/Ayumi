@@ -152,6 +152,11 @@ from backtest.funding_model import (
     PositionSpec,
     run_backtest_with_funding,
 )
+
+# IntegrityConfig is referenced as a type annotation only; the runtime
+# import is deferred to ``run_backtest_with_liquidation`` to keep the
+# module-level import graph free of cross-crypto-overlay coupling.
+from backtest.integrity_gate import IntegrityConfig  # noqa: E402
 from backtest.types import Bar
 
 __all__ = [
@@ -958,6 +963,7 @@ def run_backtest_with_liquidation(
     config: object,  # BacktestConfig — typed as object to avoid hard import
     strategies: Sequence[object],
     strategy_name: Optional[str] = None,
+    integrity_config: Optional[IntegrityConfig] = None,
 ) -> LiquidatedBacktestMetrics:
     """Run :class:`BacktestEngine` and overlay mark-price liquidation P&L.
 
@@ -1005,6 +1011,11 @@ def run_backtest_with_liquidation(
         raise TypeError(
             f"liq_spec must be LiquidationSpec (got {type(liq_spec).__name__})"
         )
+    if integrity_config is not None and not isinstance(integrity_config, IntegrityConfig):
+        raise TypeError(
+            f"integrity_config must be IntegrityConfig or None "
+            f"(got {type(integrity_config).__name__})"
+        )
     if not bars:
         raise ValueError("bars must be non-empty")
     if not strategies:
@@ -1016,6 +1027,20 @@ def run_backtest_with_liquidation(
     if liq_spec.entry_price <= 0:
         raise ValueError(
             f"liq_spec.entry_price must be positive (got {liq_spec.entry_price})"
+        )
+
+    # Opt-in data-integrity gate (R5 — Satsuki). When integrity_config
+    # is supplied, validate bars BEFORE invoking the engine. The gate
+    # is fail-loud: on any violation it raises DataIntegrityError and
+    # the engine is never reached. When integrity_config is None
+    # (default), no validation runs and the existing behavior is
+    # preserved.
+    if integrity_config is not None:
+        from backtest.integrity_gate import apply_integrity_gate as _apply_gate
+        _apply_gate(
+            symbol=getattr(config, "pair", "") or "",
+            bars=bars,
+            config=integrity_config,
         )
 
     # Lazy import: same pattern as funding_model.run_backtest_with_funding.
