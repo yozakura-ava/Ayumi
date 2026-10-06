@@ -34,6 +34,8 @@
   - ✅ **D4 Vol-target + DD ladder** — merged `265d2afe`: scale overlays, four-way composition byte-equal (Rin APPROVE, 458/458)
   - ✅ **D5 CUSUM decay monitor** — merged `dcdf8080`: two-sided Page drift detection wired to kill criteria (Rin APPROVE, 66/66)
   - Remaining from old deferred list: research dashboard UI, Sprint B hopper build-out. RL declined.
+- **First full spine sweep (2026-10-06 AGENT-OWNED):** card e0067a2e, branch tsubaki/e0067a2e-crypto-sweep @ 750d6ca0. 18/18 verdicts persisted w/ provenance on synthetic BTC/ETH/SOL; 0 BH-FDR discoveries (expected on random-walk + stubs); 10 layered defects surfaced (7 fixed in-run, 3 open: LiquidationSpec.direction kwarg, IntegrityConfig sys.path duality TypeError, benchmark seed kwarg). Reports: docs/reports/2026-10-06-crypto-first-sweep.{json,md}.
+- **Next (Craig-approved 2026-10-06 AGENT-OWNED 15:20):** real-data sweep — live Binance BTC/ETH/SOL historical bars, bridge-wired registry strategy templates, 3 open patches. First sweep eligible for real Tier A/B verdicts.
 - **Debt cards open:** `7c8ffd17` (zero-signal strategies → 17/17), `706eab50` (AC2 base-pin re-pin + tick_stall refresh).
 - **Ops:** origin push fixed via gh token (yozakura-va write); forward test healthy, untouched per grilling decision; audit 2026-10-05 YELLOW → remediation on track.
 
