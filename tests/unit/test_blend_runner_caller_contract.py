@@ -25,13 +25,37 @@ Three layers of protection:
 from __future__ import annotations
 
 import ast
+import os
 import re
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
+
+def _resolve_workspace_root() -> Path:
+    """Resolve the Ayumi repo root used by the path-scanning contracts.
+
+    This used to be ``Path("$AYUMI_ROOT")``.  ``Path()`` does not expand
+    environment variables, so every path-scanning test raised
+    ``FileNotFoundError: '$AYUMI_ROOT/scripts/launch_blend_forward_test.py'``
+    and the contract was never actually enforced.
+
+    Expand ``$AYUMI_ROOT`` when it is set to a checkout that actually
+    contains the launcher, otherwise anchor on the repo root that contains
+    this test file (``<root>/tests/unit/<file>.py`` -> ``parents[2]``).
+    That makes the contracts resolve under a bare ``pytest`` run, inside a
+    worktree, and when ``$AYUMI_ROOT`` is unset or stale.
+    """
+    env_root = os.environ.get("AYUMI_ROOT")
+    if env_root:
+        candidate = Path(os.path.expandvars(env_root)).expanduser()
+        if (candidate / "scripts" / "launch_blend_forward_test.py").is_file():
+            return candidate.resolve()
+    return Path(__file__).resolve().parents[2]
+
+
 # Resolve project paths
-WORKSPACE = Path("$AYUMI_ROOT")
+WORKSPACE = _resolve_workspace_root()
 LAUNCHER = WORKSPACE / "scripts" / "launch_blend_forward_test.py"
 
 
