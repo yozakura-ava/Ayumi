@@ -131,8 +131,10 @@ class GateValidator:
         sl1 = key_levels.get("SL1")
         sl2 = key_levels.get("SL2")
 
-        # If no M/W levels present, gate passes (not an M/W pattern)
-        if not all(v is not None for v in (sh1, sh2, sl1, sl2)):
+        # If no M/W levels present, gate passes (not an M/W pattern).
+        # Explicit per-variable None checks (rather than an all(...) loop)
+        # so mypy narrows each Optional before the arithmetic below.
+        if sh1 is None or sh2 is None or sl1 is None or sl2 is None:
             return True
 
         # M/W symmetry: left leg (SH1→SL1) vs right leg (SH2→SL2)

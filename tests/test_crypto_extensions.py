@@ -20,12 +20,13 @@ Every test drives the factor functions directly via
 adapter — the module is consumed by passing snapshot objects, and
 tests exercise that contract.
 
-The forex-isolation test simulates a real evaluator: it calls
-``ConfluenceScorer.score(candidate)`` twice — once with the crypto
-extensions module loaded (computed but discarded because is_crypto
-is False) and once with the module NOT loaded. The two totals MUST
-be bit-identical, which proves the crypto_extensions module has
-zero side-effects on the forex path.
+The forex-isolation tests below pin the contract at the boundary that
+is actually observable in-process: crypto factor outputs are zeroed
+when handed a forex symbol, the normalization helper is pure
+arithmetic, and the forex weight table is unchanged by importing
+``crypto_extensions``. They do NOT run the full evaluator twice and
+diff signal output — see the TestForexIsolation class docstring for
+the precise scope.
 """
 
 from __future__ import annotations
@@ -723,7 +724,17 @@ class TestIsCryptoRoute:
 
 
 class TestForexIsolation:
-    """Forex signal output MUST be identical with/without extensions."""
+    """Crypto extensions must not influence any forex-path value.
+
+    Scope note (CRYPTO-A3 review): the guarantee pinned here is at
+    the crypto-extension boundary, not end-to-end signal-output
+    identity. These tests assert that (a) compute_crypto_factors
+    zeroes every crypto field for a forex symbol, (b) the
+    normalization helper is pure arithmetic, and (c) the forex weight
+    constants are unchanged by importing crypto_extensions. They do
+    NOT execute ConfluenceScorer.score or a full signal pipeline
+    twice and compare totals — that stronger claim is not covered.
+    """
 
     def test_isolated_compute_matches_zero_state(self, ctx_eurusd):
         """compute_crypto_factors on a forex symbol produces an empty

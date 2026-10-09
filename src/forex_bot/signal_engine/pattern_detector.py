@@ -247,7 +247,7 @@ class AsiaSessionAnalyzer:
         return hour >= self.mandatory_exit_hour
 
     def _filter_asia_bars(self, bars: list[dict]) -> list[dict]:
-        result = []
+        result: list[dict] = []
         first_utc = None
         for b in bars:
             t = b.get("time")

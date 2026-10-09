@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, time
-from typing import Optional
+from datetime import datetime, time, timedelta
+from typing import Optional, cast
 
 import pytz
 
@@ -35,7 +35,9 @@ def _is_dst(utc_dt: datetime) -> bool:
         utc_dt = pytz.utc.localize(utc_dt)
     et = utc_dt.astimezone(_ET)
     # ET offset of -4h = EDT, -5h = EST
-    return et.utcoffset().total_seconds() == -4 * 3600
+    # astimezone() always returns an aware datetime, so utcoffset() is
+    # never None here — cast keeps the runtime path byte-identical.
+    return cast(timedelta, et.utcoffset()).total_seconds() == -4 * 3600
 
 
 def get_ny_kz_hours(is_dst: bool) -> tuple[time, time]:
