@@ -651,3 +651,18 @@ This card `ea42e6be-ed0f-4044-ab5d-3c8c5eb8baf6` is **design + sprint proposal o
 ---
 
 *End of design. Total length: ~570 lines. Ready for Ava review and Sprint B decomposition into workboard cards.*
+---
+
+## 16. Amendment — Phased Build Approval (Craig, 2026-10-11)
+
+Approved as **phased go**. §11's 14-card single-sprint proposal is superseded by the
+3-wave metric-gated plan now recorded in `docs/roadmaps/ayumi-master-roadmap.md`
+(Pool B). Craig directive 2026-10-11: *"Gates shouldn't be on time but instead on
+metrics except where time is absolutely mandatory (and even then it should be minimum
+needed + quality metrics)."* All calendar references in §11/§12 (e.g., "two weeks
+calibration-only", "6 weeks") are reinterpreted as metric gates with time only as a
+stale-no-output backstop. The canonical wave definitions and gate metrics live in the
+master roadmap (single source of truth); this doc is the engine design reference.
+
+Card UUIDs in §11 are proposal placeholders — actual Wave 1 cards are created on the
+workboard by Ava with full UUIDs and metric-gated acceptance criteria.

@@ -462,6 +462,25 @@ python3 -m pytest tests/ -q --timeout=30 -m "not live"
   register these into the tournament and score them.
 - **Pool B — strategy factory:** `docs/roadmaps/strategy-factory/` vision + implementation
   spec exist; systematic candidate generation is spec'd but not operational.
+  **R&D hopper design approved (Craig, 2026-10-11) — phased build, metric-gated:**
+  design at `docs/roadmaps/strategy-factory/rd-hopper-engine-design.md` (7 generators
+  G1–G7, two-gate triage: auto-promote score ≥0.65 / human-gate 0.40–0.65 / kill <0.40;
+  external ideas never auto-promote). Build proceeds in waves; wave exits are
+  **metric gates, not calendar gates** (time only as a stale-no-output backstop):
+  - **Wave 1 (7.5 SP):** brief schema + lint, six-dim scorer, G2 Regime-Gap, G5
+    Forward-Test Anomaly. Calibration mode — zero auto-promotion enforced.
+  - **W1→W2 gate (calibration exit):** scorer reproduces human good/bad ranking on
+    the 10 hand-written `docs/edges/` briefs (≥80% rank agreement, no good/bad
+    inversions); ≥20 machine briefs emitted with 100% lint pass; blind Ava+Satsuki
+    review of 10 sampled briefs ≥50% "plausible enough to test". Backstop: if <5
+    briefs emitted in 14 days, that's a blocker to fix, not a gate pass.
+  - **Wave 2 (~9 SP):** G1 Postmortem, G6 Tournament Re-combiner, G4 ML-Gap + ML
+    hand-off, auto-promotion gate (staging).
+  - **W2→W3 gate:** every Wave-2 generator emits ≥1 brief/week for 2 consecutive
+    weeks; auto-promote path fires end-to-end on staging with rate-limit proven;
+    hopper_log.jsonl shows zero unexplained state transitions.
+  - **Wave 3 (~12.5 SP):** G3 Confluence (needs correlation matrix), G7 External
+    (human-gate only), node offload, crons, runbook, Rin-reviewed e2e smoke.
 - **Gate:** all candidates enter live consideration only via tournament scorecard
   (FTMO columns) — 2026-09-14 GBPUSD leg disqualified both registered strategies
   on that symbol; the bar is the scorecard, not code existence.
