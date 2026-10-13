@@ -920,60 +920,166 @@ class TestRinIter1Regressions:
 
 
 class TestWorkerRunnerCostGate:
-    """Rin iter-1 HIGH-1 / MEDIUM-2 regression guards (scripts/offload).
+    """Rin iter-1 MEDIUM-2 + iter-2 MEDIUM-A/MEDIUM-B guards (scripts/offload).
 
     Imported inside the tests so a collection-time failure in the offload
     module cannot take down the whole tournament suite.
+
+    The end-to-end tests call ``_execute_cell`` itself.  Iter-2's two MEDIUMs
+    were both invisible to helper-only tests: the helper validated three of
+    five fields, and a partial payload reached ``CostModel(**payload)`` OUTSIDE
+    the ``try:`` block, escaping as TypeError and killing the worker daemon.
+    Driving ``_execute_cell`` is what catches that class of wiring defect.
     """
 
+    _GOOD = {
+        "spread_pips": 3.0,
+        "commission_per_lot": 3.5,
+        "slippage_pips": 0.2,
+        "pip_value_per_lot": 10.0,
+        "pip_size": 0.10,
+    }
+
+    @staticmethod
+    def _job(payload=None, **extra):
+        """Build a job descriptor that reaches the cost-model branch.
+
+        The branch sits after the cell_id and data_db_path guards but before
+        any DuckDB access, so these tests never touch a database.
+        """
+        from offload.worker_runner import _compute_cell_id
+
+        strategy, symbol, timeframe = "srmr_plus", "XAUUSD", "H1"
+        job = {
+            "strategy": strategy,
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "cell_id": _compute_cell_id(strategy, symbol, timeframe),
+            # Never opened: the cost-model branch returns before any DuckDB
+            # access. Repo-relative so it cannot trip the insecure-/tmp lint.
+            "data_db_path": str(
+                Path(__file__).resolve().parents[2]
+                / "nonexistent-c0f284b8.duckdb"
+            ),
+        }
+        merged = dict(payload or {})
+        merged.update(extra)
+        if merged:
+            job["cost_model"] = merged
+        return job
+
+    @staticmethod
+    def _run(job):
+        from offload.worker_runner import _execute_cell
+
+        code_root = Path(__file__).resolve().parents[2]
+        return _execute_cell(job, code_root)
+
+    # ---- unit level: the validator ----
     def test_payload_matching_liora_is_accepted(self) -> None:
-        from offload.worker_runner import _cost_model_mismatch
+        from offload.worker_runner import _cost_model_payload_error
 
         cm = cost_model_for("XAUUSD")
         assert cm is not None
-        payload = {
-            "spread_pips": cm.spread_pips,
-            "commission_per_lot": cm.commission_per_lot,
-            "slippage_pips": cm.slippage_pips,
-            "pip_value_per_lot": cm.pip_value_per_lot,
-            "pip_size": cm.pip_size,
-        }
-        assert _cost_model_mismatch("XAUUSD", payload, cm) is None
+        payload = dict(self._GOOD)
+        payload["pip_value_per_lot"] = cm.pip_value_per_lot
+        payload["pip_size"] = cm.pip_size
+        assert _cost_model_payload_error("XAUUSD", payload, cm) is None
 
     def test_stale_2_5_payload_is_rejected(self) -> None:
         """The exact dual constant AC1 closed must not slip back in."""
-        from offload.worker_runner import _cost_model_mismatch
+        from offload.worker_runner import _cost_model_payload_error
 
         cm = cost_model_for("XAUUSD")
         assert cm is not None
-        err = _cost_model_mismatch(
-            "XAUUSD", {"spread_pips": 2.5}, cm,
-        )
+        err = _cost_model_payload_error("XAUUSD", dict(self._GOOD, spread_pips=2.5), cm)
         assert err is not None
         assert "spread_pips" in err
         assert "Liora" in err
 
     def test_stale_gbpusd_2_0_payload_is_rejected(self) -> None:
-        from offload.worker_runner import _cost_model_mismatch
+        from offload.worker_runner import _cost_model_payload_error
 
         cm = cost_model_for("GBPUSD")
         assert cm is not None
-        err = _cost_model_mismatch("GBPUSD", {"spread_pips": 2.0}, cm)
+        payload = dict(self._GOOD, spread_pips=2.0, pip_value_per_lot=10.0,
+                       pip_size=0.0001)
+        err = _cost_model_payload_error("GBPUSD", payload, cm)
         assert err is not None
 
-    def test_symbol_without_liora_row_has_nothing_to_contradict(self) -> None:
-        from offload.worker_runner import _cost_model_mismatch
-
-        assert _cost_model_mismatch("USDJPY", {"spread_pips": 99.0}, None) is None
-
-    def test_non_numeric_payload_field_is_rejected(self) -> None:
-        from offload.worker_runner import _cost_model_mismatch
+    def test_wrong_pip_value_is_rejected(self) -> None:
+        """MEDIUM-A: the pip fields rescale qty_lots and every cost term."""
+        from offload.worker_runner import _cost_model_payload_error
 
         cm = cost_model_for("XAUUSD")
         assert cm is not None
-        err = _cost_model_mismatch("XAUUSD", {"spread_pips": "wide"}, cm)
+        err = _cost_model_payload_error(
+            "XAUUSD", dict(self._GOOD, pip_value_per_lot=1.0), cm
+        )
+        assert err is not None
+        assert "pip_value_per_lot" in err
+
+    def test_wrong_pip_size_is_rejected(self) -> None:
+        from offload.worker_runner import _cost_model_payload_error
+
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        err = _cost_model_payload_error(
+            "XAUUSD", dict(self._GOOD, pip_size=1.0), cm
+        )
+        assert err is not None
+        assert "pip_size" in err
+
+    def test_symbol_without_liora_row_skips_value_check(self) -> None:
+        from offload.worker_runner import _cost_model_payload_error
+
+        assert _cost_model_payload_error("USDJPY", dict(self._GOOD), None) is None
+
+    def test_non_numeric_payload_field_is_rejected(self) -> None:
+        from offload.worker_runner import _cost_model_payload_error
+
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        err = _cost_model_payload_error("XAUUSD", dict(self._GOOD, spread_pips="wide"), cm)
         assert err is not None
         assert "not numeric" in err
+
+    def test_bool_field_is_rejected(self) -> None:
+        from offload.worker_runner import _cost_model_payload_error
+
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        err = _cost_model_payload_error("XAUUSD", dict(self._GOOD, pip_size=True), cm)
+        assert err is not None
+        assert "bool" in err
+
+    # ---- end-to-end through _execute_cell ----
+    def test_execute_cell_fails_loudly_on_partial_payload(self) -> None:
+        """MEDIUM-B regression: must RETURN, never raise TypeError.
+
+        A partial payload used to reach ``CostModel(**payload)`` before the
+        ``try:`` block, escaping into the worker loop and killing the daemon.
+        """
+        out = self._run(self._job(spread_pips=3.0, commission_per_lot=3.5))
+        assert out["exit_code"] == 5
+        assert "missing required field" in out["error"]
+
+    def test_execute_cell_fails_loudly_on_wrong_pip_value(self) -> None:
+        """MEDIUM-A regression, end to end."""
+        out = self._run(self._job(dict(self._GOOD, pip_value_per_lot=1.0,
+                                       pip_size=1.0)))
+        assert out["exit_code"] == 5
+        assert "pip_value_per_lot" in out["error"]
+
+    def test_execute_cell_fails_loudly_on_unexpected_field(self) -> None:
+        out = self._run(self._job(dict(self._GOOD, bogus_field=1.0)))
+        assert out["exit_code"] == 5
+        assert "unexpected field" in out["error"]
+
+    def test_execute_cell_fails_loudly_on_stale_spread(self) -> None:
+        out = self._run(self._job(dict(self._GOOD, spread_pips=2.5)))
+        assert out["exit_code"] == 5
+        assert "Liora" in out["error"]
 
     def test_unmodeled_row_fails_the_verdict_gate(self) -> None:
         """HIGH-1: the cell must be gated, not emitted as a success."""

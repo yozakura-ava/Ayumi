@@ -133,35 +133,86 @@ def _worker_lock(lock_path: Path):
         fd.close()
 
 
-def _cost_model_mismatch(symbol: str, payload: dict, canonical) -> str | None:
-    """Return an error string if a gateway cost model contradicts the Liora table.
+# The exact field set a CostModel requires. A payload must supply ALL of them
+# (CostModel has no defaults, so a partial payload would raise TypeError) and
+# NONE of anything else (an unexpected kwarg raises TypeError too).
+_COST_MODEL_FIELDS: tuple[str, ...] = (
+    "spread_pips",
+    "commission_per_lot",
+    "slippage_pips",
+    "pip_value_per_lot",
+    "pip_size",
+)
 
-    Card c0f284b8 (Rin iter-1 MEDIUM-2).  Before this, a job carrying
-    ``cost_model_payload`` silently overrode the Liora-sourced model, so a
-    gateway still holding the pre-reconciliation 2.5-pip XAUUSD spread would
-    re-create the exact dual constant AC1 closed -- with no warning at all.
 
-    Returns ``None`` when the payload is consistent (or when the symbol has no
-    Liora row at all, in which case there is nothing to contradict; such cells
-    are instead caught by the ``cost_modeled`` gate below).
+def _cost_model_payload_error(symbol: str, payload: dict, canonical) -> str | None:
+    """Return an error string if a gateway cost model cannot be trusted.
+
+    Card c0f284b8, Rin iter-1 MEDIUM-2 then iter-2 MEDIUM-A/MEDIUM-B.
+
+    A job-supplied ``cost_model_payload`` must never silently rescore a cell.
+    This checks, in order:
+
+    1. COMPLETENESS -- every :data:`_COST_MODEL_FIELDS` entry must be present.
+       ``CostModel`` has no defaults, so a partial payload raised ``TypeError``
+       at the construction call, which sits *before* the ``try:`` block: the
+       exception escaped ``_execute_cell``, killed the worker daemon, and
+       stranded the cell with no ``output.json`` and no ``.done`` sentinel.
+    2. NO EXTRA KEYS -- an unexpected kwarg raises ``TypeError`` the same way.
+    3. NUMERIC -- every field must parse as a float.
+    4. VALUE -- every field must equal the Liora-sourced canonical model.
+       This covers ``pip_value_per_lot`` and ``pip_size`` as well as the
+       spread/commission/slippage trio: the two pip fields set ``qty_lots`` and
+       multiply into every cost term, so a wrong value silently rescales cost
+       (measured 18.4x on a realistic XAUUSD trade).
+
+    Returns ``None`` only when the payload is safe to use. When ``canonical``
+    is ``None`` (symbol absent from the Liora table) steps 1-3 still apply, so
+    a malformed payload cannot crash the worker; value agreement is simply not
+    checkable, and such cells are caught downstream by the ``cost_modeled``
+    gate, which fails the cell with ``cost_not_modeled``.
     """
+    missing = [f for f in _COST_MODEL_FIELDS if f not in payload]
+    if missing:
+        return (
+            f"gateway cost_model_payload for {symbol} is missing required "
+            f"field(s): {', '.join(missing)}. Refusing to build a CostModel "
+            f"from a partial payload (card c0f284b8)."
+        )
+    unexpected = [k for k in payload if k not in _COST_MODEL_FIELDS]
+    if unexpected:
+        return (
+            f"gateway cost_model_payload for {symbol} carries unexpected "
+            f"field(s): {', '.join(sorted(unexpected))}. Expected exactly "
+            f"{', '.join(_COST_MODEL_FIELDS)} (card c0f284b8)."
+        )
+
+    parsed: dict[str, float] = {}
+    for field_name in _COST_MODEL_FIELDS:
+        raw = payload[field_name]
+        if isinstance(raw, bool):
+            return (
+                f"gateway cost_model_payload for {symbol}: {field_name}={raw!r} "
+                f"is a bool, not a number (card c0f284b8)."
+            )
+        try:
+            parsed[field_name] = float(raw)
+        except (TypeError, ValueError):
+            return (
+                f"gateway cost_model_payload for {symbol}: {field_name}={raw!r} "
+                f"is not numeric (card c0f284b8)."
+            )
+
     if canonical is None:
         return None
-    expected = {
-        "spread_pips": canonical.spread_pips,
-        "commission_per_lot": canonical.commission_per_lot,
-        "slippage_pips": canonical.slippage_pips,
-    }
+
     mismatches = []
-    for field_name, want in expected.items():
-        if field_name not in payload:
-            continue
-        try:
-            got = float(payload[field_name])
-        except (TypeError, ValueError):
-            mismatches.append(f"{field_name}={payload[field_name]!r} (not numeric)")
-            continue
-        if got != float(want):
+    for field_name in _COST_MODEL_FIELDS:
+        want = float(getattr(canonical, field_name))
+        got = parsed[field_name]
+        # NaN/inf never compare equal to a finite canonical value, so a single
+        # `!=` rejects them without a special case.
+        if got != want:
             mismatches.append(f"{field_name}={got!r} (Liora table: {want!r})")
     if mismatches:
         return (
@@ -275,15 +326,17 @@ def _execute_cell(job: dict[str, Any], code_root: Path) -> dict[str, Any]:
     wall_start = time.monotonic()
 
     if cost_model_payload:
-        # Card c0f284b8 (Rin iter-1 MEDIUM-2): a gateway-supplied cost model
-        # must not silently contradict the Liora single source of truth.
-        mismatch = _cost_model_mismatch(symbol, cost_model_payload, cm)
-        if mismatch:
+        # Card c0f284b8 (Rin iter-1 MEDIUM-2, iter-2 MEDIUM-A/MEDIUM-B): a
+        # gateway-supplied cost model must be complete, well-formed, and in
+        # agreement with the Liora single source of truth -- otherwise the cell
+        # fails loudly instead of being silently rescored.
+        payload_error = _cost_model_payload_error(symbol, cost_model_payload, cm)
+        if payload_error:
             return {
                 "schema_version": 1,
                 "cell_id": expected_cell_id,
                 "exit_code": 5,
-                "error": mismatch,
+                "error": payload_error,
                 "strategy": strategy,
                 "symbol": symbol,
                 "timeframe": timeframe,
@@ -291,9 +344,24 @@ def _execute_cell(job: dict[str, Any], code_root: Path) -> dict[str, Any]:
                 "finished_at": _now_iso(),
                 "wall_time_s": round(time.monotonic() - wall_start, 3),
             }
-        # Gateway supplied a cost_model consistent with the Liora table;
-        # prefer it (it may carry symbol-specific venue sizing facts).
-        cm = CostModel(**cost_model_payload)
+        try:
+            cm = CostModel(**cost_model_payload)
+        except (TypeError, ValueError) as exc:  # pragma: no cover - belt & braces
+            # Unreachable while the validator above holds, but this call sits
+            # OUTSIDE the try: block, so an escaping TypeError would kill the
+            # worker daemon and strand the cell rather than failing one cell.
+            return {
+                "schema_version": 1,
+                "cell_id": expected_cell_id,
+                "exit_code": 5,
+                "error": f"cost_model_payload_rejected: {exc} (card c0f284b8)",
+                "strategy": strategy,
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "started_at": started_at,
+                "finished_at": _now_iso(),
+                "wall_time_s": round(time.monotonic() - wall_start, 3),
+            }
 
     try:
         harness = TournamentHarness(

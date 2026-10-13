@@ -228,13 +228,14 @@ def build_scorecard_row(
     produced by ``tournament.harness._simulate_trades`` and
     ``tournament.harness._extract_signals_from_strategy``.
 
-    Card c0f284b8: the row carries ``cost_modeled``.  It is ``True`` only when
-    every trade in ``trades`` had a real cost applied.  A trade that could not
-    be costed (no cost model supplied, or an unsizable position) sets
-    ``cost_modeled=False`` on the trade, which makes the row ``False`` here.
-    The default is ``True`` for hand-built trade dicts that predate the flag so
-    existing callers are unaffected; harness-produced trades always set the key
-    explicitly.
+    Card c0f284b8: the row carries ``cost_modeled``, and it is FAIL-CLOSED.
+    It is ``True`` only when ``trades`` is non-empty AND every trade positively
+    proves its cost was applied (``cost_modeled=True`` on the trade dict).  A
+    trade that could not be costed (no cost model supplied, or an unsizable
+    position), a trade dict predating the flag, and the 0-trade case all yield
+    ``False`` — we never assume costs were modeled.  Rows with ``False`` are
+    excluded from verdict-grade ranking by
+    :func:`tournament.harness.row_is_cost_modeled`.
     """
     # Cost provenance (card c0f284b8): a row is verdict-grade only when every
     # trade in it carried a modeled cost, AND it traded at all.
