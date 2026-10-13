@@ -911,3 +911,426 @@ def rank_from_trial_return_store_with_meta_gate(
             annotated.append(replace(r, notes=note))
         out[cell_key] = annotated
     return out
+
+
+# ── Selection-set DSR + BH-FDR scoring (card 82b40a95) ────────────────────
+#
+# Why this layer exists on top of :func:`rank_from_trial_return_store`
+# --------------------------------------------------------------------------
+# :func:`rank_from_trial_return_store` answers "is this cell's ordering
+# FDR-honest?" but it says nothing about the *magnitude* of the winner's
+# edge after deflating for the number of trials the selection was drawn
+# from.  Two defects follow when the tournament path renders a verdict
+# from BH q-values alone:
+#
+#   1. N is never reported, so a q=0.001 from a 2-trial cell reads
+#      identically to a q=0.001 from an 85-trial matrix.  Those are
+#      wildly different claims and the memo cannot tell them apart.
+#   2. BH controls the *proportion* of false discoveries among declared
+#      winners; it does not deflate the winner's Sharpe for the number
+#      of trials.  Bailey & LdP's Deflated Sharpe Ratio does exactly
+#      that, and it needs the trial count as an explicit input.
+#
+# So this layer composes: BH-FDR ordering (reused, never rebuilt) +
+# a per-candidate DSR against the selection set's deflation denominator.
+
+#: Bars per year used to ANNUALISE the reported Sharpe for display.  The
+#: DSR p-value itself is computed from the *per-bar* Sharpe (see
+#: :func:`rank_selection_set_with_dsr`), which is the scale
+#: :func:`quant.oos_gate.deflated_sharpe_ratio` is self-consistent with:
+#: its ``SE(SR) = sqrt(V / (n_obs - 1))`` term and
+#: :func:`quant.oos_gate.expected_max_sharpe` both live in per-observation
+#: (unit-variance) units, so mixing an annualised SR into that z-score
+#: would silently inflate every DSR.  Annualisation is applied to the
+#: reported figure only.
+DEFAULT_BARS_PER_YEAR: int = 252 * 24  # = H1 on a 24h calendar
+
+#: Default significance level for the DSR half of a discovery claim.
+#: BH-FDR controls the false-discovery *rate*; DSR separately tests
+#: H0: true SR <= E[max SR | null].  A candidate must clear BOTH.
+#:
+#: Rin iter-1 HIGH-1: this threshold was previously written as
+#: ``dsr_pvalue < 1.0``, which is NOT a threshold —
+#: ``deflated_sharpe_ratio`` returns ``1 - Phi(z) < 1.0`` for ANY finite
+#: z, so that predicate only meant "not degenerate" and duplicated
+#: ``bh_reject``.  On short sweeps (MIN_TRIAL_BARS=8) a marginal
+#: candidate landed at p=0.99999999999 and was still crowned rank 1 and
+#: counted as a discovery.  A real level is required.
+DEFAULT_DSR_ALPHA: float = 0.05
+
+#: Default bar period (minutes) used to annualise the REPORTED Sharpe.
+#: ``252 * 24`` is the H1 value.  For any other timeframe the caller must
+#: pass ``bar_period_minutes`` so
+#: :func:`forex_bot.quant.oos_gate.annualization_from_bar_period` can
+#: compute the right factor (M15 -> 24192, H4 -> 1512, D1 -> 252).
+#: Rin iter-1 LOW: hardcoding 252*24 was off by 4x on H4 and 24x on D1.
+DEFAULT_BAR_PERIOD_MINUTES: int = 60
+
+
+@dataclass(frozen=True)
+class SelectionSetScore:
+    """One candidate's joint DSR + BH-FDR verdict inside a selection set.
+
+    Attributes
+    ----------
+    cell_key
+        ``(archetype, pair, timeframe)`` the candidate belongs to.
+    candidate_id
+        Column label (trial id) for this candidate within its cell.
+    rank
+        1-based rank **within its cell**, inherited from the BH-FDR
+        ordering — not a cross-cell rank.  Cross-cell ordering is the
+        caller's job and must be justified by the deflation denominator
+        below, not by comparing per-cell q-values.
+    p_value, q_value
+        Per-candidate t-test p-value and its BH-adjusted q-value.
+    bh_rejected
+        BH declared this candidate a discovery at the selection set's
+        alpha.
+    bh_reject
+        BH could not evaluate this candidate (degenerate series, cell
+        too small).  ``True`` here means "no verdict", NOT "rejected".
+    dsr_pvalue
+        One-sided Deflated Sharpe p-value against H0: true SR <=
+        E[max SR | null] for ``n_trials_selection`` trials.  Lower is
+        better; ``1.0`` means "no evidence of a real edge".
+    n_trials_cell
+        Trials recorded in the candidate's own cell (the BH ``m``).
+    n_trials_selection
+        Trials across the WHOLE selection set — the deflation
+        denominator for :attr:`dsr_pvalue`.  This is deliberately the
+        set-wide count rather than ``n_trials_cell``: the selection was
+        made by comparing across cells, so deflating per cell would
+        understate E[max SR] and overstate every winner.
+    n_obs
+        Observations (bars) behind this candidate's Sharpe estimate.
+    observed_sr_per_bar
+        Per-bar Sharpe used for the DSR (unit-variance scale).
+    observed_sr_annual
+        Same Sharpe annualised for human-readable reporting only.
+    """
+
+    cell_key: tuple[str, str, str]
+    candidate_id: str
+    rank: int
+    p_value: float
+    q_value: float
+    bh_rejected: bool
+    bh_reject: bool
+    dsr_pvalue: float
+    n_trials_cell: int
+    n_trials_selection: int
+    n_obs: int
+    observed_sr_per_bar: float
+    observed_sr_annual: float
+    notes: str = ""
+    #: Significance level the DSR must clear for :attr:`is_discovery`.
+    #: See :data:`DEFAULT_DSR_ALPHA`.
+    dsr_alpha: float = DEFAULT_DSR_ALPHA
+
+    @property
+    def is_discovery(self) -> bool:
+        """True iff BH declared a discovery AND the DSR independently confirms it.
+
+        Both halves are required: BH-FDR bounds the expected proportion
+        of false discoveries among declared winners, while the DSR tests
+        whether the winner's Sharpe clears the bar expected from pure
+        chance given ``n_trials_selection``.  A candidate can pass BH and
+        still fail the DSR — that is precisely the case the tournament
+        memo must not present as a finding.
+        """
+        return (
+            self.bh_rejected
+            and not self.bh_reject
+            and self.dsr_pvalue <= self.dsr_alpha
+        )
+
+
+@dataclass(frozen=True)
+class SelectionSetRanking:
+    """Whole-selection-set result: per-cell BH orderings + the DSR denominator.
+
+    ``n_trials`` is the single number the verdict memo must quote when it
+    claims a cell is a real discovery — it is the count the DSR deflated
+    against, and quoting a per-cell count instead would overstate every
+    winner in a multi-cell sweep.
+    """
+
+    cells: dict[tuple[str, str, str], list[SelectionSetScore]]
+    n_trials: int
+    n_cells: int
+    alpha: float
+    bars_per_year: int = DEFAULT_BARS_PER_YEAR
+    dsr_alpha: float = DEFAULT_DSR_ALPHA
+
+    @property
+    def n_candidates(self) -> int:
+        return sum(len(v) for v in self.cells.values())
+
+    @property
+    def n_discoveries(self) -> int:
+        return sum(1 for s in self.all_scores() if s.is_discovery)
+
+    def all_scores(self) -> list[SelectionSetScore]:
+        """Every score in the set, cell-major, order preserved."""
+        out: list[SelectionSetScore] = []
+        for key in self.cells:
+            out.extend(self.cells[key])
+        return out
+
+    def by_discovery(self) -> list[SelectionSetScore]:
+        """Discovery candidates first, then ascending DSR p-value.
+
+        This is the ONLY ordering this module offers for cross-cell
+        presentation, and it is ordered by deflated significance rather
+        than raw return.
+        """
+        return sorted(
+            self.all_scores(),
+            key=lambda s: (
+                0 if s.is_discovery else 1,
+                s.dsr_pvalue,
+                s.q_value,
+                s.candidate_id,
+            ),
+        )
+
+
+def _per_bar_sharpe(returns: np.ndarray) -> float:
+    """Per-observation Sharpe (mean / sample std) — the DSR input scale."""
+    arr = np.asarray(returns, dtype=float)
+    if arr.ndim != 1 or arr.size < 2:
+        return 0.0
+    std = float(np.std(arr, ddof=1))
+    if std <= 0.0 or not math.isfinite(std):
+        return 0.0
+    mean = float(np.mean(arr))
+    if not math.isfinite(mean):
+        return 0.0
+    return mean / std
+
+
+def _sample_skew_kurt_regular(returns: np.ndarray) -> tuple[float, float]:
+    """Sample skewness and REGULAR kurtosis (gamma4; 3.0 for normal).
+
+    :func:`quant.oos_gate.deflated_sharpe_ratio` wants ``gamma4`` as the
+    fourth standardized moment, NOT excess kurtosis — scipy returns
+    excess (Fisher), so we add 3.0 back.  Degenerate series return
+    ``(0.0, 3.0)`` — the normal reference — so a flat trial deflates
+    exactly like an honestly normal one instead of raising or picking
+    up NaN.
+    """
+    arr = np.asarray(returns, dtype=float)
+    if arr.ndim != 1 or arr.size < 3:
+        return 0.0, 3.0
+    if not np.all(np.isfinite(arr)) or float(np.std(arr, ddof=1)) <= 0.0:
+        return 0.0, 3.0
+    from scipy import stats  # type: ignore[import-not-found]
+
+    skew = float(stats.skew(arr, bias=False))
+    excess = float(stats.kurtosis(arr, fisher=True, bias=False))
+    if not math.isfinite(skew):
+        skew = 0.0
+    if not math.isfinite(excess):
+        excess = 0.0
+    return skew, excess + 3.0
+
+
+def rank_selection_set_with_dsr(
+    store: object,
+    *,
+    candidate_ids_per_cell: dict[tuple[str, str, str], Sequence[str]] | None = None,
+    alpha: float = DEFAULT_FDR_ALPHA,
+    n_trials_selection: int | None = None,
+    bars_per_year: int | None = None,
+    bar_period_minutes: int = DEFAULT_BAR_PERIOD_MINUTES,
+    dsr_alpha: float = DEFAULT_DSR_ALPHA,
+) -> SelectionSetRanking:
+    """Score a whole multi-cell selection set with BH-FDR + DSR.
+
+    This is the tournament path's replacement for a hand-rolled
+    ordering.  It **reuses** :func:`rank_from_trial_return_store` for the
+    BH-FDR step (the ranking itself is never rebuilt here) and layers a
+    Deflated Sharpe test on top, reporting the selection set's trial
+    count as an explicit deflation denominator.
+
+    Parameters
+    ----------
+    store
+        A :class:`forex_bot.factory.validation_runner.TrialReturnStore`
+        (duck-typed: needs ``keys()``, ``matrix(key)``, and optionally
+        ``trial_count(key)``).
+    candidate_ids_per_cell
+        Optional cell key -> column labels, forwarded to
+        :func:`rank_from_trial_return_store`.
+    alpha
+        BH-FDR level.  Defaults to :data:`DEFAULT_FDR_ALPHA`.
+    n_trials_selection
+        Override for the deflation denominator.  ``None`` (the default)
+        means "every trial recorded across every cell in the store",
+        which is the conservative and correct choice for a sweep that
+        picked its winner by comparing across cells.  Pass an explicit
+        value ONLY when the selection was drawn from a strictly larger
+        trial population than this store holds (e.g. a crashed run
+        whose trials are no longer recoverable) — and then quote that
+        number in the verdict memo, because it is the count every DSR in
+        the set was deflated against.
+
+        Rin iter-1 MEDIUM: an override SMALLER than the store's own
+        trial count is now **clamped up** to that count rather than
+        honoured.  ``expected_max_sharpe(1) == 0.0``, so passing
+        ``n_trials_selection=1`` would collapse the DSR to a plain
+        z-test — weaker than the correction BH already applied.  The
+        override may only ever make deflation harsher.
+    bars_per_year
+        Annualisation factor for the REPORTED Sharpe only; it does not
+        enter the DSR p-value.  ``None`` (the default) resolves from
+        ``bar_period_minutes``.  When BOTH are supplied this explicit
+        factor WINS -- it is the escape hatch for callers whose calendar
+        is neither 252d nor 24h.
+    bar_period_minutes
+        Bar period (e.g. ``15``, ``60``, ``240``, ``1440``) resolved to
+        the correct annualisation via
+        :func:`forex_bot.quant.oos_gate.annualization_from_bar_period`.
+        Rin iter-1 LOW: a hardcoded ``252 * 24`` is off by 4x on H4 and
+        24x on D1, which misreports every non-H1 Sharpe.  Ignored when
+        ``bars_per_year`` is given explicitly.
+    dsr_alpha
+        Significance level the DSR must clear for
+        :attr:`SelectionSetScore.is_discovery`.  Defaults to
+        :data:`DEFAULT_DSR_ALPHA`.
+
+    Returns
+    -------
+    SelectionSetRanking
+        Per-cell BH-ordered scores, each carrying its DSR p-value, plus
+        the set-wide ``n_trials`` deflation denominator.
+
+    Notes
+    -----
+    Deterministic: the same store and ids produce byte-identical output.
+    Degenerate candidates (``bh_reject=True``) get ``dsr_pvalue=1.0``
+    and ``observed_sr_per_bar=0.0`` — we refuse to invent a Sharpe for a
+    series that cannot support one, and ``1.0`` is the honest "no
+    evidence" value rather than an exception.
+
+    **Known limitation -- the Sharpe is scale-invariant, so this pass
+    cannot detect a units error.**  Renaming a return series from
+    fractions to percent, or scaling it by 1e6, changes ``mean/std`` by
+    exactly zero, so ``_per_bar_sharpe``,
+    :func:`quant.oos_gate.deflated_sharpe_ratio` and the BH t-statistic
+    all return IDENTICAL numbers for the wrong units.  Rin iter-1
+    measured a 1e6-magnitude series yielding
+    ``observed_sr_per_bar=1.1e12, dsr_p=0.0``.  A magnitude guard
+    therefore belongs at *store construction* (``TrialReturnStore.record``),
+    which is outside this module's concern AND outside this card's
+    ``allowed_files``; an arbitrary bound here would reject legitimate
+    high-beta series for the wrong reason.  Rin iter-2 re-graded this
+    MEDIUM -> LOW for that reason (a mathematical property of Sharpe, not
+    a defect in this layer) and folded the action into DEBT card
+    8afa0fcd.  Documented here so the limitation is discoverable rather
+    than an unwritten assumption.
+    """
+    # 1. BH-FDR ordering — reused verbatim, never re-implemented.
+    ranked = rank_from_trial_return_store(
+        store,
+        candidate_ids_per_cell=candidate_ids_per_cell,
+        alpha=alpha,
+    )
+
+    # 2. Deflation denominator: total trials across the whole selection
+    #    set.  An explicit override may only ever make it LARGER.
+    store_total = 0
+    for key in store.keys():  # type: ignore[attr-defined]
+        try:
+            store_total += int(store.trial_count(key))  # type: ignore[attr-defined]
+        except Exception:  # noqa: BLE001 — duck-typed store without trial_count
+            matrix = store.matrix(key)  # type: ignore[attr-defined]
+            if matrix is not None and matrix.ndim == 2:
+                store_total += int(matrix.shape[1])
+    total = (
+        store_total
+        if n_trials_selection is None
+        else max(int(n_trials_selection), store_total)
+    )
+
+    # 2b. Annualisation factor for the REPORTED Sharpe (Rin iter-1 LOW).
+    from forex_bot.quant.oos_gate import (  # late import: scipy
+        annualization_from_bar_period,
+        deflated_sharpe_ratio,
+    )
+
+    if bars_per_year is not None:
+        resolved_bpy = int(bars_per_year)
+    else:
+        resolved_bpy = int(annualization_from_bar_period(bar_period_minutes))
+
+    cells: dict[tuple[str, str, str], list[SelectionSetScore]] = {}
+    for cell_key, candidates in ranked.items():
+        matrix = store.matrix(cell_key)  # type: ignore[attr-defined]
+        by_id: dict[str, np.ndarray] = {}
+        n_cell = 0
+        if matrix is not None and matrix.ndim == 2:
+            n_cell = int(matrix.shape[1])
+            ids: list[str]
+            if candidate_ids_per_cell is not None:
+                ids = list(candidate_ids_per_cell.get(cell_key, ()))
+            else:
+                ids = [f"trial_{i}" for i in range(n_cell)]
+            if len(ids) != n_cell:
+                ids = [f"trial_{i}" for i in range(n_cell)]
+            by_id = {ids[i]: matrix[:, i] for i in range(n_cell)}
+        else:
+            n_cell = len(candidates)
+
+        scores: list[SelectionSetScore] = []
+        for rc in candidates:
+            series = by_id.get(rc.candidate_id)
+            n_obs = int(series.size) if series is not None else 0
+            if rc.bh_reject or series is None or n_obs < 2:
+                # No Sharpe can be supported — say so rather than guess.
+                dsr_p = 1.0
+                sr_bar = 0.0
+                sr_ann = 0.0
+            else:
+                sr_bar = _per_bar_sharpe(series)
+                skew, gamma4 = _sample_skew_kurt_regular(series)
+                dsr_p = float(
+                    deflated_sharpe_ratio(
+                        observed_sr=sr_bar,
+                        n_trials=total,
+                        n_obs=n_obs,
+                        skewness=skew,
+                        kurtosis_regular=gamma4,
+                    )
+                )
+                sr_ann = sr_bar * math.sqrt(resolved_bpy)
+            scores.append(
+                SelectionSetScore(
+                    cell_key=cell_key,
+                    candidate_id=rc.candidate_id,
+                    rank=rc.rank,
+                    p_value=rc.p_value,
+                    q_value=rc.q_value,
+                    bh_rejected=rc.bh_rejected,
+                    bh_reject=rc.bh_reject,
+                    dsr_pvalue=dsr_p,
+                    n_trials_cell=n_cell,
+                    n_trials_selection=total,
+                    n_obs=n_obs,
+                    observed_sr_per_bar=sr_bar,
+                    observed_sr_annual=sr_ann,
+                    notes=rc.notes,
+                    dsr_alpha=float(dsr_alpha),
+                )
+            )
+        cells[cell_key] = scores
+
+    return SelectionSetRanking(
+        cells=cells,
+        n_trials=total,
+        n_cells=len(cells),
+        alpha=float(alpha),
+        bars_per_year=resolved_bpy,
+        dsr_alpha=float(dsr_alpha),
+    )

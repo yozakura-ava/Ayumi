@@ -1142,3 +1142,91 @@ class TournamentHarness:
         from tournament.scorecard import Scorecard
 
         return Scorecard(rows=list(rows), meta={})
+
+    def score_selection_set(
+        self,
+        store: object,
+        *,
+        rows_by_candidate_id: dict | None = None,
+        alpha: float | None = None,
+        n_trials_selection: int | None = None,
+        bars_per_year: int | None = None,
+        bar_period_minutes: int = 60,
+        dsr_alpha: float | None = None,
+    ):
+        """Score a whole multi-cell selection set with BH-FDR + DSR.
+
+        Card 82b40a95 (Sprint E gate 6).  This is the wiring that closes
+        the gap :meth:`run` leaves open: :meth:`run` covers ONE bar window
+        and therefore has no per-trial series, so it can only return an
+        unranked scorecard (AC2 keeps that behaviour unchanged).  A real
+        selection set spans many cells, which is what a
+        :class:`forex_bot.factory.validation_runner.TrialReturnStore`
+        holds — feeding one here yields the verdict-grade ordering.
+
+        The ranking itself is **not** implemented here; it is delegated to
+        :func:`forex_bot.factory.risk_adjusted_ranking.rank_selection_set_with_dsr`,
+        which in turn reuses ``rank_from_trial_return_store``.  This
+        method's whole job is to connect the tournament path to that
+        factory pass and attach the harness metadata.
+
+        Parameters
+        ----------
+        store
+            A ``TrialReturnStore`` (duck-typed: ``keys()``, ``matrix()``,
+            ``trial_count()``).
+        rows_by_candidate_id
+            Optional ``candidate_id -> ScorecardRow`` map so the verdict
+            scores annotate the rows this harness already backtested.
+        alpha
+            BH-FDR level; ``None`` uses the factory default (0.05).
+        n_trials_selection
+            Override for the DSR deflation denominator.  ``None`` means
+            "every trial in the store" — the correct default for a sweep
+            that chose its winner by comparing across cells.  Clamped UP
+            to the store's own trial count; it can only make deflation
+            harsher.
+        bars_per_year
+            Explicit annualisation factor for the REPORTED Sharpe.  When
+            given it wins over ``bar_period_minutes``.
+        bar_period_minutes
+            Bar period of THIS harness's bars (60 = H1, 240 = H4,
+            1440 = D1).  Rin iter-2 Q3: the library accepted a bar
+            period but this call site dropped it, so every real
+            tournament still annualised at H1's 6048 — reporting H4
+            Sharpe 4x and D1 24x too high.  Affects the reported Sharpe
+            only; never the DSR p-value.
+        dsr_alpha
+            Significance level the DSR must clear for a discovery claim.
+            ``None`` uses the factory default.
+
+        Returns
+        -------
+        Scorecard
+            Ranked, verdict-grade scorecard whose ``meta["ranking"]``
+            records N, the cell count, and the ordering key.
+        """
+        from forex_bot.factory.risk_adjusted_ranking import (  # late-import: scipy
+            DEFAULT_DSR_ALPHA,
+            DEFAULT_FDR_ALPHA,
+            rank_selection_set_with_dsr,
+        )
+        from tournament.scorecard import ranked_scorecard_from_selection_set
+
+        effective_alpha = DEFAULT_FDR_ALPHA if alpha is None else float(alpha)
+        effective_dsr_alpha = (
+            DEFAULT_DSR_ALPHA if dsr_alpha is None else float(dsr_alpha)
+        )
+        ranking = rank_selection_set_with_dsr(
+            store,
+            alpha=effective_alpha,
+            n_trials_selection=n_trials_selection,
+            bars_per_year=bars_per_year,
+            bar_period_minutes=bar_period_minutes,
+            dsr_alpha=effective_dsr_alpha,
+        )
+        return ranked_scorecard_from_selection_set(
+            ranking,
+            rows_by_candidate_id=rows_by_candidate_id,
+            meta={"harness_meta": self.bar_window_meta},
+        )
