@@ -794,18 +794,31 @@ class CostModel:
 # hardcoded spread, which is the exact defect this card closes.
 _LIORA_MODULE_NAME = "ayumi_liora_spread_costs"
 
+# Process-wide cache. Rin iter-1 MEDIUM-3: the loader re-executed the file on
+# every call, so two calls produced non-identical module objects with distinct
+# SpreadCostTable classes. Once the factory import is repaired this resolves to
+# the canonical forex_bot.factory.spread_costs module; the cache guarantees a
+# single copy per process either way.
+_LIORA_MODULE: object | None = None
+
 
 def _liora_spread_costs():
     """Return the ``spread_costs`` module (the Liora ground-rule table).
 
     See the block comment above for why the direct-file fallback exists.
     Raises :exc:`ImportError` if neither route can load the single source of
-    truth; it never substitutes a locally hardcoded spread.
+    truth; it never substitutes a locally hardcoded spread.  The result is
+    cached, so repeated calls return the identical module object.
     """
+    global _LIORA_MODULE
+    if _LIORA_MODULE is not None:
+        return _LIORA_MODULE
+
     try:
         from forex_bot.factory import spread_costs  # noqa: PLC0415
 
-        return spread_costs
+        _LIORA_MODULE = spread_costs
+        return _LIORA_MODULE
     except ImportError:
         pass
 
@@ -826,6 +839,7 @@ def _liora_spread_costs():
     # sys.modules during class creation.
     sys.modules[_LIORA_MODULE_NAME] = module
     spec.loader.exec_module(module)
+    _LIORA_MODULE = module
     return module
 
 
@@ -868,6 +882,24 @@ def cost_model_for(symbol: str) -> CostModel | None:
     return FTMO_COST_DEFAULTS.get(symbol.upper())
 
 
+def row_is_cost_modeled(row) -> bool:
+    """Fail-closed check: is this row's cost actually modeled?
+
+    Card c0f284b8 AC2.  Rin iter-1 MEDIUM-4: the previous
+    ``getattr(row, "cost_modeled", True)`` silently PASSED dict rows that had
+    no flag at all, and ``front_door.load_scorecard()`` returns ``list[dict]``
+    -- so every dict row would have passed the gate by default.
+
+    The rule is therefore: absent flag means NOT modeled.  A row only counts
+    as verdict-grade when it positively proves its costs were modeled.  Handles
+    both :class:`tournament.scorecard.ScorecardRow` and the plain dicts that
+    come back from JSON loading.
+    """
+    if isinstance(row, dict):
+        return bool(row.get("cost_modeled", False))
+    return bool(getattr(row, "cost_modeled", False))
+
+
 def verdict_grade_rows(rows):
     """Return only the rows whose costs were actually modeled.
 
@@ -876,7 +908,7 @@ def verdict_grade_rows(rows):
     eligible to be ranked?", so the tournament matrix (card 37078a83) and any
     later verdict consumer share one definition instead of re-deriving it.
     """
-    return [row for row in rows if getattr(row, "cost_modeled", True)]
+    return [row for row in rows if row_is_cost_modeled(row)]
 
 
 @dataclass

@@ -45,6 +45,7 @@ from tournament.harness import (
     cost_model_for,
     load_bars_for_window,
     resolve_default_duckdb_path,
+    row_is_cost_modeled,
     verdict_grade_rows,
 )
 from tournament.scorecard import (
@@ -849,3 +850,70 @@ class TestCostModeledPropagation:
         kept = verdict_grade_rows([good, bad])
         assert kept == [good]
         assert bad not in kept
+
+
+class TestRinIter1Regressions:
+    """Regression guards for Rin iter-1 findings (MEDIUM-3, MEDIUM-4, LOWs)."""
+
+    def test_liora_loader_returns_the_same_module_object(self) -> None:
+        """MEDIUM-3: the loader used to re-exec the file on every call."""
+        assert _liora_spread_costs() is _liora_spread_costs()
+
+    def test_dict_row_without_flag_is_not_verdict_grade(self) -> None:
+        """MEDIUM-4: dict rows must not pass the gate by default.
+
+        ``front_door.load_scorecard()`` returns ``list[dict]``, so the old
+        ``getattr(..., True)`` let every flagless dict row through.
+        """
+        assert row_is_cost_modeled({}) is False
+        assert row_is_cost_modeled({"cost_modeled": False}) is False
+        assert row_is_cost_modeled({"cost_modeled": True}) is True
+
+    def test_dict_rows_round_trip_through_the_gate(self) -> None:
+        rows = [{"strategy_id": "a", "cost_modeled": True},
+                {"strategy_id": "b"}]
+        kept = verdict_grade_rows(rows)
+        assert kept == [rows[0]]
+
+    def test_zero_trade_row_is_not_verdict_grade(self) -> None:
+        """LOW: all([]) used to make a 0-trade row cost-modeled=True."""
+        row = build_scorecard_row(
+            strategy_id="idle",
+            symbol="XAUUSD",
+            timeframe="H1",
+            starting_equity=1.0,
+            trades=[],
+            dates=["2024-06-03"],
+            trade_entry_bars=[],
+            source="synthetic",
+        )
+        assert row.trade_count == 0
+        assert row.cost_modeled is False
+
+    def test_trade_without_provenance_key_is_not_verdict_grade(self) -> None:
+        """LOW: a hand-built trade missing the key must fail closed."""
+        row = build_scorecard_row(
+            strategy_id="legacy",
+            symbol="XAUUSD",
+            timeframe="H1",
+            starting_equity=1.0,
+            trades=[{"pnl_fraction": 0.01, "entry_bar": 0}],
+            dates=["2024-06-03"],
+            trade_entry_bars=[0],
+            source="synthetic",
+        )
+        assert row.cost_modeled is False
+
+    def test_xauusd_spread_is_pinned_to_the_liora_value(self) -> None:
+        """LOW: the both-paths test alone was near-tautological.
+
+        Because FTMO_COST_DEFAULTS is DERIVED from the Liora table, comparing
+        the two paths cannot detect the constant silently changing. Pin the
+        literal value so a future edit to either side is caught.
+        """
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        assert cm.spread_pips == 3.0
+        cm2 = cost_model_for("GBPUSD")
+        assert cm2 is not None
+        assert cm2.spread_pips == 1.5

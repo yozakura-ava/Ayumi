@@ -237,9 +237,16 @@ def build_scorecard_row(
     explicitly.
     """
     # Cost provenance (card c0f284b8): a row is verdict-grade only when every
-    # trade in it carried a modeled cost.  A 0-trade row has nothing
-    # unmodeled, so it stays True.
-    cost_modeled = all(t.get("cost_modeled", True) for t in trades)
+    # trade in it carried a modeled cost, AND it traded at all.
+    #
+    # Rin iter-1 LOW (fail-open defaults + all([])): a 0-trade row used to come
+    # out True via all([]), and a trade dict missing the key defaulted to True.
+    # Both are optimistic guesses about costs we never actually observed.  Now
+    # it is fail-closed: no trades, or any trade whose provenance is absent,
+    # means NOT cost-modeled -- so it cannot enter a verdict ranking.
+    cost_modeled = bool(trades) and all(
+        t.get("cost_modeled", False) for t in trades
+    )
 
     # Edge case 4: 0 trades.  Still emit a valid row with zeros.
     if not trades:
