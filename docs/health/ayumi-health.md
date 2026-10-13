@@ -63,3 +63,11 @@ The `signal_stats_writer_heartbeat.json` shows **CRASHED** status since Jul 16. 
 ---
 
 *This evaluation is advisory. Actions require Craig or council approval. Ava is currently offline (Day 10).*
+
+## Audit 2026-10-13 — YELLOW (degraded vs 09-30)
+Engine healthy (service up since 10-12 21:56 UTC, authenticated, ticks current, FTMO green +0.98%/DD 1.6%). Degraded on: tournament gate still inoperative (matrix BLOCKED on pytz bug c38d59da, no verdict memo, H1-only evidence), strategy lane silent since 10-06, main 7 commits unpushed, timescaledb/redis exited ~91d, next-sprint directive unfulfilled 7d. Full report: /root/.openclaw/workspace/docs/audits/ayumi-audit-2026-10-13.md
+
+### Resolution update (same day, 15:30 EDT)
+- **Tournament gate: UNBLOCKED.** pytz "bug" was a false premise (stale decoy code copy); real runtime on node verified healthy (smoke TOURNAMENT_OK). Cards c38d59da and 05fa0065 closed as superseded.
+- **Sprint E dispatched** (fulfills the 10-06 next-sprint directive): gate 2 cost reconciliation MERGED to main `eb08e0e7` (Rin APPROVE, 0 MEDIUM+); statistical pass (82b40a95) and 17×5 matrix + FTMO verdict memo (37078a83) queued.
+- Still open: main push backlog, timescaledb/redis decision, strategy-lane silence. Yellow → trending GREEN on the tournament axis once the verdict memo lands.

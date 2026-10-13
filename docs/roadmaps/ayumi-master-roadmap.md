@@ -3,7 +3,7 @@
 > **This document supersedes all prior plan, quest, and roadmap documents.**
 > If any other doc conflicts with this one, this one wins.
 > Decision log: `docs/decisions/decision-log.md`
-> Last updated: 2026-07-22 (rev 4 — strategy factory pivot: portfolio evaluation + regime profiling)
+> Last updated: 2026-10-13 (rev 5 — Sprint E: tournament verdict chain toward FTMO go/no-go; rev 4 strategy-factory pivot content preserved below)
 
 ---
 
@@ -27,7 +27,34 @@ Build and run a profitable automated forex trading bot on the **FTMO 1-Step Stan
 
 ---
 
-## Current State (2026-07-22)
+## Current State (2026-10-13)
+
+### Sprint E — Tournament Verdict Chain (ACTIVE)
+> Goal: produce the pre-registered FTMO go/no-go verdict memo from a staged 17-strategy × 5-TF (M3/M5/M15/M30/H1) XAUUSD tournament on the frozen window 2022-01-15 → 2026-07-01.
+> Plan: `data/sprint-plans/2026-10-13-ayumi-sprint-e-phase1.json` (workspace). Cards: c0f284b8 → 82b40a95 → 37078a83.
+
+| Gate | Status |
+|------|--------|
+| G0 env (node ava-worker-local, `/opt/ayumi-tournament/`) | ✅ Verified — pytz "bug" premise falsified (stale decoy copy); smoke `TOURNAMENT_OK rows=1` 2026-10-13 |
+| G1 bar coverage, all 5 TFs over frozen window | ✅ Verified — M3 521,865 / M5 215,233 / M15 104,380 / M30 52,194 / H1 17,948 bars |
+| G2 cost reconciliation (single sourced constant + cost-free-row kill) | ✅ **MERGED to main `eb08e0e7`** (Rin iter-4 APPROVE, 0 MEDIUM+) — XAUUSD 3.0 / GBPUSD 1.5 pips from Liora table; unsizable trades now `cost_modeled:false`; hostile cost_model descriptors fail loud (exit 5) |
+| G5 statistical pass (DSR/BH-FDR) | ⏳ Card 82b40a95 queued |
+| G4 staged matrix + G6 verdict memo vs FTMO gate (10% total / 3% daily DD, ≥2 TFs, min trades) | ⏳ Card 37078a83 queued |
+
+Superseded/closed: 05fa0065 (offload-runner matrix — direct node path replaces it), c38d59da (pytz env bug — false premise), 48243dbc still blocked.
+
+### System state (audit 2026-10-13 — YELLOW, degraded vs 09-30)
+- Forward test healthy: `ayumi-forward-test.service` up since 2026-10-12 21:56 UTC, authenticated, ticks current, FTMO guard green (+0.98%, DD 1.6%), 0 open trades.
+- Full report: `docs/audits/` (workspace `ayumi-audit-2026-10-13.md`). Open items: main push backlog, timescaledb/redis revive-or-retire (Craig decision), strategy lane silent since 10-06.
+
+### What follows Sprint E
+1. Statistical wiring (82b40a95) → matrix + verdict memo (37078a83).
+2. Craig decision points: FTMO spend (post-verdict), timescaledb/redis retirement, registry prune.
+3. Pre-existing worker daemon-kill sites (Rin LOW-3, 11 sites) → `[DEBT]` card.
+
+---
+
+## Prior State (2026-07-22 — rev 4, strategy factory pivot)
 
 ### Jul 22 SRF Re-sweep + Strategy Factory Pivot
 
