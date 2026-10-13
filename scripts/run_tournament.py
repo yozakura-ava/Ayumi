@@ -40,6 +40,11 @@ from tournament import (  # noqa: E402
     render_scorecard_json,
 )
 
+# Imported from the submodule rather than the package re-exports: card
+# 82b40a95's allowed_files cover scorecard.py + run_tournament.py, NOT
+# tournament/__init__.py, so this must not go through a new package export.
+from tournament.scorecard import ranking_ordering_statement  # noqa: E402
+
 logger = logging.getLogger("ayumi.tournament.cli")
 
 
@@ -260,6 +265,12 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  {sid:<28} SKIPPED  ({rm.get('error', 'unknown')})")
             else:
                 print(f"  {sid:<28} signals={rm.get('signals', 0):>4}   trades={rm.get('trades', 0):>4}")
+    print()
+    # Card 82b40a95 scope item 3: state the ordering's provenance BEFORE
+    # the table, so an unranked single-window run can never be mistaken
+    # for a leaderboard.  For the standalone CLI path (one window, no
+    # per-trial series) this prints the explicit refusal.
+    print(f"  Ranking:   {ranking_ordering_statement(scorecard)}")
     print()
     print(render_console_table(scorecard))
     print()

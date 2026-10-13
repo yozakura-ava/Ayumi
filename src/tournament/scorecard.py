@@ -18,7 +18,13 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass, field
 from datetime import date
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
+
+if TYPE_CHECKING:  # pragma: no cover — import kept cheap at runtime
+    from forex_bot.factory.risk_adjusted_ranking import (
+        SelectionSetRanking,
+        SelectionSetScore,
+    )
 
 
 # FTMO defaults are the canonical source of truth for the thresholds.  We
@@ -51,6 +57,32 @@ SCORECARD_ROW_COLUMNS: tuple[str, ...] = (
     # so the rendered JSON "columns" header stays truthful about what each row
     # actually contains.
     "cost_modeled",
+    # Card 82b40a95: the statistical verdict columns.  They are ``None``
+    # on an unranked single-window row — which is the honest value, not a
+    # placeholder: it says "no DSR/BH-FDR pass was computed for this row".
+    # The memo tooling reads these to refuse to present an ordering it
+    # cannot justify (see :func:`ranking_ordering_statement`).
+    "rank",
+    "dsr_pvalue",
+    "fdr_qvalue",
+    "bh_rejected",
+    "n_trials_cell",
+    "n_trials_selection",
+)
+
+#: ``Scorecard.meta["ranking"]["method"]`` value that marks an ordering
+#: produced by the real BH-FDR + DSR selection-set pass.
+RANKING_METHOD_STATISTICAL = "dsr_bh_fdr_selection_set"
+
+#: ``Scorecard.meta["ranking"]["method"]`` value for a scorecard the
+#: harness emitted without any ranking.  Anything else is rejected by
+#: :func:`ranking_ordering_statement`.
+RANKING_METHOD_NONE = "unranked_no_trials"
+
+#: The sentence the memo is required to print when no real ranking exists.
+NO_RANKING_STATEMENT = (
+    "harness produced no ranking — rows are UNORDERED and must not be "
+    "presented as a leaderboard (no DSR/BH-FDR selection-set pass was run)"
 )
 
 
@@ -73,6 +105,24 @@ class ScorecardRow:
     source: str
     cost_modeled: bool = True
     rank: int = 0
+    # ── Card 82b40a95: statistical verdict fields ──
+    # Populated only by :func:`ranked_scorecard_from_selection_set`.
+    # Left ``None`` on unranked rows so an absent verdict is
+    # distinguishable from a computed verdict of 1.0.
+    dsr_pvalue: float | None = None
+    fdr_qvalue: float | None = None
+    bh_rejected: bool | None = None
+    #: Trials in this row's own cell (the BH ``m``).
+    n_trials_cell: int | None = None
+    #: Trials across the whole selection set — the DSR deflation
+    #: denominator.  Compare ``n_trials_selection`` against
+    #: ``n_trials_cell`` to spot a verdict that was deflated too weakly.
+    n_trials_selection: int | None = None
+
+    @property
+    def is_statistically_ranked(self) -> bool:
+        """True iff this row carries a real DSR/BH-FDR verdict."""
+        return self.dsr_pvalue is not None and self.fdr_qvalue is not None
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -340,6 +390,139 @@ def rank_scorecard_rows(rows: list[ScorecardRow]) -> Scorecard:
     )
 
 
+# ── Card 82b40a95: selection-set ranking + memo guard ──────────────────────
+
+
+def ranked_scorecard_from_selection_set(
+    ranking: "SelectionSetRanking",
+    *,
+    rows_by_candidate_id: dict[str, "ScorecardRow"] | None = None,
+    meta: dict | None = None,
+) -> Scorecard:
+    """Build a *verdict-grade* ranked :class:`Scorecard` from a selection set.
+
+    This is the only sanctioned way for the tournament path to present an
+    ordering.  It consumes a
+    :class:`~forex_bot.factory.risk_adjusted_ranking.SelectionSetRanking`
+    (BH-FDR ordering plus DSR deflation) and:
+
+    * orders rows by **deflated significance**, never by ``return_pct``;
+    * stamps each row with its DSR p-value, BH q-value, and both trial
+      counts (per-cell and selection-set-wide);
+    * records the ordering provenance in ``meta["ranking"]`` so the memo
+      tooling can prove the order was not hand-rolled.
+
+    Parameters
+    ----------
+    ranking
+        The whole-selection-set result.
+    rows_by_candidate_id
+        Optional ``candidate_id -> ScorecardRow`` map from the harness's
+        backtest run.  When a candidate has no row, a placeholder row is
+        synthesised with ``source="selection_set_statistical_only"`` and
+        zeroed performance columns — the ``source`` marker is the signal
+        that its performance was **not** backtested, so it cannot be
+        mistaken for a measured return of 0%.
+    meta
+        Optional extra metadata merged under ``meta``.
+
+    Returns
+    -------
+    Scorecard
+        Ranked rows (1-based) with the statistical verdict columns set
+        and ``meta["ranking"]["method"] == RANKING_METHOD_STATISTICAL``.
+    """
+    rows_by_candidate_id = rows_by_candidate_id or {}
+
+    # Candidate ids are only unique WITHIN a cell by default ("trial_0"
+    # is generated positionally per cell).  Two cells would otherwise
+    # render two different candidates under one identical label, and a
+    # memo reader would read them as the same row.  Qualify the label
+    # whenever the set actually contains a collision.
+    all_ids = [s.candidate_id for s in ranking.all_scores()]
+    id_counts: dict[str, int] = {}
+    for cid in all_ids:
+        id_counts[cid] = id_counts.get(cid, 0) + 1
+    qualified_ids = {cid for cid, n in id_counts.items() if n > 1}
+
+    ordered: list[ScorecardRow] = []
+    for pos, score in enumerate(ranking.by_discovery(), start=1):
+        base = rows_by_candidate_id.get(score.candidate_id)
+        if base is None:
+            archetype, pair, timeframe = score.cell_key
+            label = score.candidate_id
+            if score.candidate_id in qualified_ids:
+                label = f"{archetype}|{pair}|{timeframe}|{score.candidate_id}"
+            base = ScorecardRow(
+                strategy_id=label or archetype,
+                symbol=pair,
+                timeframe=timeframe,
+                return_pct=0.0,
+                max_dd_pct=0.0,
+                daily_dd_breaches=0,
+                total_dd_breaches=0,
+                trade_count=0,
+                source="selection_set_statistical_only",
+                cost_modeled=False,
+            )
+        base.rank = pos
+        base.dsr_pvalue = float(score.dsr_pvalue)
+        base.fdr_qvalue = float(score.q_value)
+        base.bh_rejected = bool(score.bh_rejected)
+        base.n_trials_cell = int(score.n_trials_cell)
+        base.n_trials_selection = int(score.n_trials_selection)
+        ordered.append(base)
+
+    payload_meta: dict = dict(meta or {})
+    payload_meta["ranking"] = {
+        "method": RANKING_METHOD_STATISTICAL,
+        "n_trials": int(ranking.n_trials),
+        "n_cells": int(ranking.n_cells),
+        "n_candidates": int(ranking.n_candidates),
+        "n_discoveries": int(ranking.n_discoveries),
+        "alpha": float(ranking.alpha),
+        "order_key": (
+            "is_discovery desc, dsr_pvalue asc, fdr_qvalue asc, "
+            "candidate_id asc"
+        ),
+    }
+    return Scorecard(rows=ordered, meta=payload_meta)
+
+
+def ranking_ordering_statement(scorecard: Scorecard) -> str:
+    """Return a sentence describing — or refusing — this scorecard's order.
+
+    Card 82b40a95 scope item 3: the memo tooling must **refuse to present
+    a hand-rolled ordering**.  A scorecard is only allowed to describe
+    itself as ranked when :func:`ranked_scorecard_from_selection_set`
+    produced it — i.e. when ``meta["ranking"]["method"]`` is
+    :data:`RANKING_METHOD_STATISTICAL` and the rows actually carry
+    statistical verdicts.  Anything else (the standalone single-window
+    harness, a scorecard hand-built by a caller, rows all left at
+    ``rank=0``) returns :data:`NO_RANKING_STATEMENT` verbatim, so an
+    unordered set can never be rendered as a leaderboard.
+    """
+    ranking_meta = (scorecard.meta or {}).get("ranking")
+    if not isinstance(ranking_meta, dict):
+        return NO_RANKING_STATEMENT
+    if ranking_meta.get("method") != RANKING_METHOD_STATISTICAL:
+        return NO_RANKING_STATEMENT
+    if not scorecard.rows:
+        return NO_RANKING_STATEMENT
+    if not all(row.is_statistically_ranked for row in scorecard.rows):
+        return NO_RANKING_STATEMENT
+    if all(row.rank <= 0 for row in scorecard.rows):
+        return NO_RANKING_STATEMENT
+
+    n_trials = ranking_meta.get("n_trials")
+    n_discoveries = ranking_meta.get("n_discoveries")
+    return (
+        f"ranked by DSR + BH-FDR over N={n_trials} trials "
+        f"({n_discoveries} discoveries) — "
+        f"{ranking_meta.get('order_key', 'unknown order')}"
+    )
+
+
 # ── Renderers ────────────────────────────────────────────────────────────────
 
 
@@ -349,23 +532,40 @@ def render_console_table(scorecard: Scorecard) -> str:
     Falls back to a hand-rolled ASCII table when ``tabulate`` is not
     installed (the project's CI may not have it).  Tests pass the rendered
     output to ``tabulate.tabulate`` themselves.
+
+    Card 82b40a95: an unranked row (``rank == 0``) renders its rank cell
+    as ``—`` rather than ``#0``.  ``#0`` reads like "top of the
+    leaderboard" and is exactly the hand-rolled-ordering illusion the
+    card forbids; the dash says "this row has no position", and the
+    DSR/FDR columns appear only when a real selection-set pass produced
+    verdicts, so the single-window console output is byte-identical to
+    before.
     """
+    stat_columns = any(row.is_statistically_ranked for row in scorecard.rows)
     headers = ["Rank", "Strategy", "Sym", "TF", "Return%", "MaxDD%", "DailyBreaches", "TotalBreaches", "Trades"]
+    if stat_columns:
+        headers += ["DSR-p", "FDR-q", "Ncell", "Nset"]
     body = []
     for row in scorecard.rows:
-        body.append(
-            [
-                f"#{row.rank}",
-                row.strategy_id,
-                row.symbol,
-                row.timeframe,
-                f"{row.return_pct:+.2f}",
-                f"{row.max_dd_pct:.2f}",
-                row.daily_dd_breaches,
-                row.total_dd_breaches,
-                row.trade_count,
+        cells = [
+            f"#{row.rank}" if row.rank > 0 else "—",
+            row.strategy_id,
+            row.symbol,
+            row.timeframe,
+            f"{row.return_pct:+.2f}",
+            f"{row.max_dd_pct:.2f}",
+            row.daily_dd_breaches,
+            row.total_dd_breaches,
+            row.trade_count,
+        ]
+        if stat_columns:
+            cells += [
+                f"{row.dsr_pvalue:.4f}" if row.dsr_pvalue is not None else "—",
+                f"{row.fdr_qvalue:.4f}" if row.fdr_qvalue is not None else "—",
+                str(row.n_trials_cell) if row.n_trials_cell is not None else "—",
+                str(row.n_trials_selection) if row.n_trials_selection is not None else "—",
             ]
-        )
+        body.append(cells)
     return _format_table(headers, body)
 
 
@@ -415,9 +615,18 @@ def render_scorecard_json(
     ``include_meta`` is True.
     """
     payload: dict = {
-        "columns": list(SCORECARD_ROW_COLUMNS) + ["rank"],
+        # Card 82b40a95: ``rank`` moved INTO SCORECARD_ROW_COLUMNS (it is
+        # part of the verdict schema now), so appending it again here would
+        # emit a duplicated header.
+        "columns": list(SCORECARD_ROW_COLUMNS),
         "rows": [row.to_dict() for row in scorecard.rows],
     }
     if include_meta:
-        payload["meta"] = scorecard.meta
+        meta_out = dict(scorecard.meta or {})
+        # Card 82b40a95 scope item 3: the memo tooling must be able to
+        # tell a real ranking from a hand-rolled one without guessing.
+        # Shipping the statement inside the JSON makes the refusal
+        # travel with the artifact instead of living only in stdout.
+        meta_out["ranking_statement"] = ranking_ordering_statement(scorecard)
+        payload["meta"] = meta_out
     return json.dumps(payload, indent=2, sort_keys=True, default=str)

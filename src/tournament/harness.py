@@ -1142,3 +1142,66 @@ class TournamentHarness:
         from tournament.scorecard import Scorecard
 
         return Scorecard(rows=list(rows), meta={})
+
+    def score_selection_set(
+        self,
+        store: object,
+        *,
+        rows_by_candidate_id: dict | None = None,
+        alpha: float | None = None,
+        n_trials_selection: int | None = None,
+    ):
+        """Score a whole multi-cell selection set with BH-FDR + DSR.
+
+        Card 82b40a95 (Sprint E gate 6).  This is the wiring that closes
+        the gap :meth:`run` leaves open: :meth:`run` covers ONE bar window
+        and therefore has no per-trial series, so it can only return an
+        unranked scorecard (AC2 keeps that behaviour unchanged).  A real
+        selection set spans many cells, which is what a
+        :class:`forex_bot.factory.validation_runner.TrialReturnStore`
+        holds — feeding one here yields the verdict-grade ordering.
+
+        The ranking itself is **not** implemented here; it is delegated to
+        :func:`forex_bot.factory.risk_adjusted_ranking.rank_selection_set_with_dsr`,
+        which in turn reuses ``rank_from_trial_return_store``.  This
+        method's whole job is to connect the tournament path to that
+        factory pass and attach the harness metadata.
+
+        Parameters
+        ----------
+        store
+            A ``TrialReturnStore`` (duck-typed: ``keys()``, ``matrix()``,
+            ``trial_count()``).
+        rows_by_candidate_id
+            Optional ``candidate_id -> ScorecardRow`` map so the verdict
+            scores annotate the rows this harness already backtested.
+        alpha
+            BH-FDR level; ``None`` uses the factory default (0.05).
+        n_trials_selection
+            Override for the DSR deflation denominator.  ``None`` means
+            "every trial in the store" — the correct default for a sweep
+            that chose its winner by comparing across cells.
+
+        Returns
+        -------
+        Scorecard
+            Ranked, verdict-grade scorecard whose ``meta["ranking"]``
+            records N, the cell count, and the ordering key.
+        """
+        from forex_bot.factory.risk_adjusted_ranking import (  # late-import: scipy
+            DEFAULT_FDR_ALPHA,
+            rank_selection_set_with_dsr,
+        )
+        from tournament.scorecard import ranked_scorecard_from_selection_set
+
+        effective_alpha = DEFAULT_FDR_ALPHA if alpha is None else float(alpha)
+        ranking = rank_selection_set_with_dsr(
+            store,
+            alpha=effective_alpha,
+            n_trials_selection=n_trials_selection,
+        )
+        return ranked_scorecard_from_selection_set(
+            ranking,
+            rows_by_candidate_id=rows_by_candidate_id,
+            meta={"harness_meta": self.bar_window_meta},
+        )

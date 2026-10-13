@@ -49,11 +49,13 @@ from tournament.harness import (
     verdict_grade_rows,
 )
 from tournament.scorecard import (
+    NO_RANKING_STATEMENT,
     SCORECARD_ROW_COLUMNS,
     Scorecard,
     ScorecardRow,
     _daily_dd_breach_counts,
     build_scorecard_row,
+    ranking_ordering_statement,
     render_console_table,
     render_scorecard_json,
 )
@@ -191,11 +193,13 @@ def test_harness_rejects_empty_strategy_ids(synthetic_duckdb: Path) -> None:
 
 
 def test_scorecard_row_has_canonical_columns() -> None:
-    """ScorecardRow carries exactly the 10 schema columns (9 + cost_modeled).
+    """ScorecardRow carries the verdict schema, including the stat columns.
 
     Card c0f284b8 added ``cost_modeled`` so a row can never silently carry a
-    zero cost; it belongs in the canonical columns so the rendered JSON
-    ``columns`` header stays truthful.
+    zero cost.  Card 82b40a95 then added ``rank`` and the statistical
+    verdict block (``dsr_pvalue``, ``fdr_qvalue``, ``bh_rejected``,
+    ``n_trials_cell``, ``n_trials_selection``) so a row can never present an
+    ordering without the trial counts that justify it.
     """
     columns = SCORECARD_ROW_COLUMNS
     assert columns == (
@@ -209,12 +213,26 @@ def test_scorecard_row_has_canonical_columns() -> None:
         "trade_count",
         "source",
         "cost_modeled",
+        "rank",
+        "dsr_pvalue",
+        "fdr_qvalue",
+        "bh_rejected",
+        "n_trials_cell",
+        "n_trials_selection",
     )
     assert "daily_dd_breaches" in columns
     assert "total_dd_breaches" in columns
     # Defensive: the two FTMO columns must both exist and not be aliased.
     assert columns.count("daily_dd_breaches") == 1
     assert columns.count("total_dd_breaches") == 1
+    # Card 82b40a95: the trial-count columns are part of the contract —
+    # a DSR without its deflation denominator is not a verdict.
+    assert "n_trials_selection" in columns
+    assert "dsr_pvalue" in columns
+    assert "fdr_qvalue" in columns
+    # ``rank`` must appear exactly once; it moved into the canonical
+    # columns so the JSON header cannot claim it twice.
+    assert columns.count("rank") == 1
 
 
 def test_scorecard_zero_trade_row_is_valid() -> None:
@@ -1134,3 +1152,223 @@ class TestWorkerRunnerCostGate:
         assert trade["cost_modeled"] is False
         assert row_is_cost_modeled(row) is False
         assert verdict_grade_rows([row]) == []
+
+
+# ── 9. Card 82b40a95 — DSR/BH-FDR selection-set pass ────────────────────────
+
+
+def _selection_set_store(*, seed: int = 7, n_bars: int = 120):
+    """A two-cell TrialReturnStore: one strong trial + the rest noise.
+
+    Cell A gets a genuine positive drift (the "winner" a selection-on-the-
+    maximum sweep would crown); every other trial is zero-drift noise.  The
+    total across BOTH cells is 5 trials — the deflation denominator the
+    DSR is supposed to be computed against.
+    """
+    import numpy as np
+    from forex_bot.factory.validation_runner import TrialReturnStore
+
+    rng = np.random.default_rng(seed)
+    store = TrialReturnStore()
+    # Cell A (2 trials): one real edge, one pure noise.
+    store.record(("srmr_plus", "XAUUSD", "H1"), rng.normal(0.006, 0.010, n_bars))
+    store.record(("srmr_plus", "XAUUSD", "H1"), rng.normal(0.000, 0.010, n_bars))
+    # Cell B (3 trials): all noise, so a cross-cell "best of both" sweep
+    # still has to beat the same set-wide multiple-testing burden.
+    for _ in range(3):
+        store.record(("bb_rsi_reversion", "EURUSD", "H1"), rng.normal(0.000, 0.010, n_bars))
+    return store
+
+
+def test_selection_set_reports_dsr_bh_fdr_and_n() -> None:
+    """AC1: a multi-cell selection set scores with DSR/BH-FDR and N reported."""
+    from forex_bot.factory.risk_adjusted_ranking import rank_selection_set_with_dsr
+
+    ranking = rank_selection_set_with_dsr(_selection_set_store())
+
+    assert ranking.n_cells == 2
+    assert ranking.n_trials == 5, "N must be reported for the whole selection set"
+    assert ranking.n_candidates == 5
+    scores = ranking.all_scores()
+    assert len(scores) == 5
+    for s in scores:
+        assert 0.0 <= s.dsr_pvalue <= 1.0, f"DSR p out of range for {s.candidate_id}"
+        assert 0.0 <= s.q_value <= 1.0, f"BH q out of range for {s.candidate_id}"
+        assert s.n_obs == 120, "the series length must travel with the verdict"
+
+
+def test_deflation_denominator_is_set_wide_not_per_cell() -> None:
+    """The DSR deflates against ALL trials in the set, not just its own cell.
+
+    The selection is made by comparing across cells, so deflating per cell
+    would understate E[max SR] and overstate every winner.  Cell A has 2
+    trials and cell B has 3; both must report 5.
+    """
+    from forex_bot.factory.risk_adjusted_ranking import rank_selection_set_with_dsr
+
+    ranking = rank_selection_set_with_dsr(_selection_set_store())
+    assert ranking.n_trials == 5
+    for s in ranking.all_scores():
+        assert s.n_trials_selection == 5, (
+            f"{s.candidate_id} deflated against {s.n_trials_selection}; "
+            "the denominator must be the whole selection set"
+        )
+        assert s.n_trials_cell in (2, 3), "per-cell count is reported separately"
+        # The deflation denominator can never be smaller than the cell's
+        # own trial count — that would be a weaker correction than
+        # BH already applied.
+        assert s.n_trials_selection >= s.n_trials_cell
+
+
+def test_more_trials_deflate_harder() -> None:
+    """Deflation must be monotone in N: more trials => weaker evidence."""
+    from forex_bot.factory.risk_adjusted_ranking import rank_selection_set_with_dsr
+
+    few = rank_selection_set_with_dsr(_selection_set_store(seed=7), n_trials_selection=3)
+    many = rank_selection_set_with_dsr(_selection_set_store(seed=7), n_trials_selection=500)
+    best_few = min(few.all_scores(), key=lambda s: s.dsr_pvalue).dsr_pvalue
+    best_many = min(many.all_scores(), key=lambda s: s.dsr_pvalue).dsr_pvalue
+    assert best_many >= best_few, (
+        "deflating against more trials must not improve the DSR p-value"
+    )
+
+
+def test_real_edge_deflates_better_than_noise() -> None:
+    """The injected drift must rank ahead of the pure-noise trials."""
+    from forex_bot.factory.risk_adjusted_ranking import rank_selection_set_with_dsr
+
+    ranking = rank_selection_set_with_dsr(_selection_set_store())
+    best = min(ranking.all_scores(), key=lambda s: s.dsr_pvalue)
+    assert best.cell_key == ("srmr_plus", "XAUUSD", "H1")
+    assert best.candidate_id == "trial_0"
+
+
+def test_degenerate_candidate_gets_no_invented_sharpe() -> None:
+    """A flat trial series must not get a fabricated Sharpe or a fake DSR."""
+    import numpy as np
+    from forex_bot.factory.validation_runner import TrialReturnStore
+    from forex_bot.factory.risk_adjusted_ranking import rank_selection_set_with_dsr
+
+    store = TrialReturnStore()
+    # Both trials must land in the SAME cell: a cell with a single trial
+    # never builds a [T, N] matrix (TrialReturnStore.matrix returns None
+    # below 2 trials), so a per-cell split would silently drop both.
+    store.record(("arch", "XAUUSD", "H1"), np.zeros(50))
+    store.record(("arch", "XAUUSD", "H1"), np.linspace(-0.001, 0.002, 50))
+    ranking = rank_selection_set_with_dsr(store)
+    assert ranking.n_cells == 1
+    flat = next(s for s in ranking.all_scores() if s.candidate_id == "trial_0")
+    assert flat.bh_reject is True
+    assert flat.dsr_pvalue == 1.0, "no evidence, not a computed-but-good number"
+    assert flat.observed_sr_per_bar == 0.0
+    assert flat.is_discovery is False
+
+
+def test_harness_scores_selection_set_with_verdict_provenance(
+    synthetic_duckdb: Path,
+) -> None:
+    """AC1 wiring: the tournament path produces a verdict-grade scorecard."""
+    harness = TournamentHarness(
+        strategy_ids=["srmr_plus"],
+        db_path=synthetic_duckdb,
+        symbol="USDJPY",
+        timeframe="H1",
+        start_date="2024-01-01",
+        end_date="2024-06-01",
+    )
+    sc = harness.score_selection_set(_selection_set_store())
+
+    assert len(sc.rows) == 5
+    assert all(r.rank > 0 for r in sc.rows), "a real pass assigns 1-based ranks"
+    assert all(r.is_statistically_ranked for r in sc.rows)
+    assert sc.meta["ranking"]["method"] == "dsr_bh_fdr_selection_set"
+    assert sc.meta["ranking"]["n_trials"] == 5
+    assert sc.meta["ranking"]["n_cells"] == 2
+    # Every row carries the same set-wide denominator.
+    assert {r.n_trials_selection for r in sc.rows} == {5}
+    # Provenance survives into the row payload.
+    payload = json.loads(render_scorecard_json(sc))
+    assert payload["rows"][0]["dsr_pvalue"] is not None
+    assert payload["meta"]["ranking_statement"] != NO_RANKING_STATEMENT
+
+
+def test_memo_refuses_hand_rolled_ordering() -> None:
+    """AC3: rank numbers without provenance are NOT presented as ranked.
+
+    This is the regression guard for the actual defect the card names: a
+    caller that sorts rows by return_pct and stamps ``rank=1..n`` must be
+    refused, because nothing about that order is FDR-honest.
+    """
+    rows = [
+        ScorecardRow("high", "XAUUSD", "H1", 10.0, 1.0, 0, 0, 5, "src", rank=1),
+        ScorecardRow("low", "XAUUSD", "H1", 1.0, 1.0, 0, 0, 5, "src", rank=2),
+    ]
+    sc = Scorecard(rows=rows, meta={})
+    assert ranking_ordering_statement(sc) == NO_RANKING_STATEMENT
+
+    # Even a scorecard that fakes the provenance string is refused unless
+    # the rows actually carry statistical verdicts.
+    forged = Scorecard(
+        rows=list(rows),
+        meta={"ranking": {"method": "dsr_bh_fdr_selection_set", "n_trials": 5}},
+    )
+    assert ranking_ordering_statement(forged) == NO_RANKING_STATEMENT
+
+
+def test_unranked_single_window_behavior_unchanged(synthetic_duckdb: Path) -> None:
+    """AC2: the standalone single-window path still emits rank=0, unranked.
+
+    It must ALSO keep refusing to call itself ranked, and it must not
+    acquire statistical columns out of nowhere.
+    """
+    harness = TournamentHarness(
+        strategy_ids=["srmr_plus"],
+        db_path=synthetic_duckdb,
+        symbol="USDJPY",
+        timeframe="H1",
+        start_date="2024-01-01",
+        end_date="2024-06-01",
+    )
+    rows = [
+        build_scorecard_row(
+            strategy_id="srmr_plus", symbol="USDJPY", timeframe="H1",
+            starting_equity=1.0,
+            trades=[{"pnl_fraction": 0.01, "cost_modeled": True}],
+            dates=["2024-01-01"], trade_entry_bars=[0], source="synthetic",
+        )
+    ]
+    sc = TournamentHarness._scorecard_with_rank_or_unranked(rows)
+
+    assert all(r.rank == 0 for r in sc.rows), "no synthetic ranks on the single-window path"
+    assert all(r.dsr_pvalue is None and r.fdr_qvalue is None for r in sc.rows)
+    assert all(not r.is_statistically_ranked for r in sc.rows)
+    assert ranking_ordering_statement(sc) == NO_RANKING_STATEMENT
+
+
+def test_duplicate_candidate_ids_across_cells_are_disambiguated() -> None:
+    """Positional ids ("trial_0") repeat per cell — labels must not collide.
+
+    Two different candidates rendering as the same visible string is
+    exactly how a memo ends up crediting one row's verdict to another.
+    """
+    from forex_bot.factory.risk_adjusted_ranking import rank_selection_set_with_dsr
+    from tournament.scorecard import ranked_scorecard_from_selection_set
+
+    ranking = rank_selection_set_with_dsr(_selection_set_store())
+    sc = ranked_scorecard_from_selection_set(ranking)
+    labels = [r.strategy_id for r in sc.rows]
+    assert len(labels) == len(set(labels)), f"colliding labels: {labels}"
+    # Placeholder rows are marked as not-backtested so a 0.0 return is
+    # never read as a measured zero.
+    assert all(r.source == "selection_set_statistical_only" for r in sc.rows)
+    assert all(r.trade_count == 0 for r in sc.rows)
+
+
+def test_console_never_renders_unranked_as_hash_zero() -> None:
+    """``#0`` would read as "top of the leaderboard" — refuse to print it."""
+    rows = [ScorecardRow("solo", "USDJPY", "H1", 2.5, 1.0, 0, 0, 5, "src")]
+    out = render_console_table(Scorecard(rows=rows, meta={}))
+    assert "#0" not in out
+    assert "—" in out
+    # Unranked output keeps the legacy header set — no phantom DSR columns.
+    assert "DSR-p" not in out
