@@ -47,6 +47,10 @@ SCORECARD_ROW_COLUMNS: tuple[str, ...] = (
     "total_dd_breaches",
     "trade_count",
     "source",
+    # Card c0f284b8: carried in the canonical columns (not only in to_dict())
+    # so the rendered JSON "columns" header stays truthful about what each row
+    # actually contains.
+    "cost_modeled",
 )
 
 
@@ -67,6 +71,7 @@ class ScorecardRow:
     total_dd_breaches: int
     trade_count: int
     source: str
+    cost_modeled: bool = True
     rank: int = 0
 
     def to_dict(self) -> dict:
@@ -222,7 +227,28 @@ def build_scorecard_row(
     ``dates[bar_idx]`` is the ISO date string for that bar.  Both are
     produced by ``tournament.harness._simulate_trades`` and
     ``tournament.harness._extract_signals_from_strategy``.
+
+    Card c0f284b8: the row carries ``cost_modeled``, and it is FAIL-CLOSED.
+    It is ``True`` only when ``trades`` is non-empty AND every trade positively
+    proves its cost was applied (``cost_modeled=True`` on the trade dict).  A
+    trade that could not be costed (no cost model supplied, or an unsizable
+    position), a trade dict predating the flag, and the 0-trade case all yield
+    ``False`` — we never assume costs were modeled.  Rows with ``False`` are
+    excluded from verdict-grade ranking by
+    :func:`tournament.harness.row_is_cost_modeled`.
     """
+    # Cost provenance (card c0f284b8): a row is verdict-grade only when every
+    # trade in it carried a modeled cost, AND it traded at all.
+    #
+    # Rin iter-1 LOW (fail-open defaults + all([])): a 0-trade row used to come
+    # out True via all([]), and a trade dict missing the key defaulted to True.
+    # Both are optimistic guesses about costs we never actually observed.  Now
+    # it is fail-closed: no trades, or any trade whose provenance is absent,
+    # means NOT cost-modeled -- so it cannot enter a verdict ranking.
+    cost_modeled = bool(trades) and all(
+        t.get("cost_modeled", False) for t in trades
+    )
+
     # Edge case 4: 0 trades.  Still emit a valid row with zeros.
     if not trades:
         return ScorecardRow(
@@ -235,6 +261,7 @@ def build_scorecard_row(
             total_dd_breaches=0,
             trade_count=0,
             source=source,
+            cost_modeled=cost_modeled,
         )
 
     daily_limit = _ftmo_daily_dd_pct()
@@ -267,6 +294,7 @@ def build_scorecard_row(
         total_dd_breaches=int(total_breaches),
         trade_count=len(trades),
         source=source,
+        cost_modeled=cost_modeled,
     )
 
 

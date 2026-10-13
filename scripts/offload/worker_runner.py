@@ -133,6 +133,120 @@ def _worker_lock(lock_path: Path):
         fd.close()
 
 
+# The exact field set a CostModel requires. A payload must supply ALL of them
+# (CostModel has no defaults, so a partial payload would raise TypeError) and
+# NONE of anything else (an unexpected kwarg raises TypeError too).
+_COST_MODEL_FIELDS: tuple[str, ...] = (
+    "spread_pips",
+    "commission_per_lot",
+    "slippage_pips",
+    "pip_value_per_lot",
+    "pip_size",
+)
+
+
+def _cost_model_payload_error(symbol: str, payload: dict, canonical) -> str | None:
+    """Return an error string if a gateway cost model cannot be trusted.
+
+    Card c0f284b8, Rin iter-1 MEDIUM-2 then iter-2 MEDIUM-A/MEDIUM-B.
+
+    A job-supplied ``cost_model_payload`` must never silently rescore a cell.
+    This checks, in order:
+
+    1. COMPLETENESS -- every :data:`_COST_MODEL_FIELDS` entry must be present.
+       ``CostModel`` has no defaults, so a partial payload raised ``TypeError``
+       at the construction call, which sits *before* the ``try:`` block: the
+       exception escaped ``_execute_cell``, killed the worker daemon, and
+       stranded the cell with no ``output.json`` and no ``.done`` sentinel.
+    2. NO EXTRA KEYS -- an unexpected kwarg raises ``TypeError`` the same way.
+    3. NUMERIC -- every field must parse as a float.
+    4. VALUE -- every field must equal the Liora-sourced canonical model.
+       This covers ``pip_value_per_lot`` and ``pip_size`` as well as the
+       spread/commission/slippage trio: the two pip fields set ``qty_lots`` and
+       multiply into every cost term, so a wrong value silently rescales cost
+       (measured 18.4x on a realistic XAUUSD trade).
+
+    Returns ``None`` only when the payload is safe to use.
+
+    Hostile descriptors are rejected, not raised on.  ``_process_one_job`` has
+    a ``try``/``finally`` with no ``except`` and ``main()`` has no handler, so
+    ANY exception escaping this function kills the worker daemon and strands
+    the cell in ``processing/`` with no ``output.json`` and no ``.done``
+    sentinel.  Two classes reached that in iter-3: a non-dict ``cost_model``
+    (``"cost_model": 5``) made ``f not in payload`` raise ``TypeError``, and an
+    oversized JSON integer (>= ~309 digits) made ``float(raw)`` raise
+    ``OverflowError``, which is not a ``ValueError`` subclass.
+
+    When ``canonical`` is ``None`` (symbol absent from the Liora table) steps
+    1-3 still apply so a malformed payload cannot crash the worker, but the
+    VALUE comparison is skipped -- such a payload is trusted as-is.  That is a
+    known fail-open, recorded as an open policy question for the orchestrator;
+    the ``cost_not_modeled`` gate does NOT catch it, because a supplied model
+    makes the harness model a real cost and mark trades ``cost_modeled=True``.
+    """
+    if not isinstance(payload, dict):
+        return (
+            f"gateway cost_model for {symbol} must be a JSON object, got "
+            f"{type(payload).__name__} (card c0f284b8)."
+        )
+    missing = [f for f in _COST_MODEL_FIELDS if f not in payload]
+    if missing:
+        return (
+            f"gateway cost_model_payload for {symbol} is missing required "
+            f"field(s): {', '.join(missing)}. Refusing to build a CostModel "
+            f"from a partial payload (card c0f284b8)."
+        )
+    unexpected = [k for k in payload if k not in _COST_MODEL_FIELDS]
+    if unexpected:
+        return (
+            f"gateway cost_model_payload for {symbol} carries unexpected "
+            f"field(s): {', '.join(sorted(unexpected))}. Expected exactly "
+            f"{', '.join(_COST_MODEL_FIELDS)} (card c0f284b8)."
+        )
+
+    parsed: dict[str, float] = {}
+    for field_name in _COST_MODEL_FIELDS:
+        raw = payload[field_name]
+        if isinstance(raw, bool):
+            return (
+                f"gateway cost_model_payload for {symbol}: {field_name}={raw!r} "
+                f"is a bool, not a number (card c0f284b8)."
+            )
+        try:
+            parsed[field_name] = float(raw)
+        except OverflowError:
+            # A JSON integer too large for a float. NOT a ValueError subclass,
+            # so it escapes a (TypeError, ValueError) handler.
+            return (
+                f"gateway cost_model_payload for {symbol}: {field_name} is too "
+                f"large to be a finite cost value (card c0f284b8)."
+            )
+        except (TypeError, ValueError):
+            return (
+                f"gateway cost_model_payload for {symbol}: {field_name}={raw!r} "
+                f"is not numeric (card c0f284b8)."
+            )
+
+    if canonical is None:
+        return None
+
+    mismatches = []
+    for field_name in _COST_MODEL_FIELDS:
+        want = float(getattr(canonical, field_name))
+        got = parsed[field_name]
+        # NaN/inf never compare equal to a finite canonical value, so a single
+        # `!=` rejects them without a special case.
+        if got != want:
+            mismatches.append(f"{field_name}={got!r} (Liora table: {want!r})")
+    if mismatches:
+        return (
+            f"gateway cost_model_payload for {symbol} contradicts the Liora "
+            f"spread-cost table: {'; '.join(mismatches)}. Refusing to score this "
+            f"cell on a conflicting cost constant (card c0f284b8)."
+        )
+    return None
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -227,17 +341,57 @@ def _execute_cell(job: dict[str, Any], code_root: Path) -> dict[str, Any]:
         TournamentHarness,
         TournamentNoSignals,
         cost_model_for,
+        row_is_cost_modeled,
     )
 
     cm = cost_model_for(symbol)
-    if cost_model_payload:
-        # Gateway supplied a cost_model; prefer it over the default when
-        # the symbol is known, or load it as a fresh CostModel when the
-        # symbol is unknown to FTMO_COST_DEFAULTS.
-        cm = CostModel(**cost_model_payload)
 
     started_at = _now_iso()
     wall_start = time.monotonic()
+
+    if cost_model_payload:
+        # Card c0f284b8 (Rin iter-1 MEDIUM-2, iter-2 MEDIUM-A/MEDIUM-B): a
+        # gateway-supplied cost model must be complete, well-formed, and in
+        # agreement with the Liora single source of truth -- otherwise the cell
+        # fails loudly instead of being silently rescored.
+        payload_error = _cost_model_payload_error(symbol, cost_model_payload, cm)
+        if payload_error:
+            return {
+                "schema_version": 1,
+                "cell_id": expected_cell_id,
+                "exit_code": 5,
+                "error": payload_error,
+                "strategy": strategy,
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "started_at": started_at,
+                "finished_at": _now_iso(),
+                "wall_time_s": round(time.monotonic() - wall_start, 3),
+            }
+        try:
+            # Build from NORMALIZED floats, not the raw payload: the validator
+            # already proved every field parses, and this stops a numeric
+            # string ("3.0") from silently failing much later.
+            cm = CostModel(**{
+                f: float(cost_model_payload[f]) for f in _COST_MODEL_FIELDS
+            })
+        except (TypeError, ValueError, OverflowError) as exc:  # pragma: no cover - belt & braces
+            # Unreachable while the validator above holds, but this call sits
+            # OUTSIDE the try: block, so an escaping TypeError would kill the
+            # worker daemon and strand the cell rather than failing one cell.
+            return {
+                "schema_version": 1,
+                "cell_id": expected_cell_id,
+                "exit_code": 5,
+                "error": f"cost_model_payload_rejected: {exc} (card c0f284b8)",
+                "strategy": strategy,
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "started_at": started_at,
+                "finished_at": _now_iso(),
+                "wall_time_s": round(time.monotonic() - wall_start, 3),
+            }
+
     try:
         harness = TournamentHarness(
             strategy_ids=[strategy],
@@ -265,6 +419,45 @@ def _execute_cell(job: dict[str, Any], code_root: Path) -> dict[str, Any]:
             }
         row = scorecard.rows[0]
         run_meta = scorecard.meta.get("run_meta", {}).get(strategy, {})
+
+        # Card c0f284b8 (Rin iter-1 HIGH-1): a row whose costs could not be
+        # modeled must never be emitted as a successful cell. Before this the
+        # runner returned exit_code 0 with a cost-free return_pct for symbols
+        # outside the cost table -- the silent cost-free row AC2 exists to
+        # kill. The cell now fails loudly instead.
+        if not row_is_cost_modeled(row):
+            return {
+                "schema_version": 1,
+                "cell_id": expected_cell_id,
+                "run_id": job.get("run_id", ""),
+                "exit_code": 5,
+                "error": (
+                    "cost_not_modeled: this cell's costs could not be modeled, "
+                    "so its return_pct is not comparable to cost-modeled cells. "
+                    "Refusing to report it as a successful tournament result "
+                    "(card c0f284b8)."
+                ),
+                "strategy": strategy,
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "started_at": started_at,
+                "finished_at": finished_at,
+                "wall_time_s": round(wall_time, 3),
+                "compute_runtime": "cpu",
+                "git_sha": job.get("git_sha", ""),
+                "env_lock_hash": job.get("env_lock_hash", ""),
+                "db_sha": db_sha,
+                "cost_model": None if cm is None else {
+                    "spread_pips": cm.spread_pips,
+                    "commission_per_lot": cm.commission_per_lot,
+                    "slippage_pips": cm.slippage_pips,
+                    "pip_value_per_lot": cm.pip_value_per_lot,
+                    "pip_size": cm.pip_size,
+                },
+                "cost_modeled": False,
+                "run_meta": run_meta,
+            }
+
         return {
             "schema_version": 1,
             "cell_id": expected_cell_id,
@@ -290,6 +483,7 @@ def _execute_cell(job: dict[str, Any], code_root: Path) -> dict[str, Any]:
                 if cm is not None
                 else None
             ),
+            "cost_modeled": row.cost_modeled,
             "scorecard": {
                 "rank": row.rank,
                 "return_pct": row.return_pct,
@@ -298,6 +492,9 @@ def _execute_cell(job: dict[str, Any], code_root: Path) -> dict[str, Any]:
                 "total_dd_breaches": row.total_dd_breaches,
                 "trade_count": row.trade_count,
                 "source": row.source,
+                # Carried inside the scorecard block too, so a consumer
+                # reading only this sub-object still sees the provenance.
+                "cost_modeled": row.cost_modeled,
             },
             "run_meta": run_meta,
             "exit_code": 0,

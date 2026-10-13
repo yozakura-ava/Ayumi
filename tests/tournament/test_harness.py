@@ -28,6 +28,7 @@ import sys
 from pathlib import Path
 
 import duckdb
+import pandas as pd
 import pytest
 
 from tournament import (
@@ -36,9 +37,16 @@ from tournament import (
     TournamentNoSignals,
 )
 from tournament.harness import (
+    CostModel,
     TournamentEmptyWindow,
+    _cost_fraction_for_trade,
+    _liora_spread_costs,
+    _simulate_trades,
+    cost_model_for,
     load_bars_for_window,
     resolve_default_duckdb_path,
+    row_is_cost_modeled,
+    verdict_grade_rows,
 )
 from tournament.scorecard import (
     SCORECARD_ROW_COLUMNS,
@@ -183,7 +191,12 @@ def test_harness_rejects_empty_strategy_ids(synthetic_duckdb: Path) -> None:
 
 
 def test_scorecard_row_has_canonical_columns() -> None:
-    """ScorecardRow carries exactly the 9 schema columns (daily + total DD separate)."""
+    """ScorecardRow carries exactly the 10 schema columns (9 + cost_modeled).
+
+    Card c0f284b8 added ``cost_modeled`` so a row can never silently carry a
+    zero cost; it belongs in the canonical columns so the rendered JSON
+    ``columns`` header stays truthful.
+    """
     columns = SCORECARD_ROW_COLUMNS
     assert columns == (
         "strategy_id",
@@ -195,6 +208,7 @@ def test_scorecard_row_has_canonical_columns() -> None:
         "total_dd_breaches",
         "trade_count",
         "source",
+        "cost_modeled",
     )
     assert "daily_dd_breaches" in columns
     assert "total_dd_breaches" in columns
@@ -704,3 +718,419 @@ def test_daily_dd_breach_counts_respects_explicit_starting_equity() -> None:
         starting_equity=10000.0,
     )
     assert (daily, total) == (1, 0)
+
+
+# ── Card c0f284b8: XAUUSD cost reconciliation (Sprint E gate 2) ─────────────
+
+
+def _flat_bars(n: int = 6, *, price: float = 2000.0) -> pd.DataFrame:
+    """Flat synthetic OHLC frame: every bar identical around ``price``."""
+    return pd.DataFrame(
+        {
+            "open": [price] * n,
+            "high": [price + 0.5] * n,
+            "low": [price - 0.5] * n,
+            "close": [price] * n,
+        }
+    )
+
+
+class TestSingleCostConstant:
+    """AC1: exactly one sourced spread constant, asserted on BOTH paths."""
+
+    def test_harness_and_liora_agree_on_xauusd(self) -> None:
+        liora = _liora_spread_costs().default_spread_costs().get("XAUUSD")
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        assert cm.spread_pips == liora.spread_pips
+
+    def test_harness_and_liora_agree_on_gbpusd(self) -> None:
+        liora = _liora_spread_costs().default_spread_costs().get("GBPUSD")
+        cm = cost_model_for("GBPUSD")
+        assert cm is not None
+        assert cm.spread_pips == liora.spread_pips
+
+    def test_commission_and_slippage_also_sourced(self) -> None:
+        """The whole cost trio comes from the Liora table, not a local literal."""
+        mod = _liora_spread_costs()
+        for symbol in ("XAUUSD", "GBPUSD"):
+            cm = cost_model_for(symbol)
+            assert cm is not None
+            assert cm.commission_per_lot == mod.COMMISSION_PER_LOT_USD
+            assert cm.slippage_pips == mod.PIP_SLIPPAGE
+
+    def test_xauusd_is_no_longer_the_stale_2_5(self) -> None:
+        """Regression guard for the specific conflict this card closed."""
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        assert cm.spread_pips != 2.5
+
+
+class TestNoSilentCostFreeRow:
+    """AC2: an unsizable trade is UNMODELED, never scored as free."""
+
+    def test_unsizable_trade_returns_none_not_zero(self) -> None:
+        broken = CostModel(
+            spread_pips=3.0,
+            commission_per_lot=3.5,
+            slippage_pips=0.2,
+            pip_value_per_lot=0.0,
+            pip_size=0.10,
+        )
+        cf = _cost_fraction_for_trade(
+            entry_price=2000.0,
+            sl_price=1998.0,
+            cost_model=broken,
+            r_fraction=0.005,
+            equity=1.0,
+        )
+        assert cf is None, "unsizable trade must not report a zero cost"
+
+    def test_degenerate_sl_still_produces_a_real_cost(self) -> None:
+        """The 10-pip defensive fallback stays MODELED (it yields real cost)."""
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        cf = _cost_fraction_for_trade(
+            entry_price=2000.0,
+            sl_price=2000.0,
+            cost_model=cm,
+            r_fraction=0.005,
+            equity=1.0,
+        )
+        assert cf is not None
+        assert cf > 0
+
+
+class TestCostModeledPropagation:
+    """AC2: the flag reaches the row and survives serialization."""
+
+    _SIGNALS = [(0, 1998.0, 2002.0, 1)]
+    _DATES = ["2024-06-03"] * 6
+
+    def _trade_and_row(self, *, with_cost: bool):
+        cm = cost_model_for("XAUUSD") if with_cost else None
+        trades = _simulate_trades(
+            _flat_bars(), self._SIGNALS, cost_model=cm, max_bars_held=1,
+        )
+        assert len(trades) == 1, "fixture should close exactly one trade"
+        return trades[0], build_scorecard_row(
+            strategy_id="synthetic",
+            symbol="XAUUSD",
+            timeframe="H1",
+            starting_equity=1.0,
+            trades=trades,
+            dates=self._DATES,
+            trade_entry_bars=[t["entry_bar"] for t in trades],
+            source="synthetic",
+        )
+
+    def test_no_cost_model_marks_trade_and_row_unmodeled(self) -> None:
+        """The silent cost-free path: cost_model=None must be FLAGGED."""
+        trade, row = self._trade_and_row(with_cost=False)
+        assert trade["cost_modeled"] is False
+        assert row.cost_modeled is False
+
+    def test_cost_model_marks_trade_and_row_modeled(self) -> None:
+        trade, row = self._trade_and_row(with_cost=True)
+        assert trade["cost_modeled"] is True
+        assert row.cost_modeled is True
+        assert trade["cost_fraction"] > 0
+
+    def test_flag_survives_json_serialization(self) -> None:
+        """Guards the asdict() hole: a dynamic attribute would vanish here."""
+        _, row = self._trade_and_row(with_cost=False)
+        assert row.to_dict()["cost_modeled"] is False
+        payload = json.loads(render_scorecard_json(Scorecard(rows=[row], meta={})))
+        assert "cost_modeled" in payload["columns"]
+        assert payload["rows"][0]["cost_modeled"] is False
+
+    def test_verdict_grade_rows_excludes_unmodeled(self) -> None:
+        _, good = self._trade_and_row(with_cost=True)
+        _, bad = self._trade_and_row(with_cost=False)
+        kept = verdict_grade_rows([good, bad])
+        assert kept == [good]
+        assert bad not in kept
+
+
+class TestRinIter1Regressions:
+    """Regression guards for Rin iter-1 findings (MEDIUM-3, MEDIUM-4, LOWs)."""
+
+    def test_liora_loader_returns_the_same_module_object(self) -> None:
+        """MEDIUM-3: the loader used to re-exec the file on every call."""
+        assert _liora_spread_costs() is _liora_spread_costs()
+
+    def test_dict_row_without_flag_is_not_verdict_grade(self) -> None:
+        """MEDIUM-4: dict rows must not pass the gate by default.
+
+        ``front_door.load_scorecard()`` returns ``list[dict]``, so the old
+        ``getattr(..., True)`` let every flagless dict row through.
+        """
+        assert row_is_cost_modeled({}) is False
+        assert row_is_cost_modeled({"cost_modeled": False}) is False
+        assert row_is_cost_modeled({"cost_modeled": True}) is True
+
+    def test_dict_rows_round_trip_through_the_gate(self) -> None:
+        rows = [{"strategy_id": "a", "cost_modeled": True},
+                {"strategy_id": "b"}]
+        kept = verdict_grade_rows(rows)
+        assert kept == [rows[0]]
+
+    def test_zero_trade_row_is_not_verdict_grade(self) -> None:
+        """LOW: all([]) used to make a 0-trade row cost-modeled=True."""
+        row = build_scorecard_row(
+            strategy_id="idle",
+            symbol="XAUUSD",
+            timeframe="H1",
+            starting_equity=1.0,
+            trades=[],
+            dates=["2024-06-03"],
+            trade_entry_bars=[],
+            source="synthetic",
+        )
+        assert row.trade_count == 0
+        assert row.cost_modeled is False
+
+    def test_trade_without_provenance_key_is_not_verdict_grade(self) -> None:
+        """LOW: a hand-built trade missing the key must fail closed."""
+        row = build_scorecard_row(
+            strategy_id="legacy",
+            symbol="XAUUSD",
+            timeframe="H1",
+            starting_equity=1.0,
+            trades=[{"pnl_fraction": 0.01, "entry_bar": 0}],
+            dates=["2024-06-03"],
+            trade_entry_bars=[0],
+            source="synthetic",
+        )
+        assert row.cost_modeled is False
+
+    def test_xauusd_spread_is_pinned_to_the_liora_value(self) -> None:
+        """LOW: the both-paths test alone was near-tautological.
+
+        Because FTMO_COST_DEFAULTS is DERIVED from the Liora table, comparing
+        the two paths cannot detect the constant silently changing. Pin the
+        literal value so a future edit to either side is caught.
+        """
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        assert cm.spread_pips == 3.0
+        cm2 = cost_model_for("GBPUSD")
+        assert cm2 is not None
+        assert cm2.spread_pips == 1.5
+
+
+class TestWorkerRunnerCostGate:
+    """Rin iter-1 MEDIUM-2 + iter-2 MEDIUM-A/MEDIUM-B guards (scripts/offload).
+
+    Imported inside the tests so a collection-time failure in the offload
+    module cannot take down the whole tournament suite.
+
+    The end-to-end tests call ``_execute_cell`` itself.  Iter-2's two MEDIUMs
+    were both invisible to helper-only tests: the helper validated three of
+    five fields, and a partial payload reached ``CostModel(**payload)`` OUTSIDE
+    the ``try:`` block, escaping as TypeError and killing the worker daemon.
+    Driving ``_execute_cell`` is what catches that class of wiring defect.
+    """
+
+    _GOOD = {
+        "spread_pips": 3.0,
+        "commission_per_lot": 3.5,
+        "slippage_pips": 0.2,
+        "pip_value_per_lot": 10.0,
+        "pip_size": 0.10,
+    }
+
+    @staticmethod
+    def _job(payload=None, **extra):
+        """Build a job descriptor that reaches the cost-model branch.
+
+        The branch sits after the cell_id and data_db_path guards but before
+        any DuckDB access, so these tests never touch a database.
+        """
+        from offload.worker_runner import _compute_cell_id
+
+        strategy, symbol, timeframe = "srmr_plus", "XAUUSD", "H1"
+        job = {
+            "strategy": strategy,
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "cell_id": _compute_cell_id(strategy, symbol, timeframe),
+            # Never opened: the cost-model branch returns before any DuckDB
+            # access. Repo-relative so it cannot trip the insecure-/tmp lint.
+            "data_db_path": str(
+                Path(__file__).resolve().parents[2]
+                / "nonexistent-c0f284b8.duckdb"
+            ),
+        }
+        merged = dict(payload or {})
+        merged.update(extra)
+        if merged:
+            job["cost_model"] = merged
+        return job
+
+    @staticmethod
+    def _job_raw(cost_model):
+        """Job whose ``cost_model`` is set to an arbitrary raw JSON value."""
+        from offload.worker_runner import _compute_cell_id
+
+        strategy, symbol, timeframe = "srmr_plus", "XAUUSD", "H1"
+        return {
+            "strategy": strategy,
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "cell_id": _compute_cell_id(strategy, symbol, timeframe),
+            "data_db_path": str(
+                Path(__file__).resolve().parents[2]
+                / "nonexistent-c0f284b8.duckdb"
+            ),
+            "cost_model": cost_model,
+        }
+
+    @staticmethod
+    def _run(job):
+        from offload.worker_runner import _execute_cell
+
+        code_root = Path(__file__).resolve().parents[2]
+        return _execute_cell(job, code_root)
+
+    # ---- unit level: the validator ----
+    def test_payload_matching_liora_is_accepted(self) -> None:
+        from offload.worker_runner import _cost_model_payload_error
+
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        payload = dict(self._GOOD)
+        payload["pip_value_per_lot"] = cm.pip_value_per_lot
+        payload["pip_size"] = cm.pip_size
+        assert _cost_model_payload_error("XAUUSD", payload, cm) is None
+
+    def test_stale_2_5_payload_is_rejected(self) -> None:
+        """The exact dual constant AC1 closed must not slip back in."""
+        from offload.worker_runner import _cost_model_payload_error
+
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        err = _cost_model_payload_error("XAUUSD", dict(self._GOOD, spread_pips=2.5), cm)
+        assert err is not None
+        assert "spread_pips" in err
+        assert "Liora" in err
+
+    def test_stale_gbpusd_2_0_payload_is_rejected(self) -> None:
+        from offload.worker_runner import _cost_model_payload_error
+
+        cm = cost_model_for("GBPUSD")
+        assert cm is not None
+        payload = dict(self._GOOD, spread_pips=2.0, pip_value_per_lot=10.0,
+                       pip_size=0.0001)
+        err = _cost_model_payload_error("GBPUSD", payload, cm)
+        assert err is not None
+
+    def test_wrong_pip_value_is_rejected(self) -> None:
+        """MEDIUM-A: the pip fields rescale qty_lots and every cost term."""
+        from offload.worker_runner import _cost_model_payload_error
+
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        err = _cost_model_payload_error(
+            "XAUUSD", dict(self._GOOD, pip_value_per_lot=1.0), cm
+        )
+        assert err is not None
+        assert "pip_value_per_lot" in err
+
+    def test_wrong_pip_size_is_rejected(self) -> None:
+        from offload.worker_runner import _cost_model_payload_error
+
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        err = _cost_model_payload_error(
+            "XAUUSD", dict(self._GOOD, pip_size=1.0), cm
+        )
+        assert err is not None
+        assert "pip_size" in err
+
+    def test_symbol_without_liora_row_skips_value_check(self) -> None:
+        from offload.worker_runner import _cost_model_payload_error
+
+        assert _cost_model_payload_error("USDJPY", dict(self._GOOD), None) is None
+
+    def test_non_numeric_payload_field_is_rejected(self) -> None:
+        from offload.worker_runner import _cost_model_payload_error
+
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        err = _cost_model_payload_error("XAUUSD", dict(self._GOOD, spread_pips="wide"), cm)
+        assert err is not None
+        assert "not numeric" in err
+
+    def test_bool_field_is_rejected(self) -> None:
+        from offload.worker_runner import _cost_model_payload_error
+
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        err = _cost_model_payload_error("XAUUSD", dict(self._GOOD, pip_size=True), cm)
+        assert err is not None
+        assert "bool" in err
+
+    # ---- end-to-end through _execute_cell ----
+    def test_execute_cell_fails_loudly_on_partial_payload(self) -> None:
+        """MEDIUM-B regression: must RETURN, never raise TypeError.
+
+        A partial payload used to reach ``CostModel(**payload)`` before the
+        ``try:`` block, escaping into the worker loop and killing the daemon.
+        """
+        out = self._run(self._job(spread_pips=3.0, commission_per_lot=3.5))
+        assert out["exit_code"] == 5
+        assert "missing required field" in out["error"]
+
+    def test_execute_cell_fails_loudly_on_wrong_pip_value(self) -> None:
+        """MEDIUM-A regression, end to end."""
+        out = self._run(self._job(dict(self._GOOD, pip_value_per_lot=1.0,
+                                       pip_size=1.0)))
+        assert out["exit_code"] == 5
+        assert "pip_value_per_lot" in out["error"]
+
+    def test_execute_cell_fails_loudly_on_unexpected_field(self) -> None:
+        out = self._run(self._job(dict(self._GOOD, bogus_field=1.0)))
+        assert out["exit_code"] == 5
+        assert "unexpected field" in out["error"]
+
+    def test_execute_cell_fails_loudly_on_stale_spread(self) -> None:
+        out = self._run(self._job(dict(self._GOOD, spread_pips=2.5)))
+        assert out["exit_code"] == 5
+        assert "Liora" in out["error"]
+
+    # ---- iter-3 MEDIUM-1: hostile descriptors must fail, never raise ----
+    def test_execute_cell_rejects_non_dict_cost_model(self) -> None:
+        """A non-dict cost_model made `f not in payload` raise TypeError.
+
+        That escape killed the worker daemon and stranded the cell, because
+        _process_one_job has try/finally with no except.
+        """
+        for hostile in (5, True, 3.5):
+            out = self._run(self._job_raw(hostile))
+            assert out["exit_code"] == 5, hostile
+            assert "must be a JSON object" in out["error"], hostile
+
+    def test_execute_cell_rejects_oversized_integer_field(self) -> None:
+        """float() on a ~309-digit int raises OverflowError, not ValueError."""
+        out = self._run(self._job(dict(self._GOOD, spread_pips=10 ** 400)))
+        assert out["exit_code"] == 5
+        assert "too large" in out["error"]
+
+    def test_numeric_string_field_is_normalized_not_deferred(self) -> None:
+        """A validated numeric string builds the model instead of failing late."""
+        from offload.worker_runner import _cost_model_payload_error
+
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        err = _cost_model_payload_error(
+            "XAUUSD", dict(self._GOOD, spread_pips="3.0"), cm
+        )
+        assert err is None, err
+
+    def test_unmodeled_row_fails_the_verdict_gate(self) -> None:
+        """HIGH-1: the cell must be gated, not emitted as a success."""
+        trade, row = TestCostModeledPropagation()._trade_and_row(with_cost=False)
+        assert trade["cost_modeled"] is False
+        assert row_is_cost_modeled(row) is False
+        assert verdict_grade_rows([row]) == []
