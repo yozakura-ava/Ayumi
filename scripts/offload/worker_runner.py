@@ -166,12 +166,29 @@ def _cost_model_payload_error(symbol: str, payload: dict, canonical) -> str | No
        multiply into every cost term, so a wrong value silently rescales cost
        (measured 18.4x on a realistic XAUUSD trade).
 
-    Returns ``None`` only when the payload is safe to use. When ``canonical``
-    is ``None`` (symbol absent from the Liora table) steps 1-3 still apply, so
-    a malformed payload cannot crash the worker; value agreement is simply not
-    checkable, and such cells are caught downstream by the ``cost_modeled``
-    gate, which fails the cell with ``cost_not_modeled``.
+    Returns ``None`` only when the payload is safe to use.
+
+    Hostile descriptors are rejected, not raised on.  ``_process_one_job`` has
+    a ``try``/``finally`` with no ``except`` and ``main()`` has no handler, so
+    ANY exception escaping this function kills the worker daemon and strands
+    the cell in ``processing/`` with no ``output.json`` and no ``.done``
+    sentinel.  Two classes reached that in iter-3: a non-dict ``cost_model``
+    (``"cost_model": 5``) made ``f not in payload`` raise ``TypeError``, and an
+    oversized JSON integer (>= ~309 digits) made ``float(raw)`` raise
+    ``OverflowError``, which is not a ``ValueError`` subclass.
+
+    When ``canonical`` is ``None`` (symbol absent from the Liora table) steps
+    1-3 still apply so a malformed payload cannot crash the worker, but the
+    VALUE comparison is skipped -- such a payload is trusted as-is.  That is a
+    known fail-open, recorded as an open policy question for the orchestrator;
+    the ``cost_not_modeled`` gate does NOT catch it, because a supplied model
+    makes the harness model a real cost and mark trades ``cost_modeled=True``.
     """
+    if not isinstance(payload, dict):
+        return (
+            f"gateway cost_model for {symbol} must be a JSON object, got "
+            f"{type(payload).__name__} (card c0f284b8)."
+        )
     missing = [f for f in _COST_MODEL_FIELDS if f not in payload]
     if missing:
         return (
@@ -197,6 +214,13 @@ def _cost_model_payload_error(symbol: str, payload: dict, canonical) -> str | No
             )
         try:
             parsed[field_name] = float(raw)
+        except OverflowError:
+            # A JSON integer too large for a float. NOT a ValueError subclass,
+            # so it escapes a (TypeError, ValueError) handler.
+            return (
+                f"gateway cost_model_payload for {symbol}: {field_name} is too "
+                f"large to be a finite cost value (card c0f284b8)."
+            )
         except (TypeError, ValueError):
             return (
                 f"gateway cost_model_payload for {symbol}: {field_name}={raw!r} "
@@ -345,8 +369,13 @@ def _execute_cell(job: dict[str, Any], code_root: Path) -> dict[str, Any]:
                 "wall_time_s": round(time.monotonic() - wall_start, 3),
             }
         try:
-            cm = CostModel(**cost_model_payload)
-        except (TypeError, ValueError) as exc:  # pragma: no cover - belt & braces
+            # Build from NORMALIZED floats, not the raw payload: the validator
+            # already proved every field parses, and this stops a numeric
+            # string ("3.0") from silently failing much later.
+            cm = CostModel(**{
+                f: float(cost_model_payload[f]) for f in _COST_MODEL_FIELDS
+            })
+        except (TypeError, ValueError, OverflowError) as exc:  # pragma: no cover - belt & braces
             # Unreachable while the validator above holds, but this call sits
             # OUTSIDE the try: block, so an escaping TypeError would kill the
             # worker daemon and strand the cell rather than failing one cell.

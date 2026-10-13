@@ -969,6 +969,24 @@ class TestWorkerRunnerCostGate:
         return job
 
     @staticmethod
+    def _job_raw(cost_model):
+        """Job whose ``cost_model`` is set to an arbitrary raw JSON value."""
+        from offload.worker_runner import _compute_cell_id
+
+        strategy, symbol, timeframe = "srmr_plus", "XAUUSD", "H1"
+        return {
+            "strategy": strategy,
+            "symbol": symbol,
+            "timeframe": timeframe,
+            "cell_id": _compute_cell_id(strategy, symbol, timeframe),
+            "data_db_path": str(
+                Path(__file__).resolve().parents[2]
+                / "nonexistent-c0f284b8.duckdb"
+            ),
+            "cost_model": cost_model,
+        }
+
+    @staticmethod
     def _run(job):
         from offload.worker_runner import _execute_cell
 
@@ -1080,6 +1098,35 @@ class TestWorkerRunnerCostGate:
         out = self._run(self._job(dict(self._GOOD, spread_pips=2.5)))
         assert out["exit_code"] == 5
         assert "Liora" in out["error"]
+
+    # ---- iter-3 MEDIUM-1: hostile descriptors must fail, never raise ----
+    def test_execute_cell_rejects_non_dict_cost_model(self) -> None:
+        """A non-dict cost_model made `f not in payload` raise TypeError.
+
+        That escape killed the worker daemon and stranded the cell, because
+        _process_one_job has try/finally with no except.
+        """
+        for hostile in (5, True, 3.5):
+            out = self._run(self._job_raw(hostile))
+            assert out["exit_code"] == 5, hostile
+            assert "must be a JSON object" in out["error"], hostile
+
+    def test_execute_cell_rejects_oversized_integer_field(self) -> None:
+        """float() on a ~309-digit int raises OverflowError, not ValueError."""
+        out = self._run(self._job(dict(self._GOOD, spread_pips=10 ** 400)))
+        assert out["exit_code"] == 5
+        assert "too large" in out["error"]
+
+    def test_numeric_string_field_is_normalized_not_deferred(self) -> None:
+        """A validated numeric string builds the model instead of failing late."""
+        from offload.worker_runner import _cost_model_payload_error
+
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        err = _cost_model_payload_error(
+            "XAUUSD", dict(self._GOOD, spread_pips="3.0"), cm
+        )
+        assert err is None, err
 
     def test_unmodeled_row_fails_the_verdict_gate(self) -> None:
         """HIGH-1: the cell must be gated, not emitted as a success."""
