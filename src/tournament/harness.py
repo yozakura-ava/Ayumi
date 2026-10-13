@@ -1150,6 +1150,9 @@ class TournamentHarness:
         rows_by_candidate_id: dict | None = None,
         alpha: float | None = None,
         n_trials_selection: int | None = None,
+        bars_per_year: int | None = None,
+        bar_period_minutes: int = 60,
+        dsr_alpha: float | None = None,
     ):
         """Score a whole multi-cell selection set with BH-FDR + DSR.
 
@@ -1180,7 +1183,22 @@ class TournamentHarness:
         n_trials_selection
             Override for the DSR deflation denominator.  ``None`` means
             "every trial in the store" — the correct default for a sweep
-            that chose its winner by comparing across cells.
+            that chose its winner by comparing across cells.  Clamped UP
+            to the store's own trial count; it can only make deflation
+            harsher.
+        bars_per_year
+            Explicit annualisation factor for the REPORTED Sharpe.  When
+            given it wins over ``bar_period_minutes``.
+        bar_period_minutes
+            Bar period of THIS harness's bars (60 = H1, 240 = H4,
+            1440 = D1).  Rin iter-2 Q3: the library accepted a bar
+            period but this call site dropped it, so every real
+            tournament still annualised at H1's 6048 — reporting H4
+            Sharpe 4x and D1 24x too high.  Affects the reported Sharpe
+            only; never the DSR p-value.
+        dsr_alpha
+            Significance level the DSR must clear for a discovery claim.
+            ``None`` uses the factory default.
 
         Returns
         -------
@@ -1189,16 +1207,23 @@ class TournamentHarness:
             records N, the cell count, and the ordering key.
         """
         from forex_bot.factory.risk_adjusted_ranking import (  # late-import: scipy
+            DEFAULT_DSR_ALPHA,
             DEFAULT_FDR_ALPHA,
             rank_selection_set_with_dsr,
         )
         from tournament.scorecard import ranked_scorecard_from_selection_set
 
         effective_alpha = DEFAULT_FDR_ALPHA if alpha is None else float(alpha)
+        effective_dsr_alpha = (
+            DEFAULT_DSR_ALPHA if dsr_alpha is None else float(dsr_alpha)
+        )
         ranking = rank_selection_set_with_dsr(
             store,
             alpha=effective_alpha,
             n_trials_selection=n_trials_selection,
+            bars_per_year=bars_per_year,
+            bar_period_minutes=bar_period_minutes,
+            dsr_alpha=effective_dsr_alpha,
         )
         return ranked_scorecard_from_selection_set(
             ranking,

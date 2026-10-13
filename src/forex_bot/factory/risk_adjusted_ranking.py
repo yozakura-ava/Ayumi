@@ -1143,7 +1143,7 @@ def rank_selection_set_with_dsr(
     alpha: float = DEFAULT_FDR_ALPHA,
     n_trials_selection: int | None = None,
     bars_per_year: int | None = None,
-    bar_period_minutes: int | None = None,
+    bar_period_minutes: int = DEFAULT_BAR_PERIOD_MINUTES,
     dsr_alpha: float = DEFAULT_DSR_ALPHA,
 ) -> SelectionSetRanking:
     """Score a whole multi-cell selection set with BH-FDR + DSR.
@@ -1184,15 +1184,17 @@ def rank_selection_set_with_dsr(
         override may only ever make deflation harsher.
     bars_per_year
         Annualisation factor for the REPORTED Sharpe only; it does not
-        enter the DSR p-value.  Defaults to
-        :data:`DEFAULT_BARS_PER_YEAR` (H1 on a 24h calendar).  Ignored
-        when ``bar_period_minutes`` is given.
+        enter the DSR p-value.  ``None`` (the default) resolves from
+        ``bar_period_minutes``.  When BOTH are supplied this explicit
+        factor WINS -- it is the escape hatch for callers whose calendar
+        is neither 252d nor 24h.
     bar_period_minutes
         Bar period (e.g. ``15``, ``60``, ``240``, ``1440``) resolved to
         the correct annualisation via
         :func:`forex_bot.quant.oos_gate.annualization_from_bar_period`.
         Rin iter-1 LOW: a hardcoded ``252 * 24`` is off by 4x on H4 and
-        24x on D1, which misreports every non-H1 Sharpe.
+        24x on D1, which misreports every non-H1 Sharpe.  Ignored when
+        ``bars_per_year`` is given explicitly.
     dsr_alpha
         Significance level the DSR must clear for
         :attr:`SelectionSetScore.is_discovery`.  Defaults to
@@ -1211,6 +1213,23 @@ def rank_selection_set_with_dsr(
     and ``observed_sr_per_bar=0.0`` — we refuse to invent a Sharpe for a
     series that cannot support one, and ``1.0`` is the honest "no
     evidence" value rather than an exception.
+
+    **Known limitation -- the Sharpe is scale-invariant, so this pass
+    cannot detect a units error.**  Renaming a return series from
+    fractions to percent, or scaling it by 1e6, changes ``mean/std`` by
+    exactly zero, so ``_per_bar_sharpe``,
+    :func:`quant.oos_gate.deflated_sharpe_ratio` and the BH t-statistic
+    all return IDENTICAL numbers for the wrong units.  Rin iter-1
+    measured a 1e6-magnitude series yielding
+    ``observed_sr_per_bar=1.1e12, dsr_p=0.0``.  A magnitude guard
+    therefore belongs at *store construction* (``TrialReturnStore.record``),
+    which is outside this module's concern AND outside this card's
+    ``allowed_files``; an arbitrary bound here would reject legitimate
+    high-beta series for the wrong reason.  Rin iter-2 re-graded this
+    MEDIUM -> LOW for that reason (a mathematical property of Sharpe, not
+    a defect in this layer) and folded the action into DEBT card
+    8afa0fcd.  Documented here so the limitation is discoverable rather
+    than an unwritten assumption.
     """
     # 1. BH-FDR ordering — reused verbatim, never re-implemented.
     ranked = rank_from_trial_return_store(
@@ -1243,10 +1262,8 @@ def rank_selection_set_with_dsr(
 
     if bars_per_year is not None:
         resolved_bpy = int(bars_per_year)
-    elif bar_period_minutes is not None:
-        resolved_bpy = int(annualization_from_bar_period(bar_period_minutes))
     else:
-        resolved_bpy = int(DEFAULT_BARS_PER_YEAR)
+        resolved_bpy = int(annualization_from_bar_period(bar_period_minutes))
 
     cells: dict[tuple[str, str, str], list[SelectionSetScore]] = {}
     for cell_key, candidates in ranked.items():
