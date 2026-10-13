@@ -47,6 +47,10 @@ SCORECARD_ROW_COLUMNS: tuple[str, ...] = (
     "total_dd_breaches",
     "trade_count",
     "source",
+    # Card c0f284b8: carried in the canonical columns (not only in to_dict())
+    # so the rendered JSON "columns" header stays truthful about what each row
+    # actually contains.
+    "cost_modeled",
 )
 
 
@@ -67,6 +71,7 @@ class ScorecardRow:
     total_dd_breaches: int
     trade_count: int
     source: str
+    cost_modeled: bool = True
     rank: int = 0
 
     def to_dict(self) -> dict:
@@ -222,7 +227,20 @@ def build_scorecard_row(
     ``dates[bar_idx]`` is the ISO date string for that bar.  Both are
     produced by ``tournament.harness._simulate_trades`` and
     ``tournament.harness._extract_signals_from_strategy``.
+
+    Card c0f284b8: the row carries ``cost_modeled``.  It is ``True`` only when
+    every trade in ``trades`` had a real cost applied.  A trade that could not
+    be costed (no cost model supplied, or an unsizable position) sets
+    ``cost_modeled=False`` on the trade, which makes the row ``False`` here.
+    The default is ``True`` for hand-built trade dicts that predate the flag so
+    existing callers are unaffected; harness-produced trades always set the key
+    explicitly.
     """
+    # Cost provenance (card c0f284b8): a row is verdict-grade only when every
+    # trade in it carried a modeled cost.  A 0-trade row has nothing
+    # unmodeled, so it stays True.
+    cost_modeled = all(t.get("cost_modeled", True) for t in trades)
+
     # Edge case 4: 0 trades.  Still emit a valid row with zeros.
     if not trades:
         return ScorecardRow(
@@ -235,6 +253,7 @@ def build_scorecard_row(
             total_dd_breaches=0,
             trade_count=0,
             source=source,
+            cost_modeled=cost_modeled,
         )
 
     daily_limit = _ftmo_daily_dd_pct()
@@ -267,6 +286,7 @@ def build_scorecard_row(
         total_dd_breaches=int(total_breaches),
         trade_count=len(trades),
         source=source,
+        cost_modeled=cost_modeled,
     )
 
 

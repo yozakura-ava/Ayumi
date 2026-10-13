@@ -25,11 +25,13 @@ adding one line here, not editing strategy code.
 
 from __future__ import annotations
 
+import importlib.util
 import inspect
 import logging
 import os
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -412,7 +414,7 @@ def _cost_fraction_for_trade(
     cost_model: "CostModel",
     r_fraction: float,
     equity: float,
-) -> float:
+) -> float | None:
     """Compute per-trade cost as a fraction of equity (FTMO sizing).
 
     Card 05fa0065 precondition: cost-free scoring produces false positives.
@@ -435,7 +437,16 @@ def _cost_fraction_for_trade(
     ``spread_pips × pip_value_per_lot × qty + commission × qty`` evaluated
     at the trade's symbol-typical 10-pip SL distance to avoid division
     blow-up; this is a defensive fallback, not a primary path (signal
-    validation rejects zero-SL upstream).
+    validation rejects zero-SL upstream).  That fallback still produces a
+    real non-zero cost, so the trade stays verdict-eligible.
+
+    Card c0f284b8: this function returns ``None`` — NOT ``0.0`` — when the
+    trade cannot be sized.  Returning ``0.0`` used to produce a *silently*
+    cost-free trade: the row scored as if the round turn were free, which is
+    precisely the false-positive class card 05fa0065 was raised to kill.
+    ``None`` means "cost not modeled", and the caller flags the trade
+    ``cost_modeled=False`` so the row can be excluded from verdict-grade
+    ranking instead of quietly ranking as a winner.
     """
     sl_distance_price = abs(entry_price - sl_price)
     sl_distance_pips = sl_distance_price / cost_model.pip_size if cost_model.pip_size > 0 else 0.0
@@ -444,18 +455,24 @@ def _cost_fraction_for_trade(
         sl_distance_pips = 10.0
     pip_value = cost_model.pip_value_per_lot
     if pip_value <= 0:
-        return 0.0  # Can't size; v1 keeps the cost-free row.
+        # Can't size the trade — the cost is unknown, not zero.
+        return None
+
+    if equity <= 0:
+        # No equity to express a fraction of; cost is unknown, not zero.
+        return None
 
     # FTMO sizing: qty lots implied by risk budget.
     qty_lots = (r_fraction * equity) / (sl_distance_pips * pip_value)
     if qty_lots <= 0:
-        return 0.0
+        # Risk budget is zero/non-positive — nothing can be sized.
+        return None
 
     spread_cost = cost_model.spread_pips * qty_lots * pip_value
     slippage_cost = 2.0 * cost_model.slippage_pips * qty_lots * pip_value
     commission_cost = cost_model.commission_per_lot * qty_lots
     cost_per_trade = spread_cost + slippage_cost + commission_cost
-    return cost_per_trade / equity if equity > 0 else 0.0
+    return cost_per_trade / equity
 
 
 def _simulate_trades(
@@ -479,6 +496,13 @@ def _simulate_trades(
     ``exit_reason``.  ``pnl_fraction`` is the fraction of equity at entry
     that the trade realized (positive = win, negative = loss).
 
+    Card c0f284b8: every emitted trade also carries ``cost_modeled`` (bool).
+    It is ``False`` when no ``cost_model`` was supplied, or when
+    :func:`_cost_fraction_for_trade` could not size the trade.  Such trades
+    keep ``cost_fraction == 0.0`` for backward compatibility, but the flag is
+    what marks them as NOT cost-modeled so callers can exclude them from
+    verdict-grade ranking.
+
     The function NEVER mutates ``df``.  Date partitioning for FTMO daily-DD
     bookkeeping lives in :func:`scorecard.build_scorecard_row`.
     """
@@ -492,7 +516,14 @@ def _simulate_trades(
         r_units = delta / sl_distance if sl_distance > 0 else 0.0
         # Trade P&L as a fraction of equity at entry: r_units * r_fraction (1R = +0.5%).
         pnl_fraction = r_units * trade.r_fraction
-        cost_fraction = 0.0
+        # Card c0f284b8: ``_cost_fraction_for_trade`` returns None when the
+        # trade cannot be sized.  A None cost is NOT a zero cost — it is an
+        # UNMODELED cost, recorded as ``cost_modeled=False`` so the row is
+        # excluded from verdict-grade ranking rather than silently scoring
+        # as a free round turn.  ``cost_fraction`` stays a float for
+        # backward compatibility with existing consumers.
+        cost_fraction: float | None = None
+        cost_modeled = False
         if cost_model is not None:
             cost_fraction = _cost_fraction_for_trade(
                 entry_price=trade.entry_price,
@@ -501,13 +532,15 @@ def _simulate_trades(
                 r_fraction=trade.r_fraction,
                 equity=starting_equity,
             )
+            cost_modeled = cost_fraction is not None
         # Cost applies to BOTH wins and losses equally (round-turn cost).
-        pnl_fraction_net = pnl_fraction - cost_fraction
+        pnl_fraction_net = pnl_fraction - (cost_fraction or 0.0)
         trades.append(
             {
                 "pnl_fraction": pnl_fraction_net,
                 "pnl_fraction_gross": pnl_fraction,
-                "cost_fraction": cost_fraction,
+                "cost_fraction": cost_fraction or 0.0,
+                "cost_modeled": cost_modeled,
                 "bars_held": held,
                 "exit_reason": reason,
                 "entry_bar": trade.entry_bar_index,
@@ -733,43 +766,117 @@ class CostModel:
 # Per ``scripts/lbo_cost_stress.py`` conventions, the cost model is per-round-
 # turn (entry + exit): spread + 2×slippage (entry/exit) + commission.
 #
-# Per-symbol defaults below match the LBO cost-stress study:
-#   XAUUSD: spread 2.5 pips, slippage 0.2 pips (each side), commission $3.5/lot RT
-#   GBPUSD: spread 2.0 pips, slippage 0.2 pips (each side), commission $3.5/lot RT
-#   pip_value_per_lot is the dollar value of 1 pip on a 1-lot position
-#   (XAUUSD and GBPUSD both = $10/pip/lot at standard lots).
+# Card c0f284b8 (Sprint E gate 2) — SINGLE SOURCE OF TRUTH
+# -------------------------------------------------------
+# Spread / commission / slippage used to be hardcoded here AND in
+# ``forex_bot.factory.spread_costs`` (``default_spread_costs``), and the two
+# disagreed: this table said XAUUSD 2.5 pips / GBPUSD 2.0 pips while the Liora
+# ground-rule table said XAUUSD 3.0 pips / GBPUSD 1.5 pips.  Two copies of a
+# cost constant means a matrix verdict can silently run on the wrong number.
 #
-# The harness applies the cost model at trade close by computing the FTMO
-# position size implied by the risk-per-trade budget and the trade's SL
-# distance in pips. See ``_cost_fraction_for_trade`` for the exact math.
+# The Liora table (``forex_bot.factory.spread_costs``) is now the ONLY place
+# these numbers are defined — its own module docstring already claims to be
+# "the single source of truth for those defaults".  This module reads it and
+# adds only the venue facts the Liora table does not carry (pip_size,
+# pip_value_per_lot), which are sizing facts rather than cost assumptions.
+#
+# The load is defensive only about *how* the module is reached, never about
+# *what* it contains: both branches below execute the same
+# ``spread_costs.py`` file, so there is still exactly one constant.
+#   1. Preferred: normal package import.
+#   2. Fallback: direct file load.  Needed because ``forex_bot.factory.__init__``
+#      eagerly imports ``bridge`` → ``from backtest.strategies... import ...``,
+#      which is broken on this import root (no top-level ``backtest`` module),
+#      so ``import forex_bot.factory.spread_costs`` currently raises
+#      ModuleNotFoundError.  That is a separate pre-existing defect; the
+#      tournament harness must not inherit it.
+# If neither path works this raises — never silently falls back to a local
+# hardcoded spread, which is the exact defect this card closes.
+_LIORA_MODULE_NAME = "ayumi_liora_spread_costs"
+
+
+def _liora_spread_costs():
+    """Return the ``spread_costs`` module (the Liora ground-rule table).
+
+    See the block comment above for why the direct-file fallback exists.
+    Raises :exc:`ImportError` if neither route can load the single source of
+    truth; it never substitutes a locally hardcoded spread.
+    """
+    try:
+        from forex_bot.factory import spread_costs  # noqa: PLC0415
+
+        return spread_costs
+    except ImportError:
+        pass
+
+    path = Path(__file__).resolve().parents[1] / "forex_bot" / "factory" / "spread_costs.py"
+    if not path.is_file():
+        raise ImportError(
+            "Liora spread-cost source of truth unreachable: neither "
+            "'forex_bot.factory.spread_costs' nor "
+            f"{path} could be loaded. Refusing to fall back to a hardcoded "
+            "spread constant (card c0f284b8)."
+        )
+    spec = importlib.util.spec_from_file_location(_LIORA_MODULE_NAME, path)
+    if spec is None or spec.loader is None:  # pragma: no cover - defensive
+        raise ImportError(f"could not build import spec for {path}")
+    module = importlib.util.module_from_spec(spec)
+    # Register before exec: the module uses ``from __future__ import
+    # annotations`` + dataclasses, which resolve annotations through
+    # sys.modules during class creation.
+    sys.modules[_LIORA_MODULE_NAME] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+# pip_size / pip_value_per_lot are venue sizing facts, not Liora cost
+# assumptions, so they stay local to the harness.
+_VENUE_PIP_FACTS: dict[str, tuple[float, float]] = {
+    # symbol: (pip_value_per_lot, pip_size)
+    "XAUUSD": (10.0, 0.10),  # 1 pip = $0.10 price move on a 100-oz lot
+    "GBPUSD": (10.0, 0.0001),  # 1 pip = $0.0001 on a 100K-base lot
+}
+
+_LIORA = _liora_spread_costs()
+
 FTMO_COST_DEFAULTS: dict[str, CostModel] = {
-    "XAUUSD": CostModel(
-        spread_pips=2.5,
-        commission_per_lot=3.5,
-        slippage_pips=0.2,
-        pip_value_per_lot=10.0,  # XAUUSD: 1 pip = $0.10 price move on 100-oz lot
-        pip_size=0.10,            # XAUUSD: 1 pip = $0.10 price movement
-    ),
-    "GBPUSD": CostModel(
-        spread_pips=2.0,
-        commission_per_lot=3.5,
-        slippage_pips=0.2,
-        pip_value_per_lot=10.0,  # GBPUSD: 1 pip = $0.0001 on 100K-base lot
-        pip_size=0.0001,          # GBPUSD: 1 pip = $0.0001 price movement
-    ),
+    symbol: CostModel(
+        spread_pips=_LIORA.default_spread_costs().get(symbol).spread_pips,
+        commission_per_lot=_LIORA.COMMISSION_PER_LOT_USD,
+        slippage_pips=_LIORA.PIP_SLIPPAGE,
+        pip_value_per_lot=_VENUE_PIP_FACTS[symbol][0],
+        pip_size=_VENUE_PIP_FACTS[symbol][1],
+    )
+    for symbol in _VENUE_PIP_FACTS
 }
 
 
 def cost_model_for(symbol: str) -> CostModel | None:
     """Return the canonical FTMO cost model for ``symbol``, or ``None``.
 
-    Symbols without a known cost model default produce a warning at
-    construction time (caller decides whether to treat as a hard error or
-    fall through to cost-free scoring).  This mirrors the LBO cost-stress
-    study which only covers XAUUSD/GBPUSD; other symbols will need their
-    own cost-model row before being promoted to FTMO-realistic scoring.
+    Spread/commission/slippage come from the Liora ground-rule table
+    (:func:`forex_bot.factory.spread_costs.default_spread_costs`), never a
+    local literal (card c0f284b8).
+
+    Symbols without a known cost model return ``None``; this mirrors the LBO
+    cost-stress study which only covers XAUUSD/GBPUSD; other symbols will need
+    their own cost-model row before being promoted to FTMO-realistic scoring.
+    A ``None`` model means the run is UNMODELED, not free: the harness marks
+    those rows ``cost_modeled=False`` (card c0f284b8) so they cannot be
+    mistaken for cost-free winners.
     """
     return FTMO_COST_DEFAULTS.get(symbol.upper())
+
+
+def verdict_grade_rows(rows):
+    """Return only the rows whose costs were actually modeled.
+
+    Card c0f284b8 AC2: a row that could not be costed must never enter a
+    verdict-grade ranking.  This is the single place that answers "is this row
+    eligible to be ranked?", so the tournament matrix (card 37078a83) and any
+    later verdict consumer share one definition instead of re-deriving it.
+    """
+    return [row for row in rows if getattr(row, "cost_modeled", True)]
 
 
 @dataclass

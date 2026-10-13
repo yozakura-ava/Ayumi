@@ -48,6 +48,7 @@ from tournament.harness import (  # noqa: E402
     STRATEGY_CLASS_MAP,
     CostModel,
     _cost_fraction_for_trade,
+    _liora_spread_costs,
     cost_model_for,
 )
 
@@ -57,21 +58,29 @@ from tournament.harness import (  # noqa: E402
 class TestCostModelMath:
     """Cost math tests (card 05fa0065 AC #2: FTMO-realistic costs as precondition)."""
 
-    def test_xauusd_defaults_match_lbo_study(self) -> None:
-        """XAUUSD: spread 2.5 pips, slippage 0.2 pips, commission $3.5/lot."""
+    def test_xauusd_defaults_match_liora_table(self) -> None:
+        """XAUUSD: spread 3.0 pips, slippage 0.2 pips, commission $3.5/lot.
+
+        Card c0f284b8: spread/commission/slippage now come from the Liora
+        ground-rule table (``default_spread_costs``), which was previously
+        duplicated here at a conflicting 2.5 pips.
+        """
         cm = cost_model_for("XAUUSD")
         assert cm is not None
-        assert cm.spread_pips == 2.5
+        assert cm.spread_pips == 3.0
         assert cm.slippage_pips == 0.2
         assert cm.commission_per_lot == 3.5
         assert cm.pip_value_per_lot == 10.0  # standard lot
         assert cm.pip_size == 0.10  # XAUUSD: 1 pip = $0.10 price movement
 
-    def test_gbpusd_defaults_match_lbo_study(self) -> None:
-        """GBPUSD: spread 2.0 pips, slippage 0.2 pips, commission $3.5/lot."""
+    def test_gbpusd_defaults_match_liora_table(self) -> None:
+        """GBPUSD: spread 1.5 pips, slippage 0.2 pips, commission $3.5/lot.
+
+        Card c0f284b8: same reconciliation as XAUUSD — 2.0 → 1.5.
+        """
         cm = cost_model_for("GBPUSD")
         assert cm is not None
-        assert cm.spread_pips == 2.0
+        assert cm.spread_pips == 1.5
         assert cm.slippage_pips == 0.2
         assert cm.commission_per_lot == 3.5
         assert cm.pip_value_per_lot == 10.0
@@ -84,14 +93,14 @@ class TestCostModelMath:
         assert cost_model_for("") is None
 
     def test_cost_fraction_xauusd_20pip_sl(self) -> None:
-        """XAUUSD, 20 pip SL, 1.0 equity, 0.5% risk → cost ≈ 0.000813.
+        """XAUUSD, 20 pip SL, 1.0 equity, 0.5% risk → cost ≈ 0.000938.
 
-        Math:
+        Math (spread 3.0 per the Liora table, card c0f284b8):
           qty_lots = (0.005 * 1.0) / (20 * 10) = 0.000025
-          spread = 2.5 * 0.000025 * 10 = 0.000625
+          spread = 3.0 * 0.000025 * 10 = 0.00075
           slippage = 2 * 0.2 * 0.000025 * 10 = 0.0001
           commission = 3.5 * 0.000025 = 0.0000875
-          total = 0.0008125
+          total = 0.0009375
         """
         cm = cost_model_for("XAUUSD")
         assert cm is not None
@@ -102,10 +111,13 @@ class TestCostModelMath:
             r_fraction=0.005,
             equity=1.0,
         )
-        assert cf == pytest.approx(0.0008125, abs=1e-7)
+        assert cf == pytest.approx(0.0009375, abs=1e-7)
 
     def test_cost_fraction_gbpusd_30pip_sl(self) -> None:
-        """GBPUSD, 30 pip SL, 1.0 equity, 0.5% risk → cost ≈ 0.000458."""
+        """GBPUSD, 30 pip SL, 1.0 equity, 0.5% risk → cost ≈ 0.000375.
+
+        Spread is 1.5 (Liora table, card c0f284b8), not the old 2.0.
+        """
         cm = cost_model_for("GBPUSD")
         assert cm is not None
         cf = _cost_fraction_for_trade(
@@ -116,11 +128,11 @@ class TestCostModelMath:
             equity=1.0,
         )
         # qty_lots = (0.005 * 1.0) / (30 * 10) = 0.00001667
-        # spread = 2.0 * 0.00001667 * 10 = 0.000333
+        # spread = 1.5 * 0.00001667 * 10 = 0.00025
         # slippage = 2 * 0.2 * 0.00001667 * 10 = 0.0000667
         # commission = 3.5 * 0.00001667 = 0.0000583
-        # total ≈ 0.000458
-        assert cf == pytest.approx(0.000458, abs=1e-5)
+        # total ≈ 0.000375
+        assert cf == pytest.approx(0.000375, abs=1e-5)
 
     def test_cost_fraction_degenerate_sl_falls_back(self) -> None:
         """Zero SL distance falls back to 10-pip SL (defensive)."""
@@ -136,10 +148,16 @@ class TestCostModelMath:
         # Should use the 10-pip fallback → same magnitude as a normal trade
         assert 0 < cf < 0.01, f"expected non-zero cost, got {cf}"
 
-    def test_cost_fraction_invalid_pip_value_returns_zero(self) -> None:
-        """Zero/negative pip_value → defensive zero (no cost applied)."""
+    def test_cost_fraction_invalid_pip_value_returns_none(self) -> None:
+        """Zero pip_value → ``None`` (UNMODELED), never a silent 0.0.
+
+        Card c0f284b8: this test previously asserted ``cf == 0.0``, i.e. that
+        an unsizable trade is scored as a FREE round turn. That is the exact
+        false-positive class card 05fa0065 exists to prevent, so the contract
+        is inverted: unsizable → ``None`` → trade flagged ``cost_modeled=False``.
+        """
         cm = CostModel(
-            spread_pips=2.5,
+            spread_pips=3.0,
             commission_per_lot=3.5,
             slippage_pips=0.2,
             pip_value_per_lot=0.0,  # degenerate
@@ -152,7 +170,33 @@ class TestCostModelMath:
             r_fraction=0.005,
             equity=1.0,
         )
-        assert cf == 0.0
+        assert cf is None
+
+    def test_cost_fraction_zero_equity_returns_none(self) -> None:
+        """Zero equity → ``None`` (UNMODELED), never a silent 0.0."""
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        cf = _cost_fraction_for_trade(
+            entry_price=2000.0,
+            sl_price=1998.0,
+            cost_model=cm,
+            r_fraction=0.005,
+            equity=0.0,
+        )
+        assert cf is None
+
+    def test_cost_fraction_zero_risk_budget_returns_none(self) -> None:
+        """Zero risk budget (qty_lots <= 0) → ``None`` (UNMODELED)."""
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        cf = _cost_fraction_for_trade(
+            entry_price=2000.0,
+            sl_price=1998.0,
+            cost_model=cm,
+            r_fraction=0.0,
+            equity=1.0,
+        )
+        assert cf is None
 
     def test_cost_fraction_scales_with_equity(self) -> None:
         """Doubling equity doubles cost_per_trade but keeps cost_fraction constant.
@@ -921,3 +965,17 @@ class TestRunOneCellPassesFilePath:
         assert captured_path.is_file(), (
             f"push_bundle should receive a file descriptor, got {captured_path!r}"
         )
+
+
+class TestSingleSourceOfTruth:
+    """AC1 (card c0f284b8): harness path and Liora table return ONE constant."""
+
+    def test_harness_path_returns_liora_constant(self) -> None:
+        """Every FTMO cost-model row must equal the Liora table it derives from."""
+        table = _liora_spread_costs().default_spread_costs()
+        for symbol in ("XAUUSD", "GBPUSD"):
+            cm = cost_model_for(symbol)
+            assert cm is not None
+            assert cm.spread_pips == table.get(symbol).spread_pips
+            assert cm.commission_per_lot == _liora_spread_costs().COMMISSION_PER_LOT_USD
+            assert cm.slippage_pips == _liora_spread_costs().PIP_SLIPPAGE

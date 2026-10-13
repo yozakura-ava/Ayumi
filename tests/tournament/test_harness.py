@@ -28,6 +28,7 @@ import sys
 from pathlib import Path
 
 import duckdb
+import pandas as pd
 import pytest
 
 from tournament import (
@@ -36,9 +37,15 @@ from tournament import (
     TournamentNoSignals,
 )
 from tournament.harness import (
+    CostModel,
     TournamentEmptyWindow,
+    _cost_fraction_for_trade,
+    _liora_spread_costs,
+    _simulate_trades,
+    cost_model_for,
     load_bars_for_window,
     resolve_default_duckdb_path,
+    verdict_grade_rows,
 )
 from tournament.scorecard import (
     SCORECARD_ROW_COLUMNS,
@@ -183,7 +190,12 @@ def test_harness_rejects_empty_strategy_ids(synthetic_duckdb: Path) -> None:
 
 
 def test_scorecard_row_has_canonical_columns() -> None:
-    """ScorecardRow carries exactly the 9 schema columns (daily + total DD separate)."""
+    """ScorecardRow carries exactly the 10 schema columns (9 + cost_modeled).
+
+    Card c0f284b8 added ``cost_modeled`` so a row can never silently carry a
+    zero cost; it belongs in the canonical columns so the rendered JSON
+    ``columns`` header stays truthful.
+    """
     columns = SCORECARD_ROW_COLUMNS
     assert columns == (
         "strategy_id",
@@ -195,6 +207,7 @@ def test_scorecard_row_has_canonical_columns() -> None:
         "total_dd_breaches",
         "trade_count",
         "source",
+        "cost_modeled",
     )
     assert "daily_dd_breaches" in columns
     assert "total_dd_breaches" in columns
@@ -704,3 +717,135 @@ def test_daily_dd_breach_counts_respects_explicit_starting_equity() -> None:
         starting_equity=10000.0,
     )
     assert (daily, total) == (1, 0)
+
+
+# ── Card c0f284b8: XAUUSD cost reconciliation (Sprint E gate 2) ─────────────
+
+
+def _flat_bars(n: int = 6, *, price: float = 2000.0) -> pd.DataFrame:
+    """Flat synthetic OHLC frame: every bar identical around ``price``."""
+    return pd.DataFrame(
+        {
+            "open": [price] * n,
+            "high": [price + 0.5] * n,
+            "low": [price - 0.5] * n,
+            "close": [price] * n,
+        }
+    )
+
+
+class TestSingleCostConstant:
+    """AC1: exactly one sourced spread constant, asserted on BOTH paths."""
+
+    def test_harness_and_liora_agree_on_xauusd(self) -> None:
+        liora = _liora_spread_costs().default_spread_costs().get("XAUUSD")
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        assert cm.spread_pips == liora.spread_pips
+
+    def test_harness_and_liora_agree_on_gbpusd(self) -> None:
+        liora = _liora_spread_costs().default_spread_costs().get("GBPUSD")
+        cm = cost_model_for("GBPUSD")
+        assert cm is not None
+        assert cm.spread_pips == liora.spread_pips
+
+    def test_commission_and_slippage_also_sourced(self) -> None:
+        """The whole cost trio comes from the Liora table, not a local literal."""
+        mod = _liora_spread_costs()
+        for symbol in ("XAUUSD", "GBPUSD"):
+            cm = cost_model_for(symbol)
+            assert cm is not None
+            assert cm.commission_per_lot == mod.COMMISSION_PER_LOT_USD
+            assert cm.slippage_pips == mod.PIP_SLIPPAGE
+
+    def test_xauusd_is_no_longer_the_stale_2_5(self) -> None:
+        """Regression guard for the specific conflict this card closed."""
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        assert cm.spread_pips != 2.5
+
+
+class TestNoSilentCostFreeRow:
+    """AC2: an unsizable trade is UNMODELED, never scored as free."""
+
+    def test_unsizable_trade_returns_none_not_zero(self) -> None:
+        broken = CostModel(
+            spread_pips=3.0,
+            commission_per_lot=3.5,
+            slippage_pips=0.2,
+            pip_value_per_lot=0.0,
+            pip_size=0.10,
+        )
+        cf = _cost_fraction_for_trade(
+            entry_price=2000.0,
+            sl_price=1998.0,
+            cost_model=broken,
+            r_fraction=0.005,
+            equity=1.0,
+        )
+        assert cf is None, "unsizable trade must not report a zero cost"
+
+    def test_degenerate_sl_still_produces_a_real_cost(self) -> None:
+        """The 10-pip defensive fallback stays MODELED (it yields real cost)."""
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        cf = _cost_fraction_for_trade(
+            entry_price=2000.0,
+            sl_price=2000.0,
+            cost_model=cm,
+            r_fraction=0.005,
+            equity=1.0,
+        )
+        assert cf is not None
+        assert cf > 0
+
+
+class TestCostModeledPropagation:
+    """AC2: the flag reaches the row and survives serialization."""
+
+    _SIGNALS = [(0, 1998.0, 2002.0, 1)]
+    _DATES = ["2024-06-03"] * 6
+
+    def _trade_and_row(self, *, with_cost: bool):
+        cm = cost_model_for("XAUUSD") if with_cost else None
+        trades = _simulate_trades(
+            _flat_bars(), self._SIGNALS, cost_model=cm, max_bars_held=1,
+        )
+        assert len(trades) == 1, "fixture should close exactly one trade"
+        return trades[0], build_scorecard_row(
+            strategy_id="synthetic",
+            symbol="XAUUSD",
+            timeframe="H1",
+            starting_equity=1.0,
+            trades=trades,
+            dates=self._DATES,
+            trade_entry_bars=[t["entry_bar"] for t in trades],
+            source="synthetic",
+        )
+
+    def test_no_cost_model_marks_trade_and_row_unmodeled(self) -> None:
+        """The silent cost-free path: cost_model=None must be FLAGGED."""
+        trade, row = self._trade_and_row(with_cost=False)
+        assert trade["cost_modeled"] is False
+        assert row.cost_modeled is False
+
+    def test_cost_model_marks_trade_and_row_modeled(self) -> None:
+        trade, row = self._trade_and_row(with_cost=True)
+        assert trade["cost_modeled"] is True
+        assert row.cost_modeled is True
+        assert trade["cost_fraction"] > 0
+
+    def test_flag_survives_json_serialization(self) -> None:
+        """Guards the asdict() hole: a dynamic attribute would vanish here."""
+        _, row = self._trade_and_row(with_cost=False)
+        assert row.to_dict()["cost_modeled"] is False
+        payload = json.loads(render_scorecard_json(Scorecard(rows=[row], meta={})))
+        assert "cost_modeled" in payload["columns"]
+        assert payload["rows"][0]["cost_modeled"] is False
+
+    def test_verdict_grade_rows_excludes_unmodeled(self) -> None:
+        _, good = self._trade_and_row(with_cost=True)
+        _, bad = self._trade_and_row(with_cost=False)
+        kept = verdict_grade_rows([good, bad])
+        assert kept == [good]
+        assert bad not in kept
