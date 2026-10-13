@@ -917,3 +917,67 @@ class TestRinIter1Regressions:
         cm2 = cost_model_for("GBPUSD")
         assert cm2 is not None
         assert cm2.spread_pips == 1.5
+
+
+class TestWorkerRunnerCostGate:
+    """Rin iter-1 HIGH-1 / MEDIUM-2 regression guards (scripts/offload).
+
+    Imported inside the tests so a collection-time failure in the offload
+    module cannot take down the whole tournament suite.
+    """
+
+    def test_payload_matching_liora_is_accepted(self) -> None:
+        from offload.worker_runner import _cost_model_mismatch
+
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        payload = {
+            "spread_pips": cm.spread_pips,
+            "commission_per_lot": cm.commission_per_lot,
+            "slippage_pips": cm.slippage_pips,
+            "pip_value_per_lot": cm.pip_value_per_lot,
+            "pip_size": cm.pip_size,
+        }
+        assert _cost_model_mismatch("XAUUSD", payload, cm) is None
+
+    def test_stale_2_5_payload_is_rejected(self) -> None:
+        """The exact dual constant AC1 closed must not slip back in."""
+        from offload.worker_runner import _cost_model_mismatch
+
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        err = _cost_model_mismatch(
+            "XAUUSD", {"spread_pips": 2.5}, cm,
+        )
+        assert err is not None
+        assert "spread_pips" in err
+        assert "Liora" in err
+
+    def test_stale_gbpusd_2_0_payload_is_rejected(self) -> None:
+        from offload.worker_runner import _cost_model_mismatch
+
+        cm = cost_model_for("GBPUSD")
+        assert cm is not None
+        err = _cost_model_mismatch("GBPUSD", {"spread_pips": 2.0}, cm)
+        assert err is not None
+
+    def test_symbol_without_liora_row_has_nothing_to_contradict(self) -> None:
+        from offload.worker_runner import _cost_model_mismatch
+
+        assert _cost_model_mismatch("USDJPY", {"spread_pips": 99.0}, None) is None
+
+    def test_non_numeric_payload_field_is_rejected(self) -> None:
+        from offload.worker_runner import _cost_model_mismatch
+
+        cm = cost_model_for("XAUUSD")
+        assert cm is not None
+        err = _cost_model_mismatch("XAUUSD", {"spread_pips": "wide"}, cm)
+        assert err is not None
+        assert "not numeric" in err
+
+    def test_unmodeled_row_fails_the_verdict_gate(self) -> None:
+        """HIGH-1: the cell must be gated, not emitted as a success."""
+        trade, row = TestCostModeledPropagation()._trade_and_row(with_cost=False)
+        assert trade["cost_modeled"] is False
+        assert row_is_cost_modeled(row) is False
+        assert verdict_grade_rows([row]) == []

@@ -133,6 +133,45 @@ def _worker_lock(lock_path: Path):
         fd.close()
 
 
+def _cost_model_mismatch(symbol: str, payload: dict, canonical) -> str | None:
+    """Return an error string if a gateway cost model contradicts the Liora table.
+
+    Card c0f284b8 (Rin iter-1 MEDIUM-2).  Before this, a job carrying
+    ``cost_model_payload`` silently overrode the Liora-sourced model, so a
+    gateway still holding the pre-reconciliation 2.5-pip XAUUSD spread would
+    re-create the exact dual constant AC1 closed -- with no warning at all.
+
+    Returns ``None`` when the payload is consistent (or when the symbol has no
+    Liora row at all, in which case there is nothing to contradict; such cells
+    are instead caught by the ``cost_modeled`` gate below).
+    """
+    if canonical is None:
+        return None
+    expected = {
+        "spread_pips": canonical.spread_pips,
+        "commission_per_lot": canonical.commission_per_lot,
+        "slippage_pips": canonical.slippage_pips,
+    }
+    mismatches = []
+    for field_name, want in expected.items():
+        if field_name not in payload:
+            continue
+        try:
+            got = float(payload[field_name])
+        except (TypeError, ValueError):
+            mismatches.append(f"{field_name}={payload[field_name]!r} (not numeric)")
+            continue
+        if got != float(want):
+            mismatches.append(f"{field_name}={got!r} (Liora table: {want!r})")
+    if mismatches:
+        return (
+            f"gateway cost_model_payload for {symbol} contradicts the Liora "
+            f"spread-cost table: {'; '.join(mismatches)}. Refusing to score this "
+            f"cell on a conflicting cost constant (card c0f284b8)."
+        )
+    return None
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -227,17 +266,35 @@ def _execute_cell(job: dict[str, Any], code_root: Path) -> dict[str, Any]:
         TournamentHarness,
         TournamentNoSignals,
         cost_model_for,
+        row_is_cost_modeled,
     )
 
     cm = cost_model_for(symbol)
-    if cost_model_payload:
-        # Gateway supplied a cost_model; prefer it over the default when
-        # the symbol is known, or load it as a fresh CostModel when the
-        # symbol is unknown to FTMO_COST_DEFAULTS.
-        cm = CostModel(**cost_model_payload)
 
     started_at = _now_iso()
     wall_start = time.monotonic()
+
+    if cost_model_payload:
+        # Card c0f284b8 (Rin iter-1 MEDIUM-2): a gateway-supplied cost model
+        # must not silently contradict the Liora single source of truth.
+        mismatch = _cost_model_mismatch(symbol, cost_model_payload, cm)
+        if mismatch:
+            return {
+                "schema_version": 1,
+                "cell_id": expected_cell_id,
+                "exit_code": 5,
+                "error": mismatch,
+                "strategy": strategy,
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "started_at": started_at,
+                "finished_at": _now_iso(),
+                "wall_time_s": round(time.monotonic() - wall_start, 3),
+            }
+        # Gateway supplied a cost_model consistent with the Liora table;
+        # prefer it (it may carry symbol-specific venue sizing facts).
+        cm = CostModel(**cost_model_payload)
+
     try:
         harness = TournamentHarness(
             strategy_ids=[strategy],
@@ -265,6 +322,45 @@ def _execute_cell(job: dict[str, Any], code_root: Path) -> dict[str, Any]:
             }
         row = scorecard.rows[0]
         run_meta = scorecard.meta.get("run_meta", {}).get(strategy, {})
+
+        # Card c0f284b8 (Rin iter-1 HIGH-1): a row whose costs could not be
+        # modeled must never be emitted as a successful cell. Before this the
+        # runner returned exit_code 0 with a cost-free return_pct for symbols
+        # outside the cost table -- the silent cost-free row AC2 exists to
+        # kill. The cell now fails loudly instead.
+        if not row_is_cost_modeled(row):
+            return {
+                "schema_version": 1,
+                "cell_id": expected_cell_id,
+                "run_id": job.get("run_id", ""),
+                "exit_code": 5,
+                "error": (
+                    "cost_not_modeled: this cell's costs could not be modeled, "
+                    "so its return_pct is not comparable to cost-modeled cells. "
+                    "Refusing to report it as a successful tournament result "
+                    "(card c0f284b8)."
+                ),
+                "strategy": strategy,
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "started_at": started_at,
+                "finished_at": finished_at,
+                "wall_time_s": round(wall_time, 3),
+                "compute_runtime": "cpu",
+                "git_sha": job.get("git_sha", ""),
+                "env_lock_hash": job.get("env_lock_hash", ""),
+                "db_sha": db_sha,
+                "cost_model": None if cm is None else {
+                    "spread_pips": cm.spread_pips,
+                    "commission_per_lot": cm.commission_per_lot,
+                    "slippage_pips": cm.slippage_pips,
+                    "pip_value_per_lot": cm.pip_value_per_lot,
+                    "pip_size": cm.pip_size,
+                },
+                "cost_modeled": False,
+                "run_meta": run_meta,
+            }
+
         return {
             "schema_version": 1,
             "cell_id": expected_cell_id,
@@ -290,6 +386,7 @@ def _execute_cell(job: dict[str, Any], code_root: Path) -> dict[str, Any]:
                 if cm is not None
                 else None
             ),
+            "cost_modeled": row.cost_modeled,
             "scorecard": {
                 "rank": row.rank,
                 "return_pct": row.return_pct,
@@ -298,6 +395,9 @@ def _execute_cell(job: dict[str, Any], code_root: Path) -> dict[str, Any]:
                 "total_dd_breaches": row.total_dd_breaches,
                 "trade_count": row.trade_count,
                 "source": row.source,
+                # Carried inside the scorecard block too, so a consumer
+                # reading only this sub-object still sees the provenance.
+                "cost_modeled": row.cost_modeled,
             },
             "run_meta": run_meta,
             "exit_code": 0,
