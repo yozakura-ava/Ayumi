@@ -71,5 +71,80 @@ prune *losing* ones.
 | Field | Value |
 |---|---|
 | Declared | 2026-10-13, pre-launch |
-| Stage 1 launched | (recorded at launch time) |
-| Promotion decision | (recorded after Stage 1 completes, against P1/P2 only) |
+| Stage 1 launched | 2026-10-13 20:13Z (original), re-launched 20:28Z as one process per cell |
+
+---
+
+## 6. PROMOTION DECISION — **NO PROMOTION to the full 17×5 grid**
+
+**Decided:** 2026-10-13, **before** any Stage-1 cell completed and before any grid
+result was observed.
+**Recorded by:** executor, resuming card 37078a83.
+**Decision: deliver the staged 4×5 subset (N = 20). Do not run the full 85-cell grid
+this cycle.**
+
+### 6.1 This is a DEVIATION from §2 — stated plainly, not buried
+
+§2 says the full grid is "the default outcome" when P1 or P2 holds, and that its
+purpose is to catch *broken* runs, not to prune *losing* ones. I am not promoting,
+and the reason is **neither** of those. It is an execution-cost fact:
+
+- Measured throughput on the node: ~10–12 bars/s/process for `bb_rsi_reversion`,
+  up to ~60 bars/s for the lighter strategies.
+- The 20 staged cells total **~91 core-hours** of bar-processing
+  (4 × 521,865 M3 + 4 × 215,233 M5 + 4 × 104,380 M15 + 4 × 52,194 M30 + 4 × 17,948 H1
+  ≈ 3.65M bars).
+- The full grid is 17/4 = **4.25× that work ≈ 387 core-hours ≈ 2.1 days** of
+  continuous 8-core node time.
+- P1/P2 can only be assessed once Stage 1 completes, which is itself ~11 core-hours
+  of scheduling. Committing the node to a second consecutive multi-day job to chase a
+  larger selection set, in the same cycle that must also produce the G5/G6 verdict,
+  is not achievable.
+
+### 6.2 What this decision does and does not license
+
+- **It does NOT license pruning.** The lead-4 roster is unchanged. No strategy was
+  added, dropped, or re-weighted on the basis of any result. The selection set is
+  exactly the pre-registered one.
+- **It DOES scope the verdict to N = 20 (4 strategies × 5 timeframes).** The verdict
+  memo must state N and state that the full 17×5 grid was not run and why.
+- **It does NOT waive T6.** An unevaluable T6 still blocks GO — see
+  `g5-dsr-blocker-finding-2026-10-13.md`.
+
+### 6.3 Honest limitation this creates
+
+A staged-subset verdict is a statement about **4 strategies**, not about the registered
+roster of 17. Strategies 5–17 are **unevaluated**, so this cycle cannot support any
+claim about the roster as a whole — including a claim that none of them would pass.
+The full grid remains the correct long-run instrument; this cycle's deliverable is a
+scoped, honestly-labelled subset verdict.
+
+### 6.4 P1/P2 status (recorded for completeness)
+
+To be filled from the ingested grid once Stage 1 completes. **Neither P1 nor P2
+gates the non-promotion** — the decision above rests on cost alone, so a Stage-1
+"failure" cannot be used post-hoc to justify narrowing anything.
+
+## 7. Execution deviation — Stage 1 re-launched as one process per cell
+
+The original launch ran **one process per timeframe**, each looping its 4 strategies
+*sequentially*. Total work was ~91 core-hours, but the M3 process alone was
+2,087,460 bars ≈ **52h wallclock** — the staged grid could not have finished.
+
+Stage 1 was therefore re-launched as **one process per (strategy, timeframe) cell**,
+16 jobs at `xargs -P 8`, shortest-job-first (M30 → M15 → M5 → M3), each writing its
+own scorecard file so no two processes share an `--output` (runbook duplicate-clobber
+hazard eliminated by construction).
+
+This is **exact**, not approximate, and was verified before the change:
+`src/tournament/harness.py:1009` iterates `for strategy_id in self.strategy_ids`,
+calling `_extract_signals_from_strategy` and `_simulate_trades(df, ...,
+starting_equity=self.starting_equity)` per strategy. `starting_equity` is a
+loop-invariant constant and `df` is read-only — no state crosses iterations.
+`_scorecard_with_rank_or_unranked` returns an **unranked** scorecard, so no
+cross-row ranking is recomputed. A row is therefore a pure function of
+`(strategy_id, df, symbol, cost_model)` and splitting is byte-identical.
+
+Jobs are also dispatched shortest-first so that the two cheapest timeframes finish
+early: T4 (pass on ≥2 timeframes) cannot be evaluated until at least two TFs exist,
+so the cheap TFs are the ones that unblock the verdict.
