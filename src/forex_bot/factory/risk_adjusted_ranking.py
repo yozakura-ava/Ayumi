@@ -943,7 +943,28 @@ def rank_from_trial_return_store_with_meta_gate(
 #: (unit-variance) units, so mixing an annualised SR into that z-score
 #: would silently inflate every DSR.  Annualisation is applied to the
 #: reported figure only.
-DEFAULT_BARS_PER_YEAR: int = 252 * 24  # crypto-style 24h bars
+DEFAULT_BARS_PER_YEAR: int = 252 * 24  # = H1 on a 24h calendar
+
+#: Default significance level for the DSR half of a discovery claim.
+#: BH-FDR controls the false-discovery *rate*; DSR separately tests
+#: H0: true SR <= E[max SR | null].  A candidate must clear BOTH.
+#:
+#: Rin iter-1 HIGH-1: this threshold was previously written as
+#: ``dsr_pvalue < 1.0``, which is NOT a threshold —
+#: ``deflated_sharpe_ratio`` returns ``1 - Phi(z) < 1.0`` for ANY finite
+#: z, so that predicate only meant "not degenerate" and duplicated
+#: ``bh_reject``.  On short sweeps (MIN_TRIAL_BARS=8) a marginal
+#: candidate landed at p=0.99999999999 and was still crowned rank 1 and
+#: counted as a discovery.  A real level is required.
+DEFAULT_DSR_ALPHA: float = 0.05
+
+#: Default bar period (minutes) used to annualise the REPORTED Sharpe.
+#: ``252 * 24`` is the H1 value.  For any other timeframe the caller must
+#: pass ``bar_period_minutes`` so
+#: :func:`forex_bot.quant.oos_gate.annualization_from_bar_period` can
+#: compute the right factor (M15 -> 24192, H4 -> 1512, D1 -> 252).
+#: Rin iter-1 LOW: hardcoding 252*24 was off by 4x on H4 and 24x on D1.
+DEFAULT_BAR_PERIOD_MINUTES: int = 60
 
 
 @dataclass(frozen=True)
@@ -1003,18 +1024,26 @@ class SelectionSetScore:
     observed_sr_per_bar: float
     observed_sr_annual: float
     notes: str = ""
+    #: Significance level the DSR must clear for :attr:`is_discovery`.
+    #: See :data:`DEFAULT_DSR_ALPHA`.
+    dsr_alpha: float = DEFAULT_DSR_ALPHA
 
     @property
     def is_discovery(self) -> bool:
-        """True iff BH declared a discovery AND DSR is not uninformative.
+        """True iff BH declared a discovery AND the DSR independently confirms it.
 
-        Requiring ``dsr_pvalue < 1.0`` is not extra strictness — it
-        just excludes candidates whose returns were too degenerate for
-        a Sharpe to exist at all (``bh_reject`` already covers most of
-        those, but a flat-but-nonempty series can slip through with a
-        defined-yet-meaningless estimate).
+        Both halves are required: BH-FDR bounds the expected proportion
+        of false discoveries among declared winners, while the DSR tests
+        whether the winner's Sharpe clears the bar expected from pure
+        chance given ``n_trials_selection``.  A candidate can pass BH and
+        still fail the DSR — that is precisely the case the tournament
+        memo must not present as a finding.
         """
-        return self.bh_rejected and not self.bh_reject and self.dsr_pvalue < 1.0
+        return (
+            self.bh_rejected
+            and not self.bh_reject
+            and self.dsr_pvalue <= self.dsr_alpha
+        )
 
 
 @dataclass(frozen=True)
@@ -1032,6 +1061,7 @@ class SelectionSetRanking:
     n_cells: int
     alpha: float
     bars_per_year: int = DEFAULT_BARS_PER_YEAR
+    dsr_alpha: float = DEFAULT_DSR_ALPHA
 
     @property
     def n_candidates(self) -> int:
@@ -1112,7 +1142,9 @@ def rank_selection_set_with_dsr(
     candidate_ids_per_cell: dict[tuple[str, str, str], Sequence[str]] | None = None,
     alpha: float = DEFAULT_FDR_ALPHA,
     n_trials_selection: int | None = None,
-    bars_per_year: int = DEFAULT_BARS_PER_YEAR,
+    bars_per_year: int | None = None,
+    bar_period_minutes: int | None = None,
+    dsr_alpha: float = DEFAULT_DSR_ALPHA,
 ) -> SelectionSetRanking:
     """Score a whole multi-cell selection set with BH-FDR + DSR.
 
@@ -1143,9 +1175,28 @@ def rank_selection_set_with_dsr(
         whose trials are no longer recoverable) — and then quote that
         number in the verdict memo, because it is the count every DSR in
         the set was deflated against.
+
+        Rin iter-1 MEDIUM: an override SMALLER than the store's own
+        trial count is now **clamped up** to that count rather than
+        honoured.  ``expected_max_sharpe(1) == 0.0``, so passing
+        ``n_trials_selection=1`` would collapse the DSR to a plain
+        z-test — weaker than the correction BH already applied.  The
+        override may only ever make deflation harsher.
     bars_per_year
-        Annualisation for the reported Sharpe only; it does not enter
-        the DSR p-value.
+        Annualisation factor for the REPORTED Sharpe only; it does not
+        enter the DSR p-value.  Defaults to
+        :data:`DEFAULT_BARS_PER_YEAR` (H1 on a 24h calendar).  Ignored
+        when ``bar_period_minutes`` is given.
+    bar_period_minutes
+        Bar period (e.g. ``15``, ``60``, ``240``, ``1440``) resolved to
+        the correct annualisation via
+        :func:`forex_bot.quant.oos_gate.annualization_from_bar_period`.
+        Rin iter-1 LOW: a hardcoded ``252 * 24`` is off by 4x on H4 and
+        24x on D1, which misreports every non-H1 Sharpe.
+    dsr_alpha
+        Significance level the DSR must clear for
+        :attr:`SelectionSetScore.is_discovery`.  Defaults to
+        :data:`DEFAULT_DSR_ALPHA`.
 
     Returns
     -------
@@ -1169,21 +1220,33 @@ def rank_selection_set_with_dsr(
     )
 
     # 2. Deflation denominator: total trials across the whole selection
-    #    set unless the caller overrides it with a larger honest count.
-    if n_trials_selection is None:
-        total = 0
-        for key in store.keys():  # type: ignore[attr-defined]
-            try:
-                total += int(store.trial_count(key))  # type: ignore[attr-defined]
-            except Exception:  # noqa: BLE001 — duck-typed store without trial_count
-                matrix = store.matrix(key)  # type: ignore[attr-defined]
-                if matrix is not None and matrix.ndim == 2:
-                    total += int(matrix.shape[1])
-    else:
-        total = int(n_trials_selection)
+    #    set.  An explicit override may only ever make it LARGER.
+    store_total = 0
+    for key in store.keys():  # type: ignore[attr-defined]
+        try:
+            store_total += int(store.trial_count(key))  # type: ignore[attr-defined]
+        except Exception:  # noqa: BLE001 — duck-typed store without trial_count
+            matrix = store.matrix(key)  # type: ignore[attr-defined]
+            if matrix is not None and matrix.ndim == 2:
+                store_total += int(matrix.shape[1])
+    total = (
+        store_total
+        if n_trials_selection is None
+        else max(int(n_trials_selection), store_total)
+    )
 
-    # 3. Per-candidate DSR against that denominator.
-    from forex_bot.quant.oos_gate import deflated_sharpe_ratio  # late import: scipy
+    # 2b. Annualisation factor for the REPORTED Sharpe (Rin iter-1 LOW).
+    from forex_bot.quant.oos_gate import (  # late import: scipy
+        annualization_from_bar_period,
+        deflated_sharpe_ratio,
+    )
+
+    if bars_per_year is not None:
+        resolved_bpy = int(bars_per_year)
+    elif bar_period_minutes is not None:
+        resolved_bpy = int(annualization_from_bar_period(bar_period_minutes))
+    else:
+        resolved_bpy = int(DEFAULT_BARS_PER_YEAR)
 
     cells: dict[tuple[str, str, str], list[SelectionSetScore]] = {}
     for cell_key, candidates in ranked.items():
@@ -1224,7 +1287,7 @@ def rank_selection_set_with_dsr(
                         kurtosis_regular=gamma4,
                     )
                 )
-                sr_ann = sr_bar * math.sqrt(bars_per_year)
+                sr_ann = sr_bar * math.sqrt(resolved_bpy)
             scores.append(
                 SelectionSetScore(
                     cell_key=cell_key,
@@ -1241,6 +1304,7 @@ def rank_selection_set_with_dsr(
                     observed_sr_per_bar=sr_bar,
                     observed_sr_annual=sr_ann,
                     notes=rc.notes,
+                    dsr_alpha=float(dsr_alpha),
                 )
             )
         cells[cell_key] = scores
@@ -1250,5 +1314,6 @@ def rank_selection_set_with_dsr(
         n_trials=total,
         n_cells=len(cells),
         alpha=float(alpha),
-        bars_per_year=int(bars_per_year),
+        bars_per_year=resolved_bpy,
+        dsr_alpha=float(dsr_alpha),
     )

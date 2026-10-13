@@ -16,7 +16,7 @@ DESC, strategy_id ASC) so re-runs produce identical ordering.
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import date
 from typing import TYPE_CHECKING, Iterable
 
@@ -465,13 +465,22 @@ def ranked_scorecard_from_selection_set(
                 source="selection_set_statistical_only",
                 cost_modeled=False,
             )
-        base.rank = pos
-        base.dsr_pvalue = float(score.dsr_pvalue)
-        base.fdr_qvalue = float(score.q_value)
-        base.bh_rejected = bool(score.bh_rejected)
-        base.n_trials_cell = int(score.n_trials_cell)
-        base.n_trials_selection = int(score.n_trials_selection)
-        ordered.append(base)
+        ordered.append(
+            # Rin iter-1 LOW-2: copy the caller's row rather than stamping
+            # the verdict onto it in place.  Mutating a caller-owned object
+            # means the same ScorecardRow suddenly carries a rank it never
+            # had, in every other scorecard that row is also referenced
+            # from.
+            replace(
+                base,
+                rank=pos,
+                dsr_pvalue=float(score.dsr_pvalue),
+                fdr_qvalue=float(score.q_value),
+                bh_rejected=bool(score.bh_rejected),
+                n_trials_cell=int(score.n_trials_cell),
+                n_trials_selection=int(score.n_trials_selection),
+            )
+        )
 
     payload_meta: dict = dict(meta or {})
     payload_meta["ranking"] = {
@@ -493,14 +502,22 @@ def ranking_ordering_statement(scorecard: Scorecard) -> str:
     """Return a sentence describing — or refusing — this scorecard's order.
 
     Card 82b40a95 scope item 3: the memo tooling must **refuse to present
-    a hand-rolled ordering**.  A scorecard is only allowed to describe
-    itself as ranked when :func:`ranked_scorecard_from_selection_set`
-    produced it — i.e. when ``meta["ranking"]["method"]`` is
-    :data:`RANKING_METHOD_STATISTICAL` and the rows actually carry
-    statistical verdicts.  Anything else (the standalone single-window
-    harness, a scorecard hand-built by a caller, rows all left at
-    ``rank=0``) returns :data:`NO_RANKING_STATEMENT` verbatim, so an
-    unordered set can never be rendered as a leaderboard.
+    a hand-rolled ordering**.  A scorecard may only describe itself as
+    ranked when :func:`ranked_scorecard_from_selection_set` produced it —
+    i.e. ``meta["ranking"]["method"]`` is
+    :data:`RANKING_METHOD_STATISTICAL` AND every row carries a
+    statistical verdict AND ranks are actually assigned.  The standalone
+    single-window harness, a scorecard hand-built by a caller, and rows
+    left at ``rank=0`` all return :data:`NO_RANKING_STATEMENT`.
+
+    Scope of the guarantee (Rin iter-1 MEDIUM): this is an *attestation*
+    check, not a security boundary.  It refuses an ordering that nobody
+    can substantiate — an unranked set, or one sorted by ``return_pct``
+    with ranks stamped on by hand.  It cannot defend against a caller that
+    deliberately forges the provenance dict AND stamps verdict columns on
+    its rows; an in-process caller can always do that.  The check makes
+    the unattested case fail loud and impossible to miss in a memo; it is
+    not, and is not claimed to be, tamper-proof.
     """
     ranking_meta = (scorecard.meta or {}).get("ranking")
     if not isinstance(ranking_meta, dict):

@@ -1234,13 +1234,105 @@ def test_more_trials_deflate_harder() -> None:
 
 
 def test_real_edge_deflates_better_than_noise() -> None:
-    """The injected drift must rank ahead of the pure-noise trials."""
+    """A strong injected edge must beat noise with a ROBUST margin.
+
+    Rin iter-1: the previous version of this test separated the winner
+    from the field by a float ulp (p=0.99999999999 vs 1.0), which is
+    not a margin, it is a rounding accident.  This one injects an
+    unambiguous edge (per-bar SR ~ 5) and asserts both directions: the
+    edge clears the DSR level and the noise trials do not.
+    """
+    import numpy as np
+    from forex_bot.factory.validation_runner import TrialReturnStore
+    from forex_bot.factory.risk_adjusted_ranking import rank_selection_set_with_dsr
+
+    rng = np.random.default_rng(11)
+    store = TrialReturnStore()
+    store.record(("arch", "XAUUSD", "H1"), rng.normal(0.050, 0.010, 400))
+    for _ in range(3):
+        store.record(("arch", "XAUUSD", "H1"), rng.normal(0.000, 0.010, 400))
+
+    ranking = rank_selection_set_with_dsr(store)
+    scores = {s.candidate_id: s for s in ranking.all_scores()}
+    edge = scores["trial_0"]
+    noise = [scores[f"trial_{i}"] for i in (1, 2, 3)]
+
+    assert all(edge.dsr_pvalue < n.dsr_pvalue for n in noise)
+    assert edge.dsr_pvalue < edge.dsr_alpha, (
+        "a strong real edge must be able to clear the DSR level"
+    )
+    assert all(n.dsr_pvalue > 0.5 for n in noise), "noise must not look significant"
+    assert edge.is_discovery is True
+    assert all(n.is_discovery is False for n in noise)
+
+
+def test_discovery_requires_dsr_not_just_bh() -> None:
+    """Rin iter-1 HIGH-1 regression: BH rejection alone is NOT a discovery.
+
+    The removed predicate was ``dsr_pvalue < 1.0``, which is vacuous
+    (1 - Phi(z) < 1.0 for any finite z).  It crowned a p~1.0 candidate
+    rank 1 and printed "(1 discoveries)".  A discovery must clear BOTH
+    the BH-FDR step and the DSR level.
+    """
     from forex_bot.factory.risk_adjusted_ranking import rank_selection_set_with_dsr
 
     ranking = rank_selection_set_with_dsr(_selection_set_store())
-    best = min(ranking.all_scores(), key=lambda s: s.dsr_pvalue)
-    assert best.cell_key == ("srmr_plus", "XAUUSD", "H1")
-    assert best.candidate_id == "trial_0"
+    bh_hits = [s for s in ranking.all_scores() if s.bh_rejected and not s.bh_reject]
+    assert bh_hits, "store must produce a BH rejection for this guard to bite"
+
+    for s in bh_hits:
+        assert s.is_discovery == (s.dsr_pvalue <= s.dsr_alpha)
+
+    # The exact failure Rin measured: a marginal BH winner at p~1.0.
+    marginal = [s for s in bh_hits if s.dsr_pvalue > 0.5]
+    assert marginal, "expected at least one high-p BH hit"
+    assert all(not s.is_discovery for s in marginal), (
+        "a BH-rejected candidate with no deflated edge is not a discovery"
+    )
+
+
+def test_n_trials_override_cannot_weaken_deflation() -> None:
+    """Rin iter-1 MEDIUM: an override may only make deflation harsher.
+
+    ``expected_max_sharpe(1) == 0.0``, so honouring a sub-store override
+    would collapse the DSR to a plain z-test — weaker than the
+    correction BH already applied.
+    """
+    from forex_bot.factory.risk_adjusted_ranking import rank_selection_set_with_dsr
+
+    clamped = rank_selection_set_with_dsr(_selection_set_store(), n_trials_selection=1)
+    assert clamped.n_trials == 5, "an override below the store count must be clamped up"
+
+    honoured = rank_selection_set_with_dsr(_selection_set_store(), n_trials_selection=500)
+    assert honoured.n_trials == 500, "a larger honest override must still be honoured"
+
+    # Deflating against 500 must be at least as harsh as against 5.
+    weak = min(clamped.all_scores(), key=lambda s: s.dsr_pvalue).dsr_pvalue
+    strong = min(honoured.all_scores(), key=lambda s: s.dsr_pvalue).dsr_pvalue
+    assert strong >= weak
+
+
+def test_annualization_follows_bar_period() -> None:
+    """Rin iter-1 LOW: annualisation must not be hardcoded to 252*24.
+
+    H4 and D1 Sharpe were being reported 4x and 24x too high.  The
+    annualisation affects the REPORTED Sharpe only — never the DSR.
+    """
+    from forex_bot.factory.risk_adjusted_ranking import rank_selection_set_with_dsr
+
+    h1 = rank_selection_set_with_dsr(_selection_set_store(), bar_period_minutes=60)
+    h4 = rank_selection_set_with_dsr(_selection_set_store(), bar_period_minutes=240)
+    d1 = rank_selection_set_with_dsr(_selection_set_store(), bar_period_minutes=1440)
+
+    assert h1.bars_per_year == 6048
+    assert h4.bars_per_year == 1512
+    assert d1.bars_per_year == 252
+
+    a = h1.all_scores()[0].observed_sr_annual
+    b = h4.all_scores()[0].observed_sr_annual
+    assert a > b, "annualisation must scale the reported Sharpe"
+    # It must not leak into the statistical verdict.
+    assert h1.all_scores()[0].dsr_pvalue == d1.all_scores()[0].dsr_pvalue
 
 
 def test_degenerate_candidate_gets_no_invented_sharpe() -> None:
