@@ -3,7 +3,7 @@
 > **This document supersedes all prior plan, quest, and roadmap documents.**
 > If any other doc conflicts with this one, this one wins.
 > Decision log: `docs/decisions/decision-log.md`
-> Last updated: 2026-10-13 (rev 5 — Sprint E: tournament verdict chain toward FTMO go/no-go; rev 4 strategy-factory pivot content preserved below)
+> Last updated: 2026-10-14 (rev 7 — Sprint E verdict NO-GO delivered; PRIMARY LANE pivot to strategy factory + confidence engine + research hopper per Craig; rev 5 strategy-factory pivot content preserved below)
 
 ---
 
@@ -27,32 +27,46 @@ Build and run a profitable automated forex trading bot on the **FTMO 1-Step Stan
 
 ---
 
-## Current State (2026-10-13)
+## Current State (2026-10-14, rev 7)
 
-### Sprint E — Tournament Verdict Chain (ACTIVE)
-> Goal: produce the pre-registered FTMO go/no-go verdict memo from a staged 17-strategy × 5-TF (M3/M5/M15/M30/H1) XAUUSD tournament on the frozen window 2022-01-15 → 2026-07-01.
-> Plan: `data/sprint-plans/2026-10-13-ayumi-sprint-e-phase1.json` (workspace). Cards: c0f284b8 → 82b40a95 → 37078a83.
+### Sprint E — COMPLETE: FTMO verdict NO-GO (2026-10-14)
+> Verdict memo: `docs/reports/ftmo-verdict-memo-sprint-e-2026-10-14.md` (commits 19981952 / f0ba206e / b6436ff4). Card 37078a83 done. Grid: `reports/tournament/grid_stage1_4x5.md`.
 
-| Gate | Status |
-|------|--------|
-| G0 env (node ava-worker-local, `/opt/ayumi-tournament/`) | ✅ Verified — pytz "bug" premise falsified (stale decoy copy); smoke `TOURNAMENT_OK rows=1` 2026-10-13 |
-| G1 bar coverage, all 5 TFs over frozen window | ✅ Verified — M3 521,865 / M5 215,233 / M15 104,380 / M30 52,194 / H1 17,948 bars |
-| G2 cost reconciliation (single sourced constant + cost-free-row kill) | ✅ **MERGED to main `eb08e0e7`** (Rin iter-4 APPROVE, 0 MEDIUM+) — XAUUSD 3.0 / GBPUSD 1.5 pips from Liora table; unsizable trades now `cost_modeled:false`; hostile cost_model descriptors fail loud (exit 5) |
-| G5 statistical pass (DSR/BH-FDR) | ✅ **MERGED to main `8bd76760`** — wired into tournament path; ⚠️ G4 scorecards persist aggregates only, so DSR cannot consume them yet (see G4 row + G5 blocker debt card) |
-| G3 smoke parity | ✅ Completed 2026-10-13 — canonical sha256 identical, zero-transfer proof. ⚠️ **DOWNGRADED**: both "surfaces" were the same machine (see node-exec fallback below) — evidence is same-machine-two-checkouts, not cross-machine |
-| G4 staged matrix + G6 verdict memo vs FTMO gate (10% total / 3% daily DD, ≥2 TFs, min trades) | 🅿️ **PARKED (Craig 2026-10-13)** — card 37078a83 blocked. 4 launch attempts died to session teardown; G6 pre-registration committed pre-launch (`03bdc36b`), T5=30 frozen. **Blocker:** `exec host=node` silently fell back to the gateway (xeon) all session — compute never ran on the node. Finding card 65170da3; tournament resumes only after identity-gate canary passes (Craig's explicit condition). Promotion decision recorded pre-results: NO promotion to full 17×5 this cycle (~91 core-hours measured for 20 cells) |
+- **Verdict: NO-GO.** N=12/20 staged cells (M3 finishing detached on node; cannot change the verdict). **T2 binding and absolute: 0/12 cells hold max daily DD ≤ 3.0%.** Sole T1 passer killzone_momentum M5 (+61.41%) fails T2 at 23.72% DD with 10 T3 breaches. T4 0/4 strategies. T6 UNEVALUABLE, NOT waived — ingest tool refused GO without it. NO-GO is independent of T6 (zero cells cleared T1–T5).
+- **Root cause: position sizing, not strategy quality** — 12-for-12 daily-DD failures = sized for returns, not FTMO's leash. Craig ruling 4A: fix sizing BEFORE any further tournament compute.
+- **Node routing FIXED + live-proven** (65170da3 done): root cause was `node=` being a routing no-op without `host="node"`. Standing rules: two-param exec `exec(host="node", node="ava-worker-local")` + identity probe (runbook `docs/runbooks/ava-worker-local-node.md`, workspace commit 51eac336e8c); tournament compute NEVER on xeon (Craig). Upstream fail-loud issue filed: openclaw/openclaw#172260.
+- **HIGH defect carded (7751d2e2):** `run_tournament.py` CLI path never wires cost_model — all rows `cost_modeled:false`. Costs only subtract → NO-GO robust, but no GO was ever claimable from these rows.
+- **G3 cross-machine parity: requirement DROPPED permanently** (Craig 2026-10-14) — node-only forever; the never-xeon rule supersedes equivalence checks. Do not re-open.
+- Prior gate table (G0–G6 detail) preserved in git history (rev 6, 9d139ad8).
 
-Superseded/closed: 05fa0065 (offload-runner matrix — direct node path replaces it), c38d59da (pytz env bug — false premise), 48243dbc still blocked.
+### PRIMARY LANE (Craig 2026-10-14): strategy factory + confidence engine + research hopper
+> Craig: "Our primary goal right now is the strategy factory, our confidence engine and the research hopper FOR the strategy factory. Until we get that sorted right we won't be FTMO ready."
 
-### System state (audit 2026-10-13 — YELLOW, degraded vs 09-30)
-- Forward test healthy: `ayumi-forward-test.service` up since 2026-10-12 21:56 UTC, authenticated, ticks current, FTMO guard green (+0.98%, DD 1.6%), 0 open trades.
-- Full report: `docs/audits/` (workspace `ayumi-audit-2026-10-13.md`). Open items: main push backlog, timescaledb/redis revive-or-retire (Craig decision), strategy lane silent since 10-06.
+| # | Track | Card | Status |
+|---|-------|------|--------|
+| 1 | Confidence unification — shared scoring abstraction SPEC (signal-time confidence + ML meta-confidence + PBO/CPCV validity → scorecards/ranking/verdicts) | df08ce02 | todo/high — **head of lane** |
+| 2 | R&D Hopper engine — Satsuki design v1 review + HR41 decomposition into G-batch builds (`docs/roadmaps/strategy-factory/rd-hopper-engine-design.md`) | 222fba1e | todo/high — design exists, never reviewed/built |
+| 3 | Tournament smoke tests red (fixture drift post-4825ffe7) | b44b96ba | todo — quick gate-honesty fix |
+| 4 | Audit debt batch (tournament spec refresh, health-file divergence, cpu_guard quoting hazard) | 1e5c8486 | todo |
+| — | DSR unit bugs (annualized vs unit Sharpe into DSR inputs) | d9bfaabf + 8afa0fcd | todo (tsubaki) — feeds the confidence/stats lane |
 
-### What follows Sprint E
-1. **UNBLOCK FIRST:** node-exec fallback investigation (finding 65170da3, spec `docs/reports/node-exec-fallback-investigation-spec-2026-10-13.md`) → identity-gate canary → G4 relaunch (runbook: persistent session or systemd unit, NOT bare setsid) → verdict memo.
-2. G5 DSR blocker: series persistence + ≥2-trials-per-cell granularity (`docs/reports/g5-dsr-blocker-finding-2026-10-13.md`) — build card required before any GO is possible.
-3. Craig decision points: FTMO spend (post-verdict), timescaledb/redis retirement, registry prune.
-4. Pre-existing worker daemon-kill sites (Rin LOW-3, 11 sites) → `[DEBT]` card.
+**Craig rulings locked 2026-10-14** (grilling tree fully resolved, `data/sprint-plans/ayumi-PROJECT-2026-10-14-grilling.json`):
+- **Q2 = PBO promotion gate 0.30 STRICT + tier labels**: promote <0.30 / conditional 0.30–0.50 / reject ≥0.50 (`srf/pbo.py:47` default 0.5 must not silently govern promotion).
+- **Q3 = FULL unification** of confidence + validity into scorecards — spec-first gate (df08ce02, Rin reviews spec before code).
+- **Q4 = sizing before compute** (card b921e99f, queued behind primary lane).
+- **Q5 = parity requirement dropped permanently** (node-only forever).
+- **Q6 = upstream fail-loud filed** (openclaw/openclaw#172260).
+
+### FTMO viability pass 2 (QUEUED behind primary lane — do not start early)
+1. Position sizing vs 3% daily DD (b921e99f) — volatility-scaled, design-first (BQES).
+2. Cost wiring fix (7751d2e2) — wire gate-2 cost model into the CLI path.
+3. G5 DSR series persistence (8320a1e9) — per-trial return series + archetype-level cells so T6 becomes evaluable.
+4. SINGLE staged re-run on node (two-param exec + identity probe; never xeon) → verdict memo v2.
+
+### System state (audit 2026-10-14 — YELLOW)
+- Focused audit (factory / confidence / tournament): `docs/audits/ayumi-audit-2026-10-14.md` + ledger `data/audits/ayumi-ledger.json` (workspace). Factory Sprint C verified complete; tournament concluded NO-GO same day.
+- Forward test healthy: `ayumi-forward-test.service` up since 2026-10-12 21:56 UTC, authenticated, FTMO guard green.
+- Open carried items: timescaledb/redis revive-or-retire (Craig), repo dirt in Ayumi main tree (5 entries — other lanes), workboard claim-lifecycle anomaly (4bf3d58c, riko).
 
 ---
 
