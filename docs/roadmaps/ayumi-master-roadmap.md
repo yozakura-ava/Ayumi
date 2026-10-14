@@ -44,7 +44,7 @@ Build and run a profitable automated forex trading bot on the **FTMO 1-Step Stan
 
 | # | Track | Card | Status |
 |---|-------|------|--------|
-| 1 | Confidence unification — shared scoring abstraction SPEC (signal-time confidence + ML meta-confidence + PBO/CPCV validity → scorecards/ranking/verdicts) | df08ce02 | todo/high — **head of lane** |
+| 1 | Confidence unification — shared scoring abstraction SPEC (signal-time confidence + ML meta-confidence + PBO/CPCV validity → scorecards/ranking/verdicts) | df08ce02 | ✅ DONE 2026-10-14 — v1.2, 760 lines, Rin REWORK→APPROVE (2 rounds); ranking additive-only by default (tiered = opt-in), PBO gate advisory-by-default w/ trip-wire + expiry; impl decomposed §9 I1–I7 + I4a/I4b (16 SP) ready to cut |
 | 2 | R&D Hopper engine — Satsuki design v1 review + HR41 decomposition into G-batch builds (`docs/roadmaps/strategy-factory/rd-hopper-engine-design.md`) | 222fba1e | todo/high — design exists, never reviewed/built |
 | 3 | Tournament smoke tests red (fixture drift post-4825ffe7) | b44b96ba | todo — quick gate-honesty fix |
 | 4 | Audit debt batch (tournament spec refresh, health-file divergence, cpu_guard quoting hazard) | 1e5c8486 | todo |
