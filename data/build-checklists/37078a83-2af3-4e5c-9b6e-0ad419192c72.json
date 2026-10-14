@@ -1,0 +1,70 @@
+{
+ "card_id": "37078a83-2af3-4e5c-9b6e-0ad419192c72",
+ "title": "[BUILD][AYUMI] Sprint E: staged 17x5 tournament matrix on frozen window + FTMO verdict memo (direct node path)",
+ "tier": "SH",
+ "tier_rationale": "Card is sp 3.0 and decomposes per gate (G3 parity / G4 matrix / G5 stats / G6 verdict). The build itself is an EXECUTION + INGEST task, not a novel-module task: no new library code was written. Deliverables are the grid, the verdict memo, and two defect write-ups. The only code-adjacent finding is a one-line wiring defect that is DOCUMENTED here, not fixed here (fixing it would invalidate the whole staged matrix and force a full re-run, which is out of this card's scope). Targeted tests are required because the ingest tool is exercised against real scorecards.",
+ "scope": {
+  "in_scope": [
+   "reports/tournament/grid_stage1_4x5.md (grid artifact)",
+   "docs/reports/ftmo-verdict-memo-sprint-e-2026-10-14.md (G6 verdict memo)",
+   "docs/reports/ftmo-gate-cost-wiring-defect-2026-10-14.md (defect finding)",
+   "data/tournament/equivalence/WITHDRAWN.md (withdrawal marker; dir is gitignored so this is on-disk)",
+   "data/build-checklists/37078a83-2af3-4e5c-9b6e-0ad419192c72.json (this file)"
+  ],
+  "out_of_scope": [
+   "scripts/run_tournament.py (cost_model wiring defect DOCUMENTED, deliberately NOT fixed here - a fix invalidates the entire staged matrix and forces a full re-run; belongs to a follow-on card)",
+   "src/tournament/harness.py (correct as-is; the defect is at the CLI layer)",
+   "src/tournament/scorecard.py (correct as-is)",
+   "The M3 timeframe cells (still running detached on the node; judged by scorecard files, not log tails)",
+   "The full 17x5 promotion (declined pre-launch on measured cost, NOT on results)",
+   "Gate 5 / T6 DSR series persistence (card 8320a1e9-2cd5-4645-9a30-17d53baca334)",
+   "data/tournament/sprintE/ scorecards (produced by the node run, not authored here)"
+  ]
+ },
+ "edge_cases": [
+  "STANDING RULE 1: every node exec MUST pass BOTH host=\"node\" and node=\"ava-worker-local\" - node= alone is a silent gateway fallback. Applies to every exec in this build, including verification reads.",
+  "STANDING RULE 2: identity probe BEFORE trusting any node-attributed result. Hard-fail if machine-id matches the gateway baseline. Verified: node=cca4670d1810478e8248a31b17d06745, gateway=5b247455916a4330ad41e7489c955029. The 'Node:' header must be present; its absence is the fallback signature.",
+  "STANDING RULE 5: the resume brief asserted sprintE scorecards are fallback-era artifacts produced on xeon. Evidence CONTRADICTS this: gateway has no data/tournament/sprintE/ at all, 8 live processes are node-resident, node load 8.05 on 8 cores. Verified rather than assumed. Recorded as corrected-by-evidence.",
+  "Path existence is NOT residency evidence: the gateway also has an unrelated stale /opt/ayumi-tournament/ayumi dated Oct 4 that is not a git repo. Residency must be proven from processes/load, never from directory presence.",
+  "T6 must NEVER be silently waived. The ingest tool must refuse to emit GO without T6; verified it returns NO-GO with T6_state=UNEVALUABLE rather than degrading T6 to a pass.",
+  "cost_modeled=false on every row must NOT be read as 'costs were zero'. It means costs were NEVER APPLIED. Direction of bias: costs only subtract, so cost-free returns are an UPPER BOUND - sound for NO-GO, unsound for GO.",
+  "Partial ingest is legitimate ONLY if labelled incomplete. N=12 of 20 must be stated everywhere; M3 cells are missing because processes are still running, NOT because they were skipped.",
+  "Zero-signal triage must distinguish 'cell produced no signals' from 'cell has not finished'. No cell here was zero-signal; M3 is simply unfinished.",
+  "workboard_comment body must stay under 3900 chars; split into ordinal parts rather than truncating evidence.",
+  "Claim fence: sibling card 4a207c74 held a live claim; all claim-independent work was done BEFORE attempting workboard_claim."
+ ],
+ "test_plan": [
+  "HR5 SCOPED ONLY - no full suite, ever, under any flag.",
+  "Run the committed ingest tool against the real node scorecards and confirm it exits 0 and self-reports the incompleteness: 'cells=12/20 complete=False tfs=[M5,M15,M30,H1]'.",
+  "Assert the emitted verdict is NO-GO and that T6_state is UNEVALUABLE (the tool must refuse to emit GO without T6).",
+  "Assert candidates_T4_pass == [] - no strategy clears T1-T5, which is what makes the NO-GO independent of T6.",
+  "Assert all 12 ingested rows carry cost_modeled == false, so the cost defect is captured in the evidence rather than only in prose.",
+  "Confirm the grid markdown renders all 12 cells including losers (card requires publishing losers).",
+  "No new code was written, so no new unit tests are required. The existing tournament suite is untouched and was NOT run (out of scope for a docs+ingest build)."
+ ],
+ "api_verification": [
+  "TournamentHarness.cost_model defaults to None at src/tournament/harness.py:944 - verified by direct source read.",
+  "scripts/run_tournament.py:211 constructs TournamentHarness(...) with no cost_model= argument - verified by grep; grep -c 'cost_model|COST_MODEL|spread' on that file returns 0.",
+  "harness.py:526-535 sets cost_fraction=None / cost_modeled=False for every trade when cost_model is None - verified by source read.",
+  "harness.py:868 cost_model_for(symbol) exists, reads the single sourced Liora table, and returns None for unknown symbols by design - verified by source read. Nothing in the run_tournament.py path calls it.",
+  "scorecard.py:298-299 derives row cost_modeled as bool(trades) and all(trades cost_modeled) - verified by source read.",
+  "ingest_and_verdict.py CLI surface verified by reading its argparse: --dir, --staged, --returns, --out, --grid-out."
+ ],
+ "risk": [
+  "HIGHEST: reporting a grid without disclosing cost_modeled=false would overstate results. Mitigated - the cost warning is on the grid itself, in the memo, and in a dedicated defect write-up.",
+  "HIGH: citing the sprintE scorecards without provenance would let a fallback artifact be treated as node evidence. Mitigated - residency proven from processes/load, and the contradicting premise is recorded as corrected.",
+  "HIGH: quoting a cross-machine parity claim. Mitigated - G3 is marked WITHDRAWN with a marker file, and the memo explicitly declines to claim cross-machine evidence.",
+  "MEDIUM: treating N=12 as a complete 4x5 grid. Mitigated - completeness=false and expected_cells=20 are carried in the payload and stated in memo section 4.",
+  "MEDIUM: silently waiving T6 to reach a cleaner verdict. Mitigated - T6 reported UNEVALUABLE, not waived, and the NO-GO is shown to be independent of it.",
+  "MEDIUM: the two standing rules (cross-machine parity required vs compute never on xeon) are in direct tension. This is an authority conflict, NOT resolved here - escalated to Ava rather than papered over.",
+  "LOW: orphan node processes. M3 cells intentionally continue detached; they survive session end and are judged by scorecard files, not log tails."
+ ],
+ "confidence": "high",
+ "allowed_files": [
+  "reports/tournament/grid_stage1_4x5.md",
+  "docs/reports/ftmo-verdict-memo-sprint-e-2026-10-14.md",
+  "docs/reports/ftmo-gate-cost-wiring-defect-2026-10-14.md",
+  "data/tournament/equivalence/WITHDRAWN.md",
+  "data/build-checklists/37078a83-2af3-4e5c-9b6e-0ad419192c72.json"
+ ]
+}
